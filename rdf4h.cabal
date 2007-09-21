@@ -1,0 +1,17 @@
+Name:            RDF4Haskell
+Version:         0.1
+License:         BSD3
+License-File:    LICENSE.txt
+Author:          Calvin Smith
+Maintainer:      cs-haskell@protempore.net
+Category:        Semantic Web
+Stability:       Experimental
+Build-Depends:   base, parsec, network, HTTP-Simple
+Synopsis:        A library for RDF processing in Haskell, currently limited
+                 to a parser for RDF in N-Triples format.
+Exposed-modules: NTriples
+Ghc-Options:     -O2 -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
+
+Executable:      ntriples
+Main-Is:         NTriplesMain.hs
+Hs-Source-Dirs:  .
