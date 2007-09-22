@@ -1,11 +1,12 @@
-module RDF (Graph,
+module RDF (Graph(Graph), triplesOf,
             Triple, triple,
             Node(UNode, BNode, LNode),
-            LValue(PlainL, TypedL))
+            LValue(PlainL, TypedL),
+            Selector, select, isUNode, isBNode, isLNode)
 where
 
+import Namespace
 import Text.Printf
-
 
 newtype Graph = Graph [Triple]
 
@@ -13,6 +14,8 @@ data Node =  UNode String               -- a uri ref node
            | BNode String               -- a blank node
            | LNode LValue               -- a literal node
   deriving (Eq)
+
+triplesOf (Graph ts) = ts
 
 data Triple = Triple Node Node Node
   deriving (Eq)
@@ -39,8 +42,24 @@ instance Show Triple where
     printf "%s %s %s ." (show subj) (show pred) (show obj)
 
 instance Show Node where
-  show (UNode uri) = printf "<%s>" uri
-  show (BNode  id) = show id
+  show (UNode uri)                      = printf "<%s>" uri
+  show (BNode  id)                      = show id
   show (LNode (PlainL lit Nothing))     = printf "\"%s\"" lit
   show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" lit lang
-  show (LNode (TypedL lit uri)) = printf "\"%s\"^^<%s>" lit uri
+  show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" lit uri
+
+isUNode (UNode _) = True
+isUNode _         = False
+
+isBNode (BNode _) = True
+isBNode _         = False
+
+isLNode (LNode _) = True
+isLNode _         = False
+
+-- Simplest possible selector
+type Selector = Node -> Node -> Node -> Bool
+
+select :: Selector -> Graph -> [Triple]
+select sl (Graph ts) = filter (\(Triple s p o) -> sl s p o) ts
+
