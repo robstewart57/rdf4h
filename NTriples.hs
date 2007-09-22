@@ -220,22 +220,22 @@ newtype ParseFailure = ParseFailure String
 
 -- |Parse the file at the given filepath, generating an IO action
 -- that evaluates to either ParseFailure or a list of Triple values.
-parseFile :: String -> IO (Either ParseFailure [Triple])
+parseFile :: String -> IO (Either ParseFailure Graph)
 parseFile path =
   do
     result <- parseFromFile nt_ntripleDoc path
     case result of
          (Left err)  -> return (Left (ParseFailure (show err)))
-         (Right ts)  -> return (Right (justTriples ts))
+         (Right ts)  -> return (Right (Graph (justTriples ts)))
 
 -- |Parse the N-Triples document at the given URL.
-parseURL :: String -> IO (Either ParseFailure [Triple])
+parseURL :: String -> IO (Either ParseFailure Graph)
 parseURL  url = 
   return (parseURI url) >>=  
     maybe (return (errResult $ "Unable to parse URL: " ++ url)) parseURL'
 
 -- Internal function to parse given a Network.URI.URI
-parseURL' :: URI -> IO (Either ParseFailure [Triple])
+parseURL' :: URI -> IO (Either ParseFailure Graph)
 parseURL' url =
   do 
     result <- httpGet url
@@ -245,16 +245,16 @@ parseURL' url =
 
 -- A convenience function for terminating a parse with a parse failure, using 
 -- the given error message as the message for the failure.
-errResult :: String -> Either ParseFailure [Triple]
+errResult :: String -> Either ParseFailure Graph
 errResult msg = Left (ParseFailure msg)
 
 -- |Parse the given string, generating a list of triples if able to parse 
 -- successfully or a parse failure if not.
-parseString :: String -> Either ParseFailure [Triple]
+parseString :: String -> Either ParseFailure Graph
 parseString str = 
   case res of 
     (Left err) -> Left (ParseFailure (show err))
-    (Right ts) -> Right (justTriples ts)
+    (Right ts) -> Right (Graph (justTriples ts))
   where
     res = parse nt_ntripleDoc "" str 
 
@@ -267,3 +267,8 @@ test filepath = do
     Left err -> print err
     Right xs -> mapM_ (putStrLn . show) (justTriples xs)
 
+testGraph = do
+  result <- parseFile "w3c-testcases.nt"
+  case result of 
+    (Left err) -> error (show err)
+    (Right g)  -> return g
