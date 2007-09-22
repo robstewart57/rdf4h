@@ -6,10 +6,6 @@ where
 
 import Text.Printf
 
--- |Represents the type of a graph node.
-data NodeType = UriRefType | BNodeType | LiteralNodeType
-  deriving (Eq, Ord, Show)
-
 
 newtype Graph = Graph [Triple]
 
