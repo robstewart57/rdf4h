@@ -86,7 +86,7 @@ nt_triple    =
     many nt_space
     char '.'
     many nt_space
-    return $ Just (Triple subj pred obj)
+    return $ Just (triple subj pred obj)
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the 
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
@@ -94,23 +94,23 @@ nt_empty     = do skipMany nt_space; return Nothing
 
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
-nt_subject   = do {uri <- nt_uriref; return (SubjectUriRef uri);} <|> 
-               do {nodeId <- nt_nodeID; return (SubjectBNode nodeId);}
+nt_subject   = do {uri <- nt_uriref; return (UNode uri);} <|> 
+               do {nodeId <- nt_nodeID; return (BNode nodeId);}
 
 -- A predicate may only be a URI reference to a resource.
-nt_predicate = do uri <- nt_uriref; return (PredicateUriRef uri);
+nt_predicate = do uri <- nt_uriref; return (UNode uri);
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
-nt_object = do {uri    <- nt_uriref;  return (ObjectUriRef uri) } <|> 
-            do {nodeId <- nt_nodeID;  return (ObjectBNode nodeId)} <|> 
-            do {lit    <- nt_literal; return (ObjectLiteral lit)}
+nt_object = do {uri    <- nt_uriref;  return (UNode uri) } <|> 
+            do {nodeId <- nt_nodeID;  return (BNode nodeId)} <|> 
+            do {lit    <- nt_literal; return (LNode lit)}
 
 -- A URI reference is an absolute URI inside angle brackets.
-nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return (UriRef uri)
+nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return uri
 
 -- A node id is "_:" followed by a name.
-nt_nodeID = do string "_:"; n <- nt_name; return (NodeId ('_':':':n))
+nt_nodeID = do string "_:"; n <- nt_name; return ('_':':':n)
 
 -- A literal is either a language literal (with optional language
 -- specified) or a datatype literal (with required datatype
@@ -127,9 +127,9 @@ nt_literal    =
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
     case rt of
-      Nothing              -> return (PlainLiteral str Nothing)
-      (Just (Left lng))    -> return (PlainLiteral str (Just $ Language lng))
-      (Just (Right uri))   -> return (TypedLiteral str uri)
+      Nothing              -> return (PlainL str Nothing)
+      (Just (Left lng))    -> return (PlainL str (Just lng))
+      (Just (Right uri))   -> return (TypedL str uri)
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
