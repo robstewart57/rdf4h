@@ -1,0 +1,40 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="Content-Script-Type" content="text/javascript" />
+    <title>rdf4h: RDF for Haskell</title>
+    <style>
+        h1, h2, h3, h4, h5, h6 {color:#0129ab;font-weight:bold;}
+        h3 {font-family:"DejaVu Sans",Verdana,Arial,sans-serif;}
+        p, dt, dd, li  {font-family:"DejaVu Serif",Georgia,serif;line-height:130%}
+        p { margin:0.5em 0 0.5em 0;}
+        body {margin:2em 12% 0em 12%;}
+        fieldset {margin:2em 4em 2em 4em}
+        a { padding:0.05em; text-decoration:none; outline-color:invert; outline-style:none; outline-width:medium; }
+        a:link {color:#0129ab;}
+        a:visited {color:#5e74bc;}
+        a:hover, a:active {color:#fff;background-color: #0129ab;}
+        ul {list-style-type:none;}
+        ul li {font-family:"DejaVu Sans",Verdana,Arial,sans-serif;}
+        body > div {border-bottom:1px solid blue;margin-bottom:1em;padding-bottom:1em;}
+    </style>        
+</head>
+
+<body>
+<div>
+
+    <h2>rdf4h: RDF for Haskell</h2>
+
+    <p>rdf4h is the beginnings of a library for working with RDF in Haskell. I'm making it available at this very early stage of development in order to motivate myself to not be too distracted by other projects. At present, it consists of just an N-Triples parser and some basic functions for querying an RDF graph.</p>
+
+    <p>The N-Triples parser is stable for the moment. When Parsec is byte-string able (a Google SoC project), I'll revisit the parser and convert it to use byte-strings. It does handle all the W3C testcases correctly, but I haven't tested it much otherwise (read 'at all').</p>
+
+    <p>There is a core module which contains fundamental types such as Graph, Triple, Node and friends. The graph representation is the simplest thing that would work initially, and will change very soon.</p>
+
+    <p>There is some Haddock documentation <a href="doc/Rdf4h.html">available here</a>, and you can pull the <a href='http://darcs.net/'>Darcs</a> repository from the URL of this page if you want to see the latest and greatest or send patches.</p>
+
+</div>
+</body>
+</html>
+
