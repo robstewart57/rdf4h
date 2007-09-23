@@ -13,7 +13,7 @@ Description:     rdf4h is the beginnings of a RDF library for Haskell. It
                  serialization of RDF, and some very basic query abilities.
                  It is experimental and certain to change, but I'm making it
                  publicly available while it develops in case it's of any use
-                 to others, or anybody else wants to contribute.
+                 to others, even its present humble state.
 Exposed-modules: NTriples
 Ghc-Options:     -O2 -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
 
