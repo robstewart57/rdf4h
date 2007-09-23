@@ -210,16 +210,13 @@ justTriples :: [Maybe(Triple)] -> [Triple]
 justTriples = map (maybe (error "NTriples.justTriples") id) . 
               filter (/= Nothing)
 
--- |We simplify client failure handling by not exposing the full complexity
--- of the Parsec ParseError value. Instead, we just define a simple
--- failure type with an error message, and use the Parsec-generated
--- error message (which has all the information that would be
--- programmatically accessible via the ParseError value).
+-- |Represents a failure in parsing an N-Triples document, including
+-- an error message with information about the cause for the failure.
 newtype ParseFailure = ParseFailure String
   deriving (Eq, Show)
 
--- |Parse the file at the given filepath, generating an IO action
--- that evaluates to either ParseFailure or a list of Triple values.
+-- |Parse the N-Triples document at the given filepath,
+-- generating a graph containing the parsed triples.
 parseFile :: String -> IO (Either ParseFailure Graph)
 parseFile path =
   do
@@ -228,7 +225,8 @@ parseFile path =
          (Left err)  -> return (Left (ParseFailure (show err)))
          (Right ts)  -> return (Right (Graph (justTriples ts)))
 
--- |Parse the N-Triples document at the given URL.
+-- |Parse the N-Triples document at the given URL, 
+-- generating a graph containing the parsed triples.
 parseURL :: String -> IO (Either ParseFailure Graph)
 parseURL  url = 
   return (parseURI url) >>=  
@@ -248,8 +246,8 @@ parseURL' url =
 errResult :: String -> Either ParseFailure Graph
 errResult msg = Left (ParseFailure msg)
 
--- |Parse the given string, generating a list of triples if able to parse 
--- successfully or a parse failure if not.
+-- |Parse the given string as an N-Triples document, 
+-- generating a graph containing the parsed triples.
 parseString :: String -> Either ParseFailure Graph
 parseString str = 
   case res of 

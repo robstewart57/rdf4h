@@ -13,24 +13,34 @@ import Namespace()
 import qualified Data.Set as Set
 import Text.Printf
 
+-- |An RDF graph.
 newtype Graph = Graph [Triple]
 
+-- |An RDF node, which may be either a URIRef node (UNode), a blank 
+-- node (BNode), or a literal node (LNode).
 data Node =  UNode String               -- a uri ref node
            | BNode String               -- a blank node
            | LNode LValue               -- a literal node
   deriving (Eq, Ord)
 
+-- |Extract the triples from a graph.
 triplesOf :: Graph -> [Triple]
 triplesOf (Graph ts) = ts
 
+-- |An RDF statement is a Triple consisting of Subject, Predicate,
+--  and Object nodes.
 data Triple = Triple Node Node Node
   deriving (Eq)
 
 -- TODO: check spec for equality and comparison of literals
+-- |A literal value, which may be a plain literal, optionally with
+-- a language specifier, or a typed literal consisting of the value
+-- and the URI of the datatype, respectively.
 data LValue = PlainL String (Maybe String) -- a plain literal w/ opt lang
             | TypedL String String         -- a typed literal w/ type uri
   deriving (Eq, Ord)
 
+-- |Create a triple with the given subject, predicate, and object.
 triple :: Node -> Node -> Node -> Triple
 -- subject must be U or B
 triple (LNode _) _         _    = error "subject cannot be LNode"
@@ -54,41 +64,71 @@ instance Show Node where
   show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" lit lang
   show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" lit uri
 
--- Functions for testing type of a node
-isUNode, isBNode, isLNode :: Node -> Bool
+-- Functions for testing type of a node --
+
+-- |Answer if given node is a URI Ref node.
+isUNode :: Node -> Bool
 isUNode (UNode _) = True
 isUNode _         = False
+-- |Answer if given node is a blank node.
+isBNode :: Node -> Bool
 isBNode (BNode _) = True
 isBNode _         = False
+-- |Answer if given node is a literal node.
+isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
 
--- Functions for extracting a node from a triple
-subjectOf, predicateOf, objectOf :: Triple -> Node
+-- Functions for extracting a node from a triple --
+-- |Extract the subject of a triple.
+subjectOf     ::  Triple -> Node
 subjectOf    (Triple s _ _) = s
+-- |Extract the predicate of a triple.
+predicateOf   ::  Triple -> Node
 predicateOf  (Triple _ p _) = p
+-- |Extract the object of a triple.
+objectOf      ::  Triple -> Node
 objectOf     (Triple _ _ o) = o
 
--- Eliminates duplicates from a list.
+-- |Eliminate duplicates from a list.
 distinct :: Ord a => [a] -> [a]
 distinct = Set.toList . Set.fromList
 
 -- Simplest possible selector: is passed each triple and says yay or nay
+-- |A function that returns True or False when given three nodes
+-- representing the subject, predicate, and object, respectively.
 type Selector = Node -> Node -> Node -> Bool
+
+-- |Select some triples from the graph using the given selector function.
 select :: Selector -> Graph -> [Triple]
 select sl (Graph ts) = filter (\(Triple s p o) -> sl s p o) ts
 
 -- Convenience functions for user with select.
-hasSubject, hasPredicate, hasObject :: Node -> Node -> Node -> Node -> Bool
+
+-- |Create a selector that matches triples with the given node as Subject.
+hasSubject     :: Node -> Selector
 hasSubject     u@(UNode _)  s _ _   =   u == s
 hasSubject     b@(BNode _)  s _ _   =   b == s
 hasSubject       (LNode _)  _ _ _   =   False
+-- |Create a selector that matches triples with the given node 
+-- as predicate.
+hasPredicate   :: Node -> Selector
 hasPredicate   u@(UNode _)  _ p _   =   u == p
 hasPredicate     _          _ _ _   =   False
+-- |Create a selector that matches triples with the given node as object.
+hasObject      :: Node -> Selector
 hasObject      u            _ _ o   =   u == o
 
 -- Utility functions for interactive experimentation
-printT  = putStrLn . show :: Triple -> IO ()
+-- |Utility function to print a triple to stdout.
+printT :: Triple -> IO ()
+printT  = putStrLn . show
+-- |Utility function to print a list of triples to stdout.
+printTs :: [Triple] -> IO ()
 printTs = mapM_ printT
+-- |Utility function to print a node to stdout.
+printN :: Node -> IO ()
 printN  = putStrLn . show :: Node   -> IO ()
+-- |Utility function to print a list of nodes to stdout.
+printNs :: [Node] -> IO ()
 printNs = mapM_ printN
