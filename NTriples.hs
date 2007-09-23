@@ -258,17 +258,26 @@ parseString str =
   where
     res = parse nt_ntripleDoc "" str 
 
+------------------------------------------------------------------------------
+--             prototyping and testing stuff only below this                 -
+------------------------------------------------------------------------------
+
 -- A test function, which parses a test file, defaulting to the w3c test cases
 -- if an empty path is given.
-test filepath = do
+_test filepath = do
   let path = if filepath == [] then "w3c-testcases.nt" else filepath
   result <- parseFromFile nt_ntripleDoc path
   case (result) of
     Left err -> print err
     Right xs -> mapM_ (putStrLn . show) (justTriples xs)
 
-testGraph = do
-  result <- parseFile "w3c-testcases.nt"
+
+
+_tg1 = _testGraph "w3c-testcases.nt"
+_tg2 = _testGraph "all-fawlty-towers.nt"
+
+_testGraph filename = do
+  result <- parseFile filename
   case result of 
     (Left err) -> error (show err)
     (Right g)  -> return g
