@@ -1,5 +1,6 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS,
-                 prefixOf, uriOf)
+                 prefixOf, uriOf,
+                 rdf, rdfs, dc, owl, xsd, ex, ex2)
 where
 
 -- Standard namespaces defined here for convenience:
@@ -17,8 +18,8 @@ ex2   =   makePrefixedNS  "ex2"   "http://www2.example.org/"
 data Namespace = PrefixedNS  String String -- prefix and ns uri
                | PlainNS     String        -- ns uri alone
 
-makePlainNS        ns  =  PlainNS
-makePrefixedNS pre ns  =  PrefixedNS pre ns
+makePlainNS       =  PlainNS
+makePrefixedNS    =  PrefixedNS
 
 instance Eq Namespace where
   (PrefixedNS _ u1) == (PrefixedNS _ u2)  = u1 == u2
