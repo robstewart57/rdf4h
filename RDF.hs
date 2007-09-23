@@ -8,9 +8,8 @@ module RDF (Graph(Graph), triplesOf,
             printT, printTs, printN, printNs)
 where
 
-import Namespace
+import Namespace()
 
-import Data.Set (Set)
 import qualified Data.Set as Set
 import Text.Printf
 
@@ -85,7 +84,7 @@ hasSubject     u@(UNode _)  s _ _   =   u == s
 hasSubject     b@(BNode _)  s _ _   =   b == s
 hasSubject       (LNode _)  _ _ _   =   False
 hasPredicate   u@(UNode _)  _ p _   =   u == p
-hasPrecicate     _          _ _ _   =   False
+hasPredicate     _          _ _ _   =   False
 hasObject      u            _ _ o   =   u == o
 
 -- Utility functions for interactive experimentation
