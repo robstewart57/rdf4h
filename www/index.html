@@ -1,26 +1,27 @@
-<html>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta http-equiv="Content-Script-Type" content="text/javascript" />
-    <link href='/styles/main.css' rel='stylesheet' type='text/css' />
-    <title>rdf4h: RDF for Haskell</title>
-</head>
+    <head>
+        <meta http-equiv="Content-Type" content="application/xhtml+xml;charset=utf-8" />
+        <meta http-equiv="Content-Script-Type" content="text/javascript" />
+        <link href='/styles/main.css' rel='stylesheet' type='text/css' />
 
-<body>
-<div>
+        <title>rdf4h: RDF for Haskell</title>
+    </head>
 
-    <h2>rdf4h: RDF for Haskell</h2>
+    <body>
+        <div>
 
-    <p>rdf4h is the beginnings of a library for working with RDF in Haskell. I'm making it available at this very early stage of development in order to motivate myself to not be too distracted by other projects. At present, it consists of just an N-Triples parser and some basic functions for querying an RDF graph.</p>
+            <h2>rdf4h: RDF for Haskell</h2>
 
-    <p>The N-Triples parser is stable for the moment. When Parsec is byte-string able (a Google SoC project), I'll revisit the parser and convert it to use byte-strings. It does handle all the W3C testcases correctly, but I haven't tested it much otherwise (read 'at all').</p>
+            <p>rdf4h is the beginnings of a library for working with RDF in Haskell. I'm making it available at this very early stage of development in order to motivate myself to not be too distracted by other projects. At present, it consists of just an N-Triples parser and some basic functions for querying an RDF graph.</p>
+            <p>The N-Triples parser is stable for the moment. When Parsec is byte-string able (a Google SoC project), I'll revisit the parser and convert it to use byte-strings. It does handle all the W3C testcases correctly, but I haven't tested it much otherwise (read 'at all').</p>
+            <p>There is a core module which contains fundamental types such as Graph, Triple, Node and friends. The graph representation is the simplest thing that would work initially, and will change very soon.</p>
+            <p>There is API documentation <a href="doc/">available here</a>, and you can pull the <a href='http://darcs.net/'>Darcs</a> repository from the URL of this page if you want the latest and greatest. Patches are welcome.</p>
 
-    <p>There is a core module which contains fundamental types such as Graph, Triple, Node and friends. The graph representation is the simplest thing that would work initially, and will change very soon.</p>
+        </div>
+    </body>
 
-    <p>There is API documentation <a href="doc/">available here</a>, and you can pull the <a href='http://darcs.net/'>Darcs</a> repository from the URL of this page if you want the latest and greatest. Patches are welcome.</p>
-
-</div>
-</body>
 </html>
 
