@@ -1,6 +1,6 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS,
                  prefixOf, uriOf,
-                 rdf, rdfs, dc, owl, xsd, ex, ex2)
+                 rdf, rdfs, dc, owl, xsd, skos, foaf, ex, ex2)
 where
 
 -- Standard namespaces defined here for convenience:
@@ -19,6 +19,12 @@ owl   =   makePrefixedNS  "owl"   "http://www.w3.org/2002/07/owl#"
 -- |The XML Schema namespace.
 xsd  :: Namespace
 xsd   =   makePrefixedNS  "xsd"   "http://www.w3.org/2001/XMLSchema#"
+-- |The SKOS namespace.
+skos :: Namespace
+skos  =   makePrefixedNs  "skos"  "http://www.w3.org/2004/02/skos/core#"
+-- |The friend of a friend namespace.
+foaf :: Namespace
+foaf  =   makePrefixedNs  "foaf"  "http://xmlns.com/foaf/0.1/"
 -- |Example namespace #1.
 ex   :: Namespace
 ex    =   makePrefixedNS  "ex"    "http://www.example.org/"
