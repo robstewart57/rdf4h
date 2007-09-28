@@ -217,23 +217,23 @@ newtype ParseFailure = ParseFailure String
 
 -- |Parse the N-Triples document at the given filepath,
 -- generating a graph containing the parsed triples.
-parseFile :: String -> IO (Either ParseFailure Graph)
+parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
 parseFile path =
   do
     result <- parseFromFile nt_ntripleDoc path
     case result of
          (Left err)  -> return (Left (ParseFailure (show err)))
-         (Right ts)  -> return (Right (Graph (justTriples ts)))
+         (Right ts)  -> return (Right (mkGraph (justTriples ts)))
 
 -- |Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
-parseURL :: String -> IO (Either ParseFailure Graph)
+parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL  url = 
   return (parseURI url) >>=  
     maybe (return (errResult $ "Unable to parse URL: " ++ url)) parseURL'
 
 -- Internal function to parse given a Network.URI.URI
-parseURL' :: URI -> IO (Either ParseFailure Graph)
+parseURL' :: Graph gr => URI -> IO (Either ParseFailure gr)
 parseURL' url =
   do 
     result <- httpGet url
@@ -243,16 +243,16 @@ parseURL' url =
 
 -- A convenience function for terminating a parse with a parse failure, using 
 -- the given error message as the message for the failure.
-errResult :: String -> Either ParseFailure Graph
+errResult :: Graph gr => String -> Either ParseFailure gr
 errResult msg = Left (ParseFailure msg)
 
 -- |Parse the given string as an N-Triples document, 
 -- generating a graph containing the parsed triples.
-parseString :: String -> Either ParseFailure Graph
+parseString :: Graph gr => String -> Either ParseFailure gr
 parseString str = 
   case res of 
     (Left err) -> Left (ParseFailure (show err))
-    (Right ts) -> Right (Graph (justTriples ts))
+    (Right ts) -> Right (mkGraph (justTriples ts))
   where
     res = parse nt_ntripleDoc "" str 
 
@@ -270,12 +270,11 @@ _test filepath = do
     Right xs -> mapM_ (putStrLn . show) (justTriples xs)
 
 
+--_tg1 = _testGraph "w3c-testcases.nt"
+--_tg2 = _testGraph "all-fawlty-towers.nt"
 
-_tg1 = _testGraph "w3c-testcases.nt"
-_tg2 = _testGraph "all-fawlty-towers.nt"
-
-_testGraph filename = do
-  result <- parseFile filename
-  case result of 
-    (Left err) -> error (show err)
-    (Right g)  -> return g
+-- _testGraph filename = do
+--   result <- parseFile filename
+--   case result of 
+--     (Left err) -> error (show err)
+--     (Right g)  -> return g

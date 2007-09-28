@@ -1,8 +1,7 @@
-module RDF (Graph(Graph), triplesOf,
-            Triple, triple,
+module RDF (Graph(triplesOf, select,mkGraph),Triple, triple,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
-            Selector, select, isUNode, isBNode, isLNode,
+            Selector, isUNode, isBNode, isLNode,
               hasSubject, hasPredicate, hasObject,
             subjectOf, predicateOf, objectOf, distinct,
             printT, printTs, printN, printNs)
@@ -11,10 +10,31 @@ where
 import Namespace()
 
 import qualified Data.Set as Set
+import qualified Data.Graph.Inductive.Graph as G
+import qualified Data.Graph.Inductive.Tree as GT
+import qualified Data.Graph.Inductive.Query as GQ
 import Text.Printf
 
--- |An RDF graph.
-newtype Graph = Graph [Triple]
+n1, n2 :: Int
+n1 = 1
+n2 = 2
+ln1, ln2 :: (G.Node, String)
+ln1 = (n1, "N1")
+ln2 = (n2, "N2")
+e1 :: G.Edge
+e1 = (n1, n2)
+le1 :: G.LEdge String
+le1 = (n1, n2, "E1")
+g :: GT.Gr String String
+g = G.mkGraph [ln1, ln2] [le1]
+
+--tripleToGPair :: Int -> Triple -> (Int, (G.LNode String, G.LEdge String, G.LNode String))
+--tripleToGPair = error ""
+
+class Graph gr where
+  triplesOf :: gr -> [Triple]
+  select :: Selector -> gr -> [Triple]
+  mkGraph :: [Triple] -> gr
 
 -- |An RDF node, which may be either a URIRef node (UNode), a blank 
 -- node (BNode), or a literal node (LNode).
@@ -23,9 +43,6 @@ data Node =  UNode String               -- a uri ref node
            | LNode LValue               -- a literal node
   deriving (Eq, Ord)
 
--- |Extract the triples from a graph.
-triplesOf :: Graph -> [Triple]
-triplesOf (Graph ts) = ts
 
 -- |An RDF statement is a Triple consisting of Subject, Predicate,
 --  and Object nodes.
@@ -98,10 +115,6 @@ distinct = Set.toList . Set.fromList
 -- |A function that returns True or False when given three nodes
 -- representing the subject, predicate, and object, respectively.
 type Selector = Node -> Node -> Node -> Bool
-
--- |Select some triples from the graph using the given selector function.
-select :: Selector -> Graph -> [Triple]
-select sl (Graph ts) = filter (\(Triple s p o) -> sl s p o) ts
 
 -- Convenience functions for user with select.
 
