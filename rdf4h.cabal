@@ -4,9 +4,10 @@ License:         BSD3
 License-File:    LICENSE.txt
 Author:          Calvin Smith
 Maintainer:      cs-haskell@protempore.net
+Homepage:        http://protempore.net/rdf4h/
 Category:        Semantic Web
 Stability:       Experimental
-Build-Depends:   base, parsec, network, HTTP-Simple
+Build-Depends:   base, parsec, network, HTTP-Simple, fgl
 Synopsis:        A library for RDF processing in Haskell.
 Description:     rdf4h is the beginnings of a RDF library for Haskell. It
                  presently contains a Parsec-based parser for the N-Triples
