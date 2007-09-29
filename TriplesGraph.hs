@@ -12,6 +12,7 @@ import RDF
 newtype TriplesGraph = TriplesGraph [Triple]
 
 instance Graph TriplesGraph where
+  empty                     = TriplesGraph []
   mkGraph                   = TriplesGraph
   triplesOf (TriplesGraph ts) = ts
   select sl (TriplesGraph ts) = filter (\t -> sl (s t) (p t) (o t)) ts
