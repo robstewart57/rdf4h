@@ -1,4 +1,4 @@
-module RDF (Graph(triplesOf, select,mkGraph),Triple, triple,
+module RDF (Graph(empty, mkGraph, triplesOf, select),Triple, triple,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
             Selector, isUNode, isBNode, isLNode,
@@ -12,14 +12,15 @@ import Namespace()
 import qualified Data.Set as Set
 import Text.Printf
 
-
---tripleToGPair :: Int -> Triple -> (Int, (G.LNode String, G.LEdge String, G.LNode String))
---tripleToGPair = error ""
-
 class Graph gr where
-  triplesOf :: gr -> [Triple]
-  select :: Selector -> gr -> [Triple]
+  -- |Answer an empty graph.
+  empty  :: gr
+  -- |Answer a graph containing all the given triples.
   mkGraph :: [Triple] -> gr
+  -- |Answer a list of all triples in the graph.
+  triplesOf :: gr -> [Triple]
+  -- |Select the triples in graph that match the selector.
+  select :: Selector -> gr -> [Triple]
 
 -- |An RDF node, which may be either a URIRef node (UNode), a blank 
 -- node (BNode), or a literal node (LNode).
