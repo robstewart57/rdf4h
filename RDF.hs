@@ -1,4 +1,5 @@
-module RDF (Graph(empty, mkGraph, triplesOf, select),Triple, triple,
+module RDF (Graph(empty, mkGraph, triplesOf, select, querySubj, querySubjPred),
+            Triple, triple,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
             Selector, isUNode, isBNode, isLNode,
@@ -20,7 +21,12 @@ class Graph gr where
   -- |Answer a list of all triples in the graph.
   triplesOf :: gr -> [Triple]
   -- |Select the triples in graph that match the selector.
+  -- This function is a convenience function for interactive
+  -- querying of smallish (<= 10,000 triples) graphs, as it
+  -- must check all triples in the graph.
   select :: Selector -> gr -> [Triple]
+  querySubj :: gr -> Node -> [Triple]
+  querySubjPred :: gr -> Node -> Node -> [Triple]
 
 -- |An RDF node, which may be either a URIRef node (UNode), a blank 
 -- node (BNode), or a literal node (LNode).
