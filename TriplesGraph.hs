@@ -8,12 +8,13 @@ import RDF
 newtype TriplesGraph = TriplesGraph [Triple]
 
 instance Graph TriplesGraph where
-  empty                               = TriplesGraph []
-  mkGraph                             = TriplesGraph
-  triplesOf     (TriplesGraph ts)     = ts
-  select sl     (TriplesGraph ts)     = filter (matchTriple sl) ts
-  querySubj     (TriplesGraph ts) s   = filter (match1 s) ts
-  querySubjPred (TriplesGraph ts) s p = filter (match2 s p) ts
+  empty                                 = TriplesGraph []
+  mkGraph                               = TriplesGraph
+  triplesOf     (TriplesGraph ts)       = ts
+  select sl     (TriplesGraph ts)       = filter (matchTriple sl) ts
+  querySubj     (TriplesGraph ts) s     = filter (match1 s) ts
+  querySubjPred (TriplesGraph ts) s p   = filter (match2 s p) ts
+  query         (TriplesGraph ts) s p o = filter (match3 s p o) ts
 
 s, p, o :: Triple -> Node
 s = subjectOf
@@ -25,6 +26,9 @@ match1 subj t      = subj == s t
 
 match2 :: Node -> Node -> Triple -> Bool
 match2 subj pred t = subj == s t && pred == p t
+
+match3 :: Node -> Node -> Node -> Triple -> Bool
+match3 subj pred obj t = subj == s t && pred == p t && obj == o t
 
 matchTriple :: Selector -> Triple -> Bool
 matchTriple sl t = sl s p o
