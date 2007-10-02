@@ -32,6 +32,7 @@ instance Graph AvlGraph where
   select         = select'
   querySubj      = querySubj'
   querySubjPred  = querySubjPred'
+  query          = query'
  
 empty' :: AvlGraph
 empty' = AvlGraph Map.empty
@@ -131,3 +132,13 @@ querySubjPred' (AvlGraph spoMap) subj pred = map convert adjacencies
   where
     adjacencies = Set.toList (adjsForSubjPred subj pred spoMap)
     convert     = triple subj pred
+
+query' :: AvlGraph -> Subject -> Predicate -> Object -> [Triple]
+query' (AvlGraph spoMap) subj pred obj = 
+  if obj `elem` adjacencies
+     then [triple subj pred obj]
+     else []
+  where
+    adjacencies = Set.toList (adjsForSubjPred subj pred spoMap)
+    convert     = triple subj pred
+    
