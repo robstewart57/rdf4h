@@ -13,6 +13,9 @@ rdfs  =   makePrefixedNS  "rdfs"  "http://www.w3.org/2000/01/rdf-schema#"
 -- |The Dublic Core namespace.
 dc   :: Namespace
 dc    =   makePrefixedNS  "dc"    "http://purl.org/dc/elements/1.1/"
+-- |The Dublin Core terms namespace.
+dct  :: Namespace
+dct   =   makePrefixedNS  "dct"    "http://purl.org/dc/terms/"
 -- |The OWL namespace.
 owl  :: Namespace
 owl   =   makePrefixedNS  "owl"   "http://www.w3.org/2002/07/owl#"
