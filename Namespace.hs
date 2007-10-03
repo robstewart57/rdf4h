@@ -1,4 +1,5 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS,
+                 makeUri,
                  prefixOf, uriOf,
                  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
 where
@@ -35,6 +36,10 @@ ex    =   makePrefixedNS  "ex"    "http://www.example.org/"
 ex2  :: Namespace
 ex2   =   makePrefixedNS  "ex2"   "http://www2.example.org/"
 
+-- |Make a URI consisting of the given namespace and the given localname.
+makeUri :: Namespace -> String -> String
+makeUri ns local = uriOf ns ++ local
+
 -- |Represents a namespace as either a prefix and uri, respectively,
 --  or just a uri.
 data Namespace = PrefixedNS  String String -- prefix and ns uri
@@ -43,6 +48,7 @@ data Namespace = PrefixedNS  String String -- prefix and ns uri
 -- |Make a namespace for the given URI reference.
 makePlainNS     ::  String -> Namespace
 makePlainNS       =  PlainNS
+
 -- |Make a namespace having the given prefix for the given URI reference,
 -- respectively.
 makePrefixedNS  :: String -> String -> Namespace
