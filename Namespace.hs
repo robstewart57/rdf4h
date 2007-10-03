@@ -1,6 +1,6 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS,
                  prefixOf, uriOf,
-                 rdf, rdfs, dc, owl, xsd, skos, foaf, ex, ex2)
+                 rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
 where
 
 -- Standard namespaces defined here for convenience:
