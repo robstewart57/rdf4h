@@ -17,45 +17,26 @@ import Data.List
 type AdjacencyMap = Map Predicate Adjacencies
 
 type Adjacencies = Set Object
-type Subject   = Node
-type Predicate = Node
-type Object    = Node
 type SPOMap    = Map Subject AdjacencyMap
 
 -- |An AVL map-based graph implementation.
 data AvlGraph = AvlGraph SPOMap
 
 instance Graph AvlGraph where
-  empty          = empty'
-  mkGraph        = mkGraph'
+  empty          = AvlGraph Map.empty
+  mkGraph ts     = AvlGraph (mergeTs Map.empty ts)
   triplesOf      = triplesOf'
   select         = select'
-  querySubj      = querySubj'
-  querySubjPred  = querySubjPred'
   query          = query'
- 
-empty' :: AvlGraph
-empty' = AvlGraph Map.empty
 
-mkGraph' :: [Triple] -> AvlGraph
-mkGraph' ts = AvlGraph (addTriples Map.empty ts)
-
-addTriples :: SPOMap -> [Triple] -> SPOMap
-addTriples = foldl' addTriple
+mergeTs :: SPOMap -> [Triple] -> SPOMap
+mergeTs = foldl' mergeT
   where
-    addTriple :: SPOMap -> Triple -> SPOMap
-    addTriple m t = mergeSPO m (subjectOf t) (predicateOf t) (objectOf t)
+    mergeT :: SPOMap -> Triple -> SPOMap
+    mergeT m t = mergeT' m (subjectOf t) (predicateOf t) (objectOf t)
 
-mergeObject :: AdjacencyMap -> Predicate -> Object -> AdjacencyMap
-mergeObject m p o = 
-  case p `Map.member` m of
-    False -> Map.insert p (Set.singleton o) m
-    True  -> Map.insert p (Set.insert o (get p m)) m
-
-mergeSPO :: SPOMap ->
-            Subject -> Predicate -> Object -> 
-            SPOMap
-mergeSPO m s p o = 
+mergeT' :: SPOMap -> Subject -> Predicate -> Object -> SPOMap
+mergeT' m s p o = 
   case s `Map.member` m of
     False -> Map.insert s (newPredMap p o) m
     True  -> case p `Map.member` adjs of
@@ -71,13 +52,11 @@ mergeSPO m s p o =
     addPredObj :: Predicate -> Object -> Map Predicate (Set Object) ->
                     Map Predicate (Set Object)
     addPredObj p o = Map.insert p (Set.insert o (get p adjs))
-    
-    
- -- |Get map value for key, failing if there is no such key in map.
-get :: Ord k => k -> Map k v -> v
-get = Map.findWithDefault undefined
+    get :: Ord k => k -> Map k v -> v
+    get = Map.findWithDefault undefined
     
 
+-- 3 following functions support triplesOf
 triplesOf' :: AvlGraph -> [Triple]
 triplesOf' (AvlGraph spoMap) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = Map.toList spoMap
@@ -89,56 +68,38 @@ tripsSubj s adjMap = concatMap (uncurry (tfsp s)) (Map.toList adjMap)
 tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> [Triple]
 tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
+-- supports select
 select' :: Selector -> AvlGraph -> [Triple]
 select' sltr gr@(AvlGraph spoMap) = filter (match sltr) ts
   where match sltr t = sltr (subjectOf t) (predicateOf t) (objectOf t)
         ts = triplesOf' gr
 
-adjsForSubjPred :: Subject -> Predicate -> SPOMap -> Adjacencies
-adjsForSubjPred subj pred spoMap = 
-  let adjMaps = adjMapsForSubj subj spoMap
-      adjSets = map (adjsForPred pred) adjMaps
-  in foldl' Set.union Set.empty adjSets
+-- support query
+query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> [Triple]
+query' (AvlGraph spoMap) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
+  where f (s, p, o) = triple s p o
+{-
+subj1 -> pred1 -> obj1, obj2, obj3
+         pred2 -> obj1, obj4
+subj2 -> pred1 -> obj3, obj5
+         pred3 -> obj6, obj7
 
-adjMapsForSubj :: Subject -> SPOMap -> [AdjacencyMap]
-adjMapsForSubj subj = map snd . filter' . Map.toList
-  where filter' = filter ((==) subj . fst)
+-}
 
-adjsForPred :: Predicate -> AdjacencyMap -> Adjacencies
-adjsForPred = Map.findWithDefault Set.empty
+q1 :: Maybe Node -> Maybe Node -> Maybe Node -> SPOMap -> Set (Node, Node, Node)
+q1 (Just s) p o spoMap = q2 p o (s, Map.findWithDefault Map.empty s spoMap)
+q1 Nothing  p o spoMap = Set.unions $ map (q2 p o) $ Map.toList spoMap
 
-querySubj' :: AvlGraph -> Subject -> [Triple]
-querySubj' (AvlGraph spoMap) subj = makeTriples subj predAssocList
-  where 
-    predMaps :: [Map Predicate Adjacencies]
-    predMaps = adjMapsForSubj subj spoMap
-    predAssocList :: [(Predicate, Adjacencies)]
-    predAssocList = concatAssocList predMaps
-  
-makeTriples :: Subject -> [(Predicate, Adjacencies)] -> [Triple]
-makeTriples s = concatMap (\(p, adjs) -> makeTriples' s p (Set.toList adjs))
-  where
-    makeTriples' :: Subject -> Predicate -> [Object] -> [Triple]
-    makeTriples' s p objs = map (\o -> triple s p o) objs
-
-concatAssocList :: [Map Predicate Adjacencies] -> [(Predicate, Adjacencies)]
-concatAssocList = concatMap Map.toList
-
-mapSubjPred :: Subject -> Predicate -> Adjacencies -> [Triple]
-mapSubjPred s p adjs = map (triple s p) (Set.toList adjs)
-
-querySubjPred' :: AvlGraph -> Subject -> Predicate -> [Triple]
-querySubjPred' (AvlGraph spoMap) subj pred = map convert adjacencies
-  where
-    adjacencies = Set.toList (adjsForSubjPred subj pred spoMap)
-    convert     = triple subj pred
-
-query' :: AvlGraph -> Subject -> Predicate -> Object -> [Triple]
-query' (AvlGraph spoMap) subj pred obj = 
-  if obj `elem` adjacencies
-     then [triple subj pred obj]
-     else []
-  where
-    adjacencies = Set.toList (adjsForSubjPred subj pred spoMap)
-    convert     = triple subj pred
-    
+q2 :: Maybe Node -> Maybe Node -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
+q2 (Just p) o (s, pmap) = 
+  case p `Map.member` pmap of
+    False  -> Set.empty
+    True   -> Set.map (\(p', o') -> (s, p', o')) $ 
+                q3 o (p, Map.findWithDefault undefined p pmap)
+q2 Nothing o (s, pmap) = Set.map (\(x,y) -> (s,x,y)) $ Set.unions $ map (q3 o) opmaps
+  where opmaps ::[(Node, Set Node)]
+        opmaps = Map.toList pmap
+        
+q3 :: Maybe Node -> (Node, Set Node) -> Set (Node, Node)
+q3 (Just o) (p, os) = if o `Set.member` os then Set.singleton (p, o) else Set.empty
+q3 Nothing  (p, os) = Set.map (\o -> (p, o)) os
