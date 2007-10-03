@@ -83,6 +83,11 @@ instance Show Node where
   show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" lit lang
   show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" lit uri
 
+instance Show LValue where
+  show (PlainL lit Nothing)     = printf "\"%s\"" lit
+  show (PlainL lit (Just lang)) = printf "\"%s\"@%s" lit lang
+  show (TypedL lit dtype)       = printf "\"%s\"^^%s" lit dtype
+
 -- Functions for testing type of a node --
 
 -- |Answer if given node is a URI Ref node.
