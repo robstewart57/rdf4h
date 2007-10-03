@@ -11,25 +11,20 @@ instance Graph TriplesGraph where
   empty                                 = TriplesGraph []
   mkGraph                               = TriplesGraph
   triplesOf     (TriplesGraph ts)       = ts
-  select sl     (TriplesGraph ts)       = filter (matchTriple sl) ts
-  querySubj     (TriplesGraph ts) s     = filter (match1 s) ts
-  querySubjPred (TriplesGraph ts) s p   = filter (match2 s p) ts
-  query         (TriplesGraph ts) s p o = filter (match3 s p o) ts
+  select sl     (TriplesGraph ts)       = filter (matchSelector sl) ts
+  query         (TriplesGraph ts) s p o = filter (matchPattern s p o) ts
 
-s, p, o :: Triple -> Node
-s = subjectOf
-p = predicateOf
-o = objectOf
+matchSelector :: Selector -> Triple -> Bool
+matchSelector sl t = sl (subjectOf t) (predicateOf t) (objectOf t)
 
-match1 :: Node -> Triple -> Bool
-match1 subj t      = subj == s t
+matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object 
+                              -> Triple -> Bool
+matchPattern s p o t = smatch t && pmatch t && omatch t
+  where
+    smatch t = matchNode s (subjectOf t)
+    pmatch t = matchNode p (predicateOf t)
+    omatch t = matchNode o (objectOf t)
 
-match2 :: Node -> Node -> Triple -> Bool
-match2 subj pred t = subj == s t && pred == p t
-
-match3 :: Node -> Node -> Node -> Triple -> Bool
-match3 subj pred obj t = subj == s t && pred == p t && obj == o t
-
-matchTriple :: Selector -> Triple -> Bool
-matchTriple sl t = sl s p o
-  where (s, p, o) = (subjectOf t, predicateOf t, objectOf t)
+matchNode :: Maybe Node -> Node -> Bool
+matchNode Nothing   _  = True
+matchNode (Just n1) n2 = n1 == n2
