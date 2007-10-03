@@ -1,11 +1,11 @@
-module RDF (Graph(empty, mkGraph, triplesOf, select, querySubj, querySubjPred, 
-            query),
+module RDF (Graph(empty, mkGraph, triplesOf, select, query),
             Triple, triple,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
             Selector, isUNode, isBNode, isLNode,
               hasSubject, hasPredicate, hasObject,
             subjectOf, predicateOf, objectOf, distinct,
+            Subject, Predicate, Object,
             printT, printTs, printN, printNs)
 where
 
@@ -13,6 +13,15 @@ import Namespace()
 
 import qualified Data.Set as Set
 import Text.Printf
+
+-- |An alias for Node, for readability purposes.
+type Subject = Node
+
+-- |An alias for Node, for readability purposes.
+type Predicate = Node
+
+-- |An alias for Node, for readability purposes.
+type Object = Node
 
 
 class Graph gr where
@@ -27,9 +36,7 @@ class Graph gr where
   -- querying of smallish (<= 10,000 triples) graphs, as it
   -- must check all triples in the graph.
   select        :: Selector -> gr -> [Triple]
-  querySubj     :: gr -> Node -> [Triple]
-  querySubjPred :: gr -> Node -> Node -> [Triple]
-  query         :: gr -> Node -> Node -> Node -> [Triple]
+  query         :: gr -> Maybe Node -> Maybe Node -> Maybe Node -> [Triple]
 
 -- |An RDF node, which may be either a URIRef node (UNode), a blank 
 -- node (BNode), or a literal node (LNode).
@@ -41,7 +48,7 @@ data Node =  UNode String               -- a uri ref node
 
 -- |An RDF statement is a Triple consisting of Subject, Predicate,
 --  and Object nodes.
-data Triple = Triple Node Node Node
+data Triple = Triple Subject Predicate Object
   deriving (Eq)
 
 -- TODO: check spec for equality and comparison of literals
@@ -53,7 +60,7 @@ data LValue = PlainL String (Maybe String) -- a plain literal w/ opt lang
   deriving (Eq, Ord)
 
 -- |Create a triple with the given subject, predicate, and object.
-triple :: Node -> Node -> Node -> Triple
+triple :: Subject -> Predicate -> Object -> Triple
 -- subject must be U or B
 triple (LNode _) _         _    = error "subject cannot be LNode"
 -- predicate must be U
@@ -93,13 +100,13 @@ isLNode _         = False
 
 -- Functions for extracting a node from a triple --
 -- |Extract the subject of a triple.
-subjectOf     ::  Triple -> Node
+subjectOf     ::  Triple -> Subject
 subjectOf    (Triple s _ _) = s
 -- |Extract the predicate of a triple.
-predicateOf   ::  Triple -> Node
+predicateOf   ::  Triple -> Predicate
 predicateOf  (Triple _ p _) = p
 -- |Extract the object of a triple.
-objectOf      ::  Triple -> Node
+objectOf      ::  Triple -> Object
 objectOf     (Triple _ _ o) = o
 
 -- |Eliminate duplicates from a list.
@@ -109,7 +116,7 @@ distinct = Set.toList . Set.fromList
 -- Simplest possible selector: is passed each triple and says yay or nay
 -- |A function that returns True or False when given three nodes
 -- representing the subject, predicate, and object, respectively.
-type Selector = Node -> Node -> Node -> Bool
+type Selector = Subject -> Predicate -> Object -> Bool
 
 -- Convenience functions for user with select.
 
