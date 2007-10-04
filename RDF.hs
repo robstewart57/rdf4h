@@ -4,65 +4,100 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query),
             LValue(PlainL, TypedL),
             Selector, isUNode, isBNode, isLNode,
               hasSubject, hasPredicate, hasObject,
-            subjectOf, predicateOf, objectOf, distinct,
+            subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             printT, printTs, printN, printNs)
 where
 
 import Namespace()
 
-import qualified Data.Set as Set
 import Text.Printf
 
--- |An alias for Node, for readability purposes.
+-- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
 
--- |An alias for Node, for readability purposes.
+-- |An alias for 'Node', defined for convenience and readability purposes.
 type Predicate = Node
 
--- |An alias for Node, for readability purposes.
+-- |An alias for 'Node', defined for convenience and readability purposes.
 type Object = Node
 
-
+-- |An RDF graph is a set of (unique) RDF triples, together with the 
+-- operations defined upon the graph.
+-- 
+-- For information about the efficiency of the functions, see the
+-- documentation for the particular graph instance.
+-- 
+-- For more information about the concept of an RDF graph, see
+-- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class Graph gr where
   -- |Answer an empty graph.
   empty  :: gr
-  -- |Answer a graph containing all the given triples.
-  mkGraph :: [Triple] -> gr
+  -- |Answer a graph containing all the given triples. Duplicate triples
+  -- are permitted in the input, but the resultant graph will contains only 
+  -- unique triples.
+  mkGraph :: Triples -> gr
   -- |Answer a list of all triples in the graph.
-  triplesOf :: gr -> [Triple]
-  -- |Select the triples in graph that match the selector.
-  -- This function is a convenience function for interactive
-  -- querying of smallish (<= 10,000 triples) graphs, as it
-  -- must check all triples in the graph.
-  select        :: Selector -> gr -> [Triple]
-  query         :: gr -> Maybe Node -> Maybe Node -> Maybe Node -> [Triple]
+  triplesOf :: gr -> Triples
+  -- |Answer the triples in the graph that match the selector.
+  -- 
+  -- Note: this function may be very slow; see the documentation for the 
+  -- particular graph implementation for more information.
+  select        :: Selector -> gr -> Triples
+  -- |Answer the triples in the graph that match the given pattern, where
+  -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
+  -- 
+  -- The @Maybe Node@ params are interpreted as the subject, predicate, and
+  -- object of a triple, respectively. @Just n@ is true iff the triple has
+  -- a node equal to @n@ in the appropriate location; @Nothing@ is always
+  -- true, regardless of the node in the appropriate location.
+  -- 
+  -- For example, @ query gr (Just n1) Nothing (Just n2) @ would return all
+  -- and only the triples that have @n1@ as subject and @n2@ as object, 
+  -- regardless of the predicate of the triple.
+  query         :: gr -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
 
--- |An RDF node, which may be either a URIRef node (UNode), a blank 
--- node (BNode), or a literal node (LNode).
-data Node =  UNode String               -- a uri ref node
-           | BNode String               -- a blank node
-           | LNode LValue               -- a literal node
+-- |An RDF node, which may be either a URIRef node ('UNode'), a blank 
+-- node ('BNode'), or a literal node ('LNode').
+data Node =  
+  -- |An RDF URI reference. See
+  -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
+  -- information.
+  UNode String 
+  -- |An RDF blank node. See
+  -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
+  -- information.
+  | BNode String
+  -- |An RDF literal. See
+  -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
+  -- information.
+  | LNode LValue
   deriving (Eq, Ord)
 
 
--- |An RDF statement is a Triple consisting of Subject, Predicate,
---  and Object nodes.
+-- |An RDF triple is a statement consisting of a subject, predicate,
+-- and object, respectively.
+--
+-- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for 
+-- more information.
 data Triple = Triple Subject Predicate Object
   deriving (Eq, Ord)
 
--- |A convenience definition for a list of triple.
+-- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
 
 -- TODO: check spec for equality and comparison of literals
--- |A literal value, which may be a plain literal, optionally with
--- a language specifier, or a typed literal consisting of the value
--- and the URI of the datatype, respectively.
-data LValue = PlainL String (Maybe String) -- a plain literal w/ opt lang
-            | TypedL String String         -- a typed literal w/ type uri
+-- |The actual value of an RDF literal, represented as the 'LValue'
+-- parameter of an 'LNode'.
+data LValue = 
+  -- |A plain literal value, with an optional language specifier.
+  PlainL String (Maybe String)
+  -- |A typed literal value consisting of the literal value and
+  -- the URI of the datatype of the value, respectively.
+  | TypedL String String
   deriving (Eq, Ord)
 
--- |Create a triple with the given subject, predicate, and object.
+-- |Create a 'Triple' with the given subject, predicate, and object.
 triple :: Subject -> Predicate -> Object -> Triple
 -- subject must be U or B
 triple (LNode _) _         _    = error "subject cannot be LNode"
@@ -117,13 +152,19 @@ predicateOf  (Triple _ p _) = p
 objectOf      ::  Triple -> Object
 objectOf     (Triple _ _ o) = o
 
--- |Eliminate duplicates from a list.
-distinct :: Ord a => [a] -> [a]
-distinct = Set.toList . Set.fromList
-
--- Simplest possible selector: is passed each triple and says yay or nay
--- |A function that returns True or False when given three nodes
--- representing the subject, predicate, and object, respectively.
+-- |A 'Selector' is a function that returns 'True' or 'False' for a
+-- given subject, predicate, and object node.
+--
+-- A selector is used to represent that a triple does or does not
+-- match some desired pattern.
+--
+-- For example, the following selector represents triples that
+-- have a blank node as subject:
+-- 
+-- @
+-- f           :: Node -> Node -> Node -> Bool
+-- f subj _ _  =  isBNode subj
+-- @
 type Selector = Subject -> Predicate -> Object -> Bool
 
 -- Convenience functions for user with select.
