@@ -9,12 +9,15 @@ Category:        Semantic Web
 Stability:       Experimental
 Build-Depends:   base, parsec, network, HTTP-Simple, fgl, collections
 Synopsis:        A library for RDF processing in Haskell.
-Description:     rdf4h is the beginnings of a RDF library for Haskell. It
-                 presently contains a Parsec-based parser for the N-Triples
-                 serialization of RDF, and some very basic query abilities.
-                 It is experimental and certain to change, but I'm making it
-                 publicly available while it develops in case it's of any use
-                 to others, even its present humble state.
+Description:     
+    rdf4h is the beginnings of a RDF library for Haskell. It
+    presently contains a Parsec-based parser for the N-Triples
+    serialization of RDF, a couple of graph implementations,
+    and some basic query abilities.
+    .
+    It is experimental and certain to change, but I'm making it
+    publicly available while it develops in case it's of any use
+    to others, even its present humble state.
 Exposed-modules: RDF, Namespace, AvlGraph, TriplesGraph, NTriplesParser
 Ghc-Options:     -O2 -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
 
