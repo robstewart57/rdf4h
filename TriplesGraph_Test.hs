@@ -2,31 +2,56 @@ import RDF
 import TriplesGraph
 import Namespace
 
+import GraphTestUtils
+
 import Data.Char
 import Data.List
+import Data.Set.AVL(fromList, toList)
 import Control.Monad
+import System.Random
 import Test.QuickCheck
 
-languages = [Nothing, Just "fr", Just "en"]
-datatypes = [makeUri xsd "string", makeUri xsd "int", makeUri xsd "token"]
-uris = map (makeUri ex) ["foo", "bar", "quz", "zak"]
-plainliterals = [PlainL lit lang | lit <- litvalues, lang <- languages]
-typedliterals = [TypedL lit dtype | lit <- litvalues, dtype <- datatypes]
-litvalues = ["hello", "world", "peace", "earth", "", "haskell"]
+-- Utility methods unique to triples graph
 
-unodes = map UNode uris
-bnodes = map (\s -> BNode $ ":_anon" ++ show s) [1..5]
-lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
+instance Arbitrary TriplesGraph where
+  arbitrary = liftM mkGraph arbitraryTs
+  coarbitrary = undefined
 
-test_triples :: [Triple]
-test_triples = [triple subj pred obj | subj <- unodes ++ bnodes, 
-                                       pred <- unodes,
-                                       obj <- unodes ++ bnodes ++ lnodes]
+instance Show TriplesGraph where
+  --show gr = "Graph(n=" ++ show (length $ triplesOf gr) ++ ")"
+  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 
-instance Arbitrary Triple where
-  arbitrary = oneof $ map return test_triples
+graph :: Triples -> TriplesGraph
+graph = mkGraph
 
+_empty :: TriplesGraph
+_empty = empty
 
-prop_mkGraph :: [Triple] -> Bool
-prop_mkGraph ts = triplesOf (mkGraph ts :: TriplesGraph) == ts
+_mkGraph :: Triples -> TriplesGraph
+_mkGraph = mkGraph
 
+_triplesOf :: TriplesGraph -> Triples
+_triplesOf = triplesOf
+
+-- The generic tests that apply to all graph implementations  --
+
+prop_empty :: Bool
+prop_empty = p_empty _triplesOf _empty
+
+prop_mkGraph_triplesOf :: Triples -> Bool
+prop_mkGraph_triplesOf = p_mkGraph_triplesOf _triplesOf _mkGraph
+
+prop_mkGraph_no_dupes :: Triples -> Bool
+prop_mkGraph_no_dupes = p_mkGraph_no_dupes _triplesOf _mkGraph
+
+prop_query_all_wildcard :: Triples -> Bool
+prop_query_all_wildcard = p_query_all_wildcard _mkGraph
+
+prop_query_matched_no_wildcards :: TriplesGraph -> Property
+prop_query_matched_no_wildcards = p_query_matched_no_wildcards _triplesOf
+
+prop_query_unmatched_no_wildcards :: TriplesGraph -> Triple -> Property
+prop_query_unmatched_no_wildcards = p_query_unmatched_no_wildcards _triplesOf
+
+prop_query_matched_po_wildcards :: TriplesGraph -> Property
+prop_query_matched_po_wildcards = p_query_matched_po_wildcards _triplesOf
