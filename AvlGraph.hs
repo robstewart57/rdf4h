@@ -1,4 +1,6 @@
-module AvlGraph(AvlGraph)
+-- |"AvlGraph" contains a graph implementation backed by a 'Data.Map.AVL'.
+module AvlGraph(AvlGraph,
+                empty, mkGraph, triplesOf, select, query)
 
 where
 
@@ -12,15 +14,21 @@ import qualified Data.Set.AVL as Set
 
 import Data.List
 
--- |The adjacencies of a node is a map of predicate nodes
--- to adjacent nodes via that predicate.
-type AdjacencyMap = Map Predicate Adjacencies
-
-type Adjacencies = Set Object
-type SPOMap    = Map Subject AdjacencyMap
-
 -- |An AVL map-based graph implementation.
-data AvlGraph = AvlGraph SPOMap
+--
+-- The time complexity of the functions of an 'AvlGraph', relative
+-- to the number of triples unless otherwise specified, are:
+--
+--  * 'empty'    : O(1)
+--
+--  * 'mkGraph'  : O(n)
+--
+--  * 'triplesOf': O(n)
+--
+--  * 'select'   : ?
+--
+--  * 'query'    : O(log n)
+newtype AvlGraph = AvlGraph SPOMap
 
 instance Graph AvlGraph where
   empty          = AvlGraph Map.empty
@@ -28,6 +36,14 @@ instance Graph AvlGraph where
   triplesOf      = triplesOf'
   select         = select'
   query          = query'
+
+-- The adjacencies of a node is a map of predicate nodes
+-- to adjacent nodes via that predicate.
+type AdjacencyMap = Map Predicate Adjacencies
+
+type Adjacencies = Set Object
+type SPOMap    = Map Subject AdjacencyMap
+
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT
@@ -70,7 +86,7 @@ tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: Selector -> AvlGraph -> [Triple]
-select' sltr gr@(AvlGraph spoMap) = filter (match sltr) ts
+select' sltr gr = filter (match sltr) ts
   where match sltr t = sltr (subjectOf t) (predicateOf t) (objectOf t)
         ts = triplesOf' gr
 
@@ -83,7 +99,6 @@ subj1 -> pred1 -> obj1, obj2, obj3
          pred2 -> obj1, obj4
 subj2 -> pred1 -> obj3, obj5
          pred3 -> obj6, obj7
-
 -}
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> SPOMap -> Set (Node, Node, Node)
