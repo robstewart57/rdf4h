@@ -19,25 +19,24 @@ p_empty :: Graph g => (g -> Triples) -> g -> Bool
 p_empty _triplesOf _empty = _triplesOf _empty == []
 
 
--- triplesOf any graph should return triples used to create it
+-- triplesOf any graph should return unique triples used to create it
 p_mkGraph_triplesOf :: Graph g => (g -> Triples) -> (Triples -> g) -> Triples -> Bool
 p_mkGraph_triplesOf _triplesOf _mkGraph ts = 
-  ordered (_triplesOf (_mkGraph ts)) == ordered (S.toList $ S.fromList ts)
+  ordered (_triplesOf (_mkGraph ts)) == uordered ts
 
 -- duplicate input triples should not be returned
 p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> g) -> Triples -> Bool
 p_mkGraph_no_dupes _triplesOf _mkGraph ts = 
   case null ts of
     True  -> True
-    False -> ordered result == ordered uniqueInput
+    False -> ordered result == uordered ts
   where 
     tsWithDupe = head ts : ts
-    uniqueInput = sort $ S.toList $ S.fromList ts
     result = _triplesOf $ _mkGraph tsWithDupe
 
 -- query with all 3 wildcards should yield all triples in graph
 p_query_all_wildcard :: Graph g => (Triples -> g) -> Triples -> Bool
-p_query_all_wildcard  _mkGraph ts = ordered ts == ordered result
+p_query_all_wildcard  _mkGraph ts = uordered ts == ordered result
   where 
     result = query (_mkGraph ts) Nothing Nothing Nothing
 
@@ -68,17 +67,23 @@ p_query_matched_po_wildcards :: Graph g => (g -> Triples) -> g -> Property
 p_query_matched_po_wildcards _triplesOf gr =
   forAll (tripleFromGen _triplesOf gr) f
   where
-    subj = Just (subjectOf $ head all_ts)
+    f :: Maybe Triple -> Bool
     f Nothing   = True
-    f (Just t') = all (\x -> subj == Just (subjectOf x)) results &&
-                    all (\x -> not (subj == Just (subjectOf x))) notResults
-    all_ts        = _triplesOf gr
-    all_ts_sorted = ordered all_ts
-    results = ordered $ query gr subj Nothing Nothing
-    notResults = ldiff all_ts_sorted results
-
+    f (Just t)  =
+      let 
+        all_ts = _triplesOf gr
+        all_ts_sorted = ordered all_ts
+        results = ordered (query gr (Just $ subjectOf t) Nothing Nothing)
+        notResults = ldiff all_ts_sorted results        
+      in
+        all (sameSubj t) results &&
+        all (not . sameSubj t) notResults
 
 -- Utility functions and test data ... --
+
+debug :: String -> Triples -> Bool
+debug msg ts = unsafePerformIO $ 
+                 putStrLn msg >> mapM (putStrLn . show) ts >> return True
 
 ldiff :: Triples -> Triples -> Triples
 ldiff l1 l2 = S.toList $(S.fromList l1) `S.difference` (S.fromList l2)
@@ -120,6 +125,9 @@ test_triples = [triple subj pred obj | subj <- unodes ++ bnodes,
 
 ordered :: Triples -> Triples
 ordered = sort
+
+uordered :: Triples -> Triples
+uordered = sort . S.toList . S.fromList
 
 maxN = min 100 (length test_triples - 1)
 
