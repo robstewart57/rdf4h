@@ -19,9 +19,6 @@ instance Show AvlGraph where
   --show gr = "Graph(n=" ++ show (length $ triplesOf gr) ++ ")"
   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 
-graph :: Triples -> AvlGraph
-graph = mkGraph
-
 _empty :: AvlGraph
 _empty = empty
 
