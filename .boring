@@ -49,3 +49,4 @@
 ^\.darcs-temp-mail$
 (^|/)dist($|/)
 ^\..+-config$
+(^|/)hugsin$
