@@ -47,11 +47,26 @@ prop_mkGraph_no_dupes = p_mkGraph_no_dupes _triplesOf _mkGraph
 prop_query_all_wildcard :: Triples -> Bool
 prop_query_all_wildcard = p_query_all_wildcard _mkGraph
 
-prop_query_matched_no_wildcards :: TriplesGraph -> Property
-prop_query_matched_no_wildcards = p_query_matched_no_wildcards _triplesOf
+prop_query_matched_spo :: TriplesGraph -> Property
+prop_query_matched_spo = p_query_matched_spo _triplesOf
 
-prop_query_unmatched_no_wildcards :: TriplesGraph -> Triple -> Property
-prop_query_unmatched_no_wildcards = p_query_unmatched_no_wildcards _triplesOf
+prop_query_unmatched_spo :: TriplesGraph -> Triple -> Property
+prop_query_unmatched_spo = p_query_unmatched_spo _triplesOf
 
-prop_query_matched_po_wildcards :: TriplesGraph -> Property
-prop_query_matched_po_wildcards = p_query_matched_po_wildcards _triplesOf
+prop_query_match_s :: TriplesGraph -> Property
+prop_query_match_s = p_query_match_s _triplesOf
+
+prop_query_match_p :: TriplesGraph -> Property
+prop_query_match_p = p_query_match_p _triplesOf
+
+prop_query_match_o :: TriplesGraph -> Property
+prop_query_match_o = p_query_match_o _triplesOf
+
+prop_query_match_sp :: TriplesGraph -> Property
+prop_query_match_sp = p_query_match_sp _triplesOf
+
+prop_query_match_so :: TriplesGraph -> Property
+prop_query_match_so = p_query_match_so _triplesOf
+
+prop_query_match_po :: TriplesGraph -> Property
+prop_query_match_po = p_query_match_po _triplesOf
