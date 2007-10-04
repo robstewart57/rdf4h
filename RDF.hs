@@ -1,5 +1,5 @@
 module RDF (Graph(empty, mkGraph, triplesOf, select, query),
-            Triple, triple,
+            Triple, triple, Triples,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
             Selector, isUNode, isBNode, isLNode,
@@ -49,7 +49,10 @@ data Node =  UNode String               -- a uri ref node
 -- |An RDF statement is a Triple consisting of Subject, Predicate,
 --  and Object nodes.
 data Triple = Triple Subject Predicate Object
-  deriving (Eq)
+  deriving (Eq, Ord)
+
+-- |A convenience definition for a list of triple.
+type Triples = [Triple]
 
 -- TODO: check spec for equality and comparison of literals
 -- |A literal value, which may be a plain literal, optionally with
