@@ -1,11 +1,15 @@
 import RDF
-import AvlGraph
 import Namespace
 
-import GraphTestUtils
-
 import Control.Monad
+import GraphTestUtils
 import Test.QuickCheck
+
+import AvlGraph
+
+----------------------------------------------------
+--   instances and graph functions for AvlGraph   --
+----------------------------------------------------
 
 instance Arbitrary AvlGraph where
   arbitrary = liftM mkGraph arbitraryTs
@@ -27,7 +31,9 @@ _mkGraph = mkGraph
 _triplesOf :: AvlGraph -> Triples
 _triplesOf = triplesOf
 
--- The generic tests that apply to all graph implementations  --
+----------------------------------------------------
+--    generic tests parameterized for AvlGraph    --
+----------------------------------------------------
 
 prop_empty :: Bool
 prop_empty = p_empty _triplesOf _empty
