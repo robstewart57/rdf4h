@@ -1,17 +1,15 @@
 import RDF
-import TriplesGraph
 import Namespace
 
-import GraphTestUtils
-
-import Data.Char
-import Data.List
-import Data.Set.AVL(fromList, toList)
 import Control.Monad
-import System.Random
+import GraphTestUtils
 import Test.QuickCheck
 
--- Utility methods unique to triples graph
+import TriplesGraph
+
+----------------------------------------------------
+-- instances and graph functions for TriplesGraph --
+----------------------------------------------------
 
 instance Arbitrary TriplesGraph where
   arbitrary = liftM mkGraph arbitraryTs
@@ -20,9 +18,6 @@ instance Arbitrary TriplesGraph where
 instance Show TriplesGraph where
   --show gr = "Graph(n=" ++ show (length $ triplesOf gr) ++ ")"
   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
-
-graph :: Triples -> TriplesGraph
-graph = mkGraph
 
 _empty :: TriplesGraph
 _empty = empty
@@ -33,7 +28,9 @@ _mkGraph = mkGraph
 _triplesOf :: TriplesGraph -> Triples
 _triplesOf = triplesOf
 
--- The generic tests that apply to all graph implementations  --
+----------------------------------------------------
+--  generic tests parameterized for TriplesGraph  --
+----------------------------------------------------
 
 prop_empty :: Bool
 prop_empty = p_empty _triplesOf _empty
