@@ -1,12 +1,12 @@
 {-
-This module defines a simple parser for RDF in N-Triples format.
+This module defines a parser for RDF in N-Triples format.
 
 The most current description of N-Triples (as of Sept. 07) -- that is, the 
 one used for creating this module -- is in the 'RDF Test Cases' candidate 
 recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 -}
 
-module NTriples (parseFile, parseURL, parseString, ParseFailure) where
+module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
 
 import RDF
 import Text.ParserCombinators.Parsec

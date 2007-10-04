@@ -1,9 +1,9 @@
 import System.Environment
-import NTriples
+import NTriplesParser
 import RDF
 import AvlGraph
 
--- |A dumb main that just dumps the triples to stdout. Will add more later.
+-- |A simple main that just dumps the triples to stdout. Will add more later.
 main = 
   getArgs >>= \t -> (parseFile $ head t) >>= \res ->
     case (res) of
