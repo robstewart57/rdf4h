@@ -74,7 +74,6 @@ mergeT' m s p o =
     get :: Ord k => k -> Map k v -> v
     get = Map.findWithDefault undefined
     
-
 -- 3 following functions support triplesOf
 triplesOf' :: AvlGraph -> Triples
 triplesOf' (AvlGraph spoMap) = concatMap (uncurry tripsSubj) subjPredMaps
@@ -88,10 +87,14 @@ tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
 tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
-select' :: Selector -> AvlGraph -> Triples
-select' sltr gr = filter (match sltr) ts
-  where match sltr t = sltr (subjectOf t) (predicateOf t) (objectOf t)
-        ts = triplesOf' gr
+select' :: AvlGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' gr s p o  = filter (match s p o) (triplesOf' gr)
+  where 
+    match s p o t = match' s (subjectOf t)   &&
+                    match' p (predicateOf t) &&
+                    match' o (objectOf t)
+    match' Nothing   _ = True
+    match' (Just fn) n = fn n
 
 -- support query
 query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
