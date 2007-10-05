@@ -30,14 +30,19 @@ import RDF
 newtype TriplesGraph = TriplesGraph [Triple]
 
 instance Graph TriplesGraph where
-  empty                                 = TriplesGraph []
-  mkGraph                               = TriplesGraph . toList . fromList
-  triplesOf     (TriplesGraph ts)       = ts
-  select sl     (TriplesGraph ts)       = filter (matchSelector sl) ts
-  query         (TriplesGraph ts) s p o = filter (matchPattern s p o) ts
+  empty                                = TriplesGraph []
+  mkGraph                              = TriplesGraph . toList . fromList
+  triplesOf    (TriplesGraph ts)       = ts
+  select       (TriplesGraph ts) s p o = filter (matchSelect s p o) ts
+  query        (TriplesGraph ts) s p o = filter (matchPattern s p o) ts
 
-matchSelector :: Selector -> Triple -> Bool
-matchSelector sl t = sl (subjectOf t) (predicateOf t) (objectOf t)
+matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
+matchSelect s p o t = 
+  match s (subjectOf t) && match p (predicateOf t) && match o (objectOf t)
+  where 
+    match Nothing   _ = True
+    match (Just fn) n = fn n
+
 
 matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object 
                               -> Triple -> Bool
