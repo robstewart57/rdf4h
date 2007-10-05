@@ -25,7 +25,7 @@ import Data.List
 --
 --  * 'triplesOf': O(n)
 --
---  * 'select'   : ?
+--  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
 newtype AvlGraph = AvlGraph SPOMap
@@ -37,10 +37,13 @@ instance Graph AvlGraph where
   select         = select'
   query          = query'
 
--- The adjacencies of a node is a map of predicate nodes
--- to adjacent nodes via that predicate.
+-- some convenience type alias for readability
+
+-- An adjacency map for a subject, mapping from a predicate node to
+-- to the adjacent nodes via that predicate.
 type AdjacencyMap = Map Predicate Adjacencies
 
+-- 
 type Adjacencies = Set Object
 type SPOMap    = Map Subject AdjacencyMap
 
@@ -73,25 +76,25 @@ mergeT' m s p o =
     
 
 -- 3 following functions support triplesOf
-triplesOf' :: AvlGraph -> [Triple]
+triplesOf' :: AvlGraph -> Triples
 triplesOf' (AvlGraph spoMap) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = Map.toList spoMap
 
-tripsSubj :: Subject -> AdjacencyMap -> [Triple]
+tripsSubj :: Subject -> AdjacencyMap -> Triples
 tripsSubj s adjMap = concatMap (uncurry (tfsp s)) (Map.toList adjMap)
   where tfsp = tripsForSubjPred
 
-tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> [Triple]
+tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
 tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
-select' :: Selector -> AvlGraph -> [Triple]
+select' :: Selector -> AvlGraph -> Triples
 select' sltr gr = filter (match sltr) ts
   where match sltr t = sltr (subjectOf t) (predicateOf t) (objectOf t)
         ts = triplesOf' gr
 
 -- support query
-query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> [Triple]
+query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
 query' (AvlGraph spoMap) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
   where f (s, p, o) = triple s p o
 {-
