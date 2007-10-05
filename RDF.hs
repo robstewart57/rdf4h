@@ -2,8 +2,7 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query),
             Triple, triple, Triples,
             Node(UNode, BNode, LNode),
             LValue(PlainL, TypedL),
-            Selector, isUNode, isBNode, isLNode,
-              hasSubject, hasPredicate, hasObject,
+            NodeSelector, isUNode, isBNode, isLNode,
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             printT, printTs, printN, printNs)
@@ -39,11 +38,29 @@ class Graph gr where
   mkGraph :: Triples -> gr
   -- |Answer a list of all triples in the graph.
   triplesOf :: gr -> Triples
-  -- |Answer the triples in the graph that match the selector.
+  -- |Answer the triples in the graph that match the given selectors.
   -- 
+  -- The three NodeSelector parameters are optional functions that match
+  -- the respective subject, predicate, and object of a triple. The triples
+  -- returned are those in the given graph for which the first selector 
+  -- returns true when called on the subject, the second selector returns
+  -- true when called on the predicate, and the third selector returns true
+  -- when called on the ojbect. A 'Nothing' parameter is equivalent to a 
+  -- function that always returns true for the appropriate node; but 
+  -- implementations may be able to much more efficiently answer a select
+  -- that involves a 'Nothing' parameter rather than an @(id True) parameter.
+  --
+  -- The following call illustrates the use of select, and would result in
+  -- the selection of all and only the triples that have a blank node 
+  -- as subject and a literal node as object:
+  --
+  -- @
+  -- select gr (Just isBNode) Nothing (Just isLNode)
+  -- @
+  --
   -- Note: this function may be very slow; see the documentation for the 
   -- particular graph implementation for more information.
-  select        :: Selector -> gr -> Triples
+  select    :: gr -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
   -- |Answer the triples in the graph that match the given pattern, where
   -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
   -- 
@@ -152,36 +169,17 @@ predicateOf  (Triple _ p _) = p
 objectOf      ::  Triple -> Object
 objectOf     (Triple _ _ o) = o
 
--- |A 'Selector' is a function that returns 'True' or 'False' for a
--- given subject, predicate, and object node.
---
--- A selector is used to represent that a triple does or does not
--- match some desired pattern.
---
--- For example, the following selector represents triples that
--- have a blank node as subject:
+-- |A 'NodeSelector' is either a function that returns 'True'
+--  or 'False' for a node, or Nothing, which indicates that all
+-- nodes would return 'True'.
 -- 
--- @
--- f           :: Node -> Node -> Node -> Bool
--- f subj _ _  =  isBNode subj
--- @
-type Selector = Subject -> Predicate -> Object -> Bool
+-- The selector It is said to select, or match, the nodes for
+-- which it returns 'True'.
+--
+-- When used in conjunction with the 'select' method of 'Graph', three
+-- node selectors are used to match a triple.
+type NodeSelector = Maybe (Node -> Bool)
 
--- Convenience functions for user with select.
-
--- |Create a selector that matches triples with the given node as Subject.
-hasSubject     :: Node -> Selector
-hasSubject     u@(UNode _)  s _ _   =   u == s
-hasSubject     b@(BNode _)  s _ _   =   b == s
-hasSubject       (LNode _)  _ _ _   =   False
--- |Create a selector that matches triples with the given node 
--- as predicate.
-hasPredicate   :: Node -> Selector
-hasPredicate   u@(UNode _)  _ p _   =   u == p
-hasPredicate     _          _ _ _   =   False
--- |Create a selector that matches triples with the given node as object.
-hasObject      :: Node -> Selector
-hasObject      u            _ _ o   =   u == o
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.
