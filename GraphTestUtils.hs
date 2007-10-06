@@ -35,8 +35,8 @@ p_mkGraph_no_dupes _triplesOf _mkGraph ts =
     result = _triplesOf $ _mkGraph tsWithDupe
 
 -- query with all 3 wildcards should yield all triples in graph
-p_query_all_wildcard :: Graph g => (Triples -> g) -> Triples -> Bool
-p_query_all_wildcard  _mkGraph ts = uordered ts == ordered result
+p_query_match_none :: Graph g => (Triples -> g) -> Triples -> Bool
+p_query_match_none  _mkGraph ts = uordered ts == ordered result
   where 
     result = query (_mkGraph ts) Nothing Nothing Nothing
 
@@ -114,13 +114,95 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf gr =
       in
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
- 
+
+p_select_match_none :: Graph g => g -> Bool
+p_select_match_none gr = select gr Nothing Nothing Nothing == triplesOf gr
+
+p_select_match_s :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_s =
+  p_select_match_fn same mkPattern
+  where 
+    same = equivNode (==) subjectOf
+    mkPattern t = (Just (\n -> n == subjectOf t), Nothing, Nothing)
+        
+p_select_match_p :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_p =
+  p_select_match_fn same mkPattern
+  where 
+    same = equivNode equiv predicateOf
+    equiv (UNode u1) (UNode u2) = last u1 == last u2
+    mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
+    lastChar (UNode uri) = last uri
+    
+
+p_select_match_o :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_o =
+  p_select_match_fn same mkPattern
+  where
+    same = equivNode (/=) objectOf
+    mkPattern t = (Nothing, Nothing, Just (\n -> n /= objectOf t))
+
+p_select_match_sp :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_sp =
+  p_select_match_fn same mkPattern
+  where
+    same t1 t2 = subjectOf t1 == subjectOf t2 && predicateOf t1 /= predicateOf t2
+    mkPattern t = (Just (\n -> n == subjectOf t), Just (\n -> n /= predicateOf t), Nothing)
+
+p_select_match_so :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_so =
+  p_select_match_fn same mkPattern
+  where
+    same t1 t2 = subjectOf t1 /= subjectOf t2 && objectOf t1 == objectOf t2
+    mkPattern t = (Just (\n -> n /= subjectOf t), Nothing, Just (\n -> n == objectOf t))
+
+p_select_match_po :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_po =
+  p_select_match_fn same mkPattern
+  where
+    same t1 t2 = predicateOf t1 == predicateOf t2 && objectOf t1 == objectOf t2
+    mkPattern t = (Nothing, Just (\n -> n == predicateOf t), Just (\n -> n == objectOf t))
+
+p_select_match_spo :: Graph g => (g -> Triples) -> g -> Property
+p_select_match_spo =
+  p_select_match_fn same mkPattern
+  where
+    same t1 t2 = subjectOf t1 == subjectOf t2 && predicateOf t1 == predicateOf t2 &&
+                 objectOf t1 /= objectOf t2
+    mkPattern t = (Just (\n -> n == subjectOf t),
+                   Just (\n -> n == predicateOf t),
+                   Just (\n -> n /= objectOf t))
+
+equivNode :: (Node -> Node -> Bool) -> (Triple -> Node) -> Triple -> Triple -> Bool
+equivNode eqFn exFn t1 t2 = (exFn t1) `eqFn` (exFn t2)
+
+p_select_match_fn :: Graph g => (Triple -> Triple -> Bool)
+  -> (Triple -> (NodeSelector, NodeSelector, NodeSelector))
+  -> (g -> Triples) -> g -> Property
+p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
+  forAll (tripleFromGen _triplesOf gr) f
+  where 
+    f :: Maybe Triple -> Bool
+    f Nothing = True
+    f (Just t) =
+      let
+        all_ts = triplesOf gr
+        all_ts_sorted = ordered all_ts
+        results = ordered $ selectC gr (mkPatternFn t)
+        notResults = ldiff all_ts_sorted results
+      in
+        all (tripleCompareFn t) results &&
+        all (not . tripleCompareFn t) notResults
+
 -- Utility functions and test data ... --
 
 -- a curried version of query that delegates to the actual query after unpacking
 -- curried maybe node pattern.
 queryC :: Graph g => g -> (Maybe Node, Maybe Node, Maybe Node) -> Triples
 queryC gr (s, p, o) = query gr s p o
+
+selectC :: Graph g => g -> (NodeSelector, NodeSelector, NodeSelector) -> Triples
+selectC gr (s, p, o) = select gr s p o
 
 uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
 uncurry3 fn = \(x,y,z) -> fn x y z
