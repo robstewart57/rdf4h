@@ -93,7 +93,7 @@ select' (AvlGraph spoMap) subjFn predFn objFn =
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
 sel1 (Just subjFn) p o spoMap =
-  Set.unions $ map (sel2 p o) $ filter (\(x,y) -> subjFn x) $ Map.toList spoMap
+  Set.unions $ map (sel2 p o) $ filter (\(x,_) -> subjFn x) $ Map.toList spoMap
 sel1 Nothing p o spoMap = Set.unions $ map (sel2 p o) $ Map.toList spoMap
 
 sel2 :: NodeSelector -> NodeSelector -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
