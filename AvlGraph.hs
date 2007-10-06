@@ -16,8 +16,8 @@ import Data.List
 
 -- |An AVL map-based graph implementation.
 --
--- The time complexity of the functions of an 'AvlGraph', relative
--- to the number of triples unless otherwise specified, are:
+-- Worst-case time complexity of the graph functions, with respect
+-- to the number of triples, are:
 --
 --  * 'empty'    : O(1)
 --
@@ -88,13 +88,31 @@ tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: AvlGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' gr s p o  = filter (match s p o) (triplesOf' gr)
+select' (AvlGraph spoMap) subjFn predFn objFn = 
+  map (\(s,p,o) -> triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
+
+sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
+sel1 Nothing p o spoMap = Set.unions $ map (sel2 p o) $ Map.toList spoMap
+
+sel2 :: NodeSelector -> NodeSelector -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
+sel2 (Just predFn) mobjFn (s, ps) = 
+  Set.map (\(p,o) -> (s,p,o)) $
+  foldl' Set.union Set.empty $ 
+  map (sel3 mobjFn) poMapS :: Set (Node, Node, Node)
   where 
-    match s p o t = match' s (subjectOf t)   &&
-                    match' p (predicateOf t) &&
-                    match' o (objectOf t)
-    match' Nothing   _ = True
-    match' (Just fn) n = fn n
+    poMapS :: [(Node, Set Node)]
+    poMapS = filter (\(k,_) -> predFn k) $ Map.toList ps
+sel2 Nothing mobjFn (s, ps) = 
+  Set.map (\(p,o) -> (s,p,o)) $ 
+  foldl' Set.union Set.empty $
+  map (sel3 mobjFn) poMaps
+  where 
+    poMaps = Map.toList ps
+
+sel3 :: NodeSelector -> (Node, Set Node) -> Set (Node, Node)
+sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
+sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
+
 
 -- support query
 query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
