@@ -48,15 +48,13 @@ class Graph gr where
   -- when called on the ojbect. A 'Nothing' parameter is equivalent to a 
   -- function that always returns true for the appropriate node; but 
   -- implementations may be able to much more efficiently answer a select
-  -- that involves a 'Nothing' parameter rather than an @(id True) parameter.
-  --
+  -- that involves a 'Nothing' parameter rather than an @(id True)@ parameter.
+  -- 
   -- The following call illustrates the use of select, and would result in
   -- the selection of all and only the triples that have a blank node 
   -- as subject and a literal node as object:
-  --
-  -- @
-  -- select gr (Just isBNode) Nothing (Just isLNode)
-  -- @
+  -- 
+  -- > select gr (Just isBNode) Nothing (Just isLNode)
   --
   -- Note: this function may be very slow; see the documentation for the 
   -- particular graph implementation for more information.
