@@ -1,0 +1,7 @@
+Source: http://www.w3.org/2000/10/swap/Examples
+
+gedcom-relations.n3: some rules concerning relationships. One's father's sister is one's aunt, and so on.
+
+gedcom-facts.n3: some data of imaginary families.
+
+lots.n3: the same data after processing by the rules, with each person's extended family relationships calculated.
