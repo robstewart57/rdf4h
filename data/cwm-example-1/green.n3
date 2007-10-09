@@ -1,0 +1,9 @@
+#  See slides for RDF talk
+#
+# http://www.w3.org/2000/Talks/0906-xmlweb-tbl/slide6-0.html
+#
+
+@prefix p3p:  <http://www.example.org/meeting_organization#> .
+
+<http://meetings.example.com/m1/hp>
+	p3p:policy	<http://meetings.example.com/privacyPolicy> .

@@ -1,0 +1,11 @@
+#  See slides for RDF talk
+#
+# http://www.w3.org/2000/Talks/0906-xmlweb-tbl/slide6-0.html
+#
+
+@prefix m:  <http://www.example.org/meeting_organization#> .
+@prefix g:  <http://www.another.example.org/geographical#> .
+
+<http://meetings.example.com/cal#m1>
+	m:Location [ g:zip "02139"; g:lat "14.124425"; g:long "14.245" ];
+	m:chair   <http://www.example.org/people#fred> .
