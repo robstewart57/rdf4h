@@ -72,14 +72,59 @@ EBNF from <http://www.dajobe.org/2004/01/turtle/>
 [42]	scharacter 	::= 	( echaracter - #x22 ) | '\"'
 [43]	lcharacter 	::= 	echaracter | '\"' | #x9 | #xA | #xD
 -}
-
-t_predicateObjectList = undefined
-t_comment = undefined
-
-
-
+t_turtleDoc = many t_statement
+t_statement = (d >>= return . Just . Left) <|> (t >>= return . Just . Right) <|> (many1 t_ws >> (return Nothing))
+  where d = do { dir <- t_directive; many t_ws >> char '.' >> many t_ws >> return dir}
+        t = do { trp <- t_triples; many t_ws >> char '.' >> many t_ws >> return trp}
+      
+t_directive = liftM Left t_prefixID <|> liftM Right t_base
+t_prefixID =
+  do string "@prefix"
+     many1 t_ws
+     pn <- option "" t_prefixName
+     char ':'
+     many1 t_ws
+     (UNode uri) <- t_uriref
+     return (pn, uri)
+t_base =
+  do string "@base"
+     many1 t_ws
+     (UNode uri) <- t_uriref
+     return uri
+t_triples = 
+  do subj <- t_subject
+     many1 t_ws
+     poList <- t_predicateObjectList
+     return (subj, poList)
+t_objectList =
+  do obj1 <- t_object;
+     obj_rest <- many (many t_ws >> char ',' >> many t_ws >> t_object)
+     return (obj1:obj_rest)
+t_verb = t_predicate <|> (char 'a' >> return (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
+t_predicateObjectList = 
+  do v <- t_verb
+     many1 t_ws
+     ol1 <- t_objectList
+     ol_rest <- many (do many t_ws; char ';'; many t_ws; v' <- t_verb; many1 t_ws; ol' <- t_objectList; return (v', ol'))
+     option "" (many t_ws >> char ';' >> return "")
+     return ((v, ol1):ol_rest)
+t_comment = do char '#'; many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >> return '#' -- FIXME
+t_subject = t_resource <|> t_blank
+t_predicate = t_resource
 t_object = t_resource <|> t_blank <|> t_literal
-t_literal = undefined
+t_literal    = 
+  do 
+    char '"'
+    str <- t_quotedString
+    char '"'
+    rt <- do {char '@'; lng <- t_language; return (Just (Left lng))} <|> 
+          do {string "^^"; uri <- t_uriref; return (Just (Right uri))} <|>
+          do {return Nothing}
+    case rt of
+      Nothing              -> return (LNode $ PlainL str Nothing)
+      (Just (Left lng))    -> return (LNode $PlainL str (Just lng))
+      (Just (Right (UNode uri)))   -> return (LNode $ TypedL str uri)
+
 t_datatypeString = 
   do s <- t_quotedString
      string "^^"
