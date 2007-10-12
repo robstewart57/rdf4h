@@ -18,7 +18,8 @@ Description:
     publicly available while it develops in case it's of any use
     to others, even in its present humble state.
 Exposed-modules: RDF, Namespace, AvlGraph, TriplesGraph, NTriplesParser
-Ghc-Options:     -O2 -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
+-- -ddump-simpl-stats for optimization info
+Ghc-Options:     -O -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
 
 Executable:      ntriples
 Main-Is:         NTriplesMain.hs
