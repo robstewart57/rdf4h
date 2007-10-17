@@ -1,14 +1,16 @@
-module RDF (Graph(empty, mkGraph, triplesOf, select, query),
+module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
+            BaseUrl(BaseUrl),
             Triple, triple, Triples,
-            Node(UNode, BNode, LNode),
+            Node(UNode, BNode, BNodeGen, LNode),
             LValue(PlainL, TypedL),
             NodeSelector, isUNode, isBNode, isLNode,
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
+            ParseFailure(ParseFailure),
             printT, printTs, printN, printNs)
 where
 
-import Namespace()
+import Namespace
 
 import Text.Printf
 
@@ -30,12 +32,14 @@ type Object = Node
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class Graph gr where
+  -- |Answer the base URL of this graph, if any.
+  baseUrl :: gr -> Maybe BaseUrl
   -- |Answer an empty graph.
   empty  :: gr
   -- |Answer a graph containing all the given triples. Duplicate triples
   -- are permitted in the input, but the resultant graph will contains only 
   -- unique triples.
-  mkGraph :: Triples -> gr
+  mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> gr
   -- |Answer a list of all triples in the graph.
   triplesOf :: gr -> Triples
   -- |Answer the triples in the graph that match the given selectors.
@@ -83,6 +87,9 @@ data Node =
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
   | BNode String
+  -- |An RDF blank node with an auto-generated identifier, as used in 
+  -- Turtle.
+  | BNodeGen Int
   -- |An RDF literal. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
@@ -112,6 +119,15 @@ data LValue =
   | TypedL String String
   deriving (Eq, Ord)
 
+-- |The base URL of a graph.
+newtype BaseUrl = BaseUrl String
+
+-- |Represents a failure in parsing an N-Triples document, including
+-- an error message with information about the cause for the failure.
+newtype ParseFailure = ParseFailure String
+  deriving (Eq, Show)
+
+
 -- |Create a 'Triple' with the given subject, predicate, and object.
 triple :: Subject -> Predicate -> Object -> Triple
 -- subject must be U or B
@@ -132,6 +148,7 @@ instance Show Triple where
 instance Show Node where
   show (UNode uri)                      = printf "<%s>" uri
   show (BNode  id)                      = show id
+  show (BNodeGen genId)                 = "_:genid" ++ show genId
   show (LNode (PlainL lit Nothing))     = printf "\"%s\"" lit
   show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" lit lang
   show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" lit uri
@@ -149,8 +166,9 @@ isUNode (UNode _) = True
 isUNode _         = False
 -- |Answer if given node is a blank node.
 isBNode :: Node -> Bool
-isBNode (BNode _) = True
-isBNode _         = False
+isBNode (BNode _)    = True
+isBNode (BNodeGen _) = True
+isBNode _            = False
 -- |Answer if given node is a literal node.
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
