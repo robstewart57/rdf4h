@@ -84,7 +84,8 @@ EBNF from <http://www.dajobe.org/2004/01/turtle/>
 [43]	lcharacter 	::= 	echaracter | '\"' | #x9 | #xA | #xD
 -}
 data Statement = S_Directive Directive
-               | S_Triples (Resource, [(Resource, [(Maybe Int, Object)])])
+               | S_Triples T_Triples
+               | S_TriplesList T_TriplesList
   deriving Show
 type Statements = [Statement]
 data Directive = D_BaseUrl String
@@ -105,15 +106,17 @@ data Resource = R_URIRef String
               | R_QName String String
               | R_Blank Blank
   deriving Show
+type T_Triples     = (Resource, [(Resource, [(Maybe Int, Object)])])
+type T_TriplesList = [T_Triples]
+type ResourceWithId = (Maybe Int, Resource)
 
-t_turtleDoc :: GenParser Char Int [Maybe Statement]
-t_turtleDoc = many t_statement
+t_turtleDoc = many t_statement :: GenParser Char Int [Maybe Statement]
 
 t_statement = (d >>= return . Just) <|> 
               (t >>= return . Just) <|> 
               (many1 t_ws >> (return Nothing))
-  where d = do { dir <- t_directive; many t_ws >> (char '.' <?> "end-of-directive .") >> many t_ws >> return dir}
-        t = do { trp <- t_triples; many t_ws >> (char '.' <?> "end-of-triple .") >> many t_ws >> return trp}
+  where d = do { dir <- t_directive; many t_ws >> (char '.' <?> "end-of-directive") >> many t_ws >> return dir}
+        t = do { trp <- t_triples; many t_ws >> (char '.' <?> "end-of-triple") >> many t_ws >> return trp}
       
 t_directive = (try t_prefixID <|> try t_base <?> "directive") >>= return . S_Directive
 
@@ -125,6 +128,7 @@ t_prefixID =
      many1 t_ws
      (R_URIRef uri) <- t_uriref <?> "uriref"
      return $ D_PrefixId (pn, uri)
+
 t_base =
   do string "@base"
      many1 t_ws        <?> "whitespace"
@@ -132,10 +136,12 @@ t_base =
      return $ D_BaseUrl uri
 
 t_triples = 
-  do subj <- t_subject <?> "subject"
+  do (ts,subj) <- t_subject <?> "subject"
      many1 t_ws        <?> "whitespace"
      poList <- t_predicateObjectList <?> "predicateObjectList"
-     return $ S_Triples (subj, poList)
+     if null ts
+       then return $ S_Triples (subj, poList)
+       else return $ S_TriplesList $ (subj, poList):ts
 
 t_objectList =
   do obj1 <- t_object <?> "object"
@@ -150,7 +156,7 @@ t_verb =
 
 t_predicateObjectList = 
   do v1 <- t_verb <?> "verb"
-     many1 t_ws  <?> "whitespace"
+     many1 t_ws   <?> "whitespace"
      ol1 <- t_objectList <?> "objectList" -- can not fail
      ol_rest <- many $
        try (do v' <- many t_ws >> char ';' >> many t_ws >> t_verb
@@ -161,19 +167,19 @@ t_predicateObjectList =
 t_comment = 
   try (char '#') >> many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >> return '#' -- FIXME
 
-t_subject = (t_resource  <?> "resource")
-            <|> (t_blank >>= conv <?> "blank")
+t_subject = (t_resource >>= \r -> return ([], r) <?> "resource") <|> (t_blank >>= conv <?> "blank")
   where 
     conv (B_Collection _)  = error "Blank Collection not permitted as Subject"
-    conv (B_POList _)      = error "Subject POList not implemented yet."
-    conv blank             = return $ R_Blank blank
-    
+    conv (B_POList pol)    = return ([], R_Blank (B_POList pol)) --error "Subject POList not implemented yet."
+    conv blank             = return ([], R_Blank blank)
+
 t_predicate = t_resource <?> "resource"
 
 t_object = (((try t_resource) <?> "resource") >>= \r -> return (Nothing, O_Resource r))
            <|> (((try t_blank) <?> "blank") >>= \r -> do i <- getState; updateState (+1); return (Just i, O_Blank r))
            <|> (((try t_literal) <?> "literal") >>= \l -> return (Nothing, O_Literal l))
-t_literal    = 
+
+t_literal = 
   do 
     str <- try (t_quotedString <?> "quotedString")
     rt <-  rest           
@@ -183,14 +189,15 @@ t_literal    =
       (Just (Right (R_URIRef uri)))  -> return (LNode $ TypedL str uri)
       _                              -> error "t_literal"
   where
-    rest = do { do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
-                do { try (char '@'); t_language >>= return . Just . Left} <|>
-                return Nothing
-              }
+    rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
+           do { try (char '@'); t_language >>= return . Just . Left} <|>
+           return Nothing
+
 t_integer = 
   do sign <- sign_parser <?> "+-"
      ds <- many1 digit   <?> "digit"
      return (sign ++ ds)
+
 t_double =
   do sign <- sign_parser <?> "+-"
      rest <- do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (ds ++ "." ++ ds' ++ e) }
@@ -212,7 +219,9 @@ t_exponent = do e <- oneOf "eE"
                 s <- option "" (oneOf "-+" >>= \c -> return (c:[]))
                 ds <- many1 digit; 
                 return (e:(s++ds))
+
 t_boolean = (string "true" >> return True) <|> (string "false" >> return False)
+
 t_blank = (try t_nodeID >>= return . B_BlankId)
           <|> try (string "[]" >> do n <- getState; updateState (+1); return (B_BlankGen n))
           <|> try (do char '['; poList <- predObjList; char ']'; return (B_POList poList))
@@ -355,38 +364,44 @@ convertPOLists bUrl pms (subj, poLists) = concatMap (convertPOListItem bUrl pms 
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
 convertPOListItem :: Maybe BaseUrl -> PrefixMappings -> Resource -> (Resource, [(Maybe Int, Object)]) -> Triples
-convertPOListItem baseUrl pms subj (pred, objs) = concatMap (convertObjectListItem baseUrl pms subj pred) objs
+convertPOListItem bUrl pms subj (pred, objs) = concatMap (convertObjectListItem bUrl pms subj pred) objs
 
 -- For a given object list item that is the object of supplied subject and predicate, convert it into a list
 -- of triples.
 convertObjectListItem :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> (Maybe Int, Object) -> Triples
 convertObjectListItem bUrl pms subj pred (i, obj)
-  | isOLiteral        obj  = makeTriple' lnode
-  | isOResource       obj  = makeTriple' objNode
-  | isOBlankBNode     obj  = makeTriple' bIdNode
-  | isOBlankBNodeGen  obj  = makeTriple' bGenIdNode
-  | isOBlankBNodeColl obj  = error "TurtleParser.convertObjectListItem.isOBlankNodeColl"
+  -- if we have a bnode po list as the subject, we create a set of triples with a bnode and subject,
+  -- and all the pred-obj pairs with pred and obj; and additionally create a set of triples representing
+  -- the bnode as subj, the curr pred as pred, and each object (in possibly a collection) as object.
+--  | isBNodeListSubject subj = \(R_Blank (B_POList pol)) ->  convertPOList bUrl pms (R_Blank $ B_BlankGen i) ++                                                          
+  | isOLiteral        obj   = log `seq` makeTriple' lnode
+  | isOResource       obj   = log `seq` makeTriple' objNode
+  | isOBlankBNode     obj   = log `seq` makeTriple' bIdNode
+  | isOBlankBNodeGen  obj   = log `seq` makeTriple' bGenIdNode
+  | isOBlankBNodeColl obj   = error "TurtleParser.convertObjectListItem.isOBlankBNodeColl"
   -- If a POList, then we recurse using the bnode as the subject.
-  | isOBlankPOList    obj  = makeTriple' bCollGenIdNode ++ convertPOLists bUrl pms (bSubj, pol)
-  | otherwise              = error $ "Unexpected case: " ++ show obj
-  where makeTriple                    = triple subjNode predNode
-        makeTriple'                   = (:[]) . makeTriple
-        subjNode                      = uriRefQNameOrBlank bUrl pms subj
-        predNode                      = uriRefQNameOrBlank bUrl pms pred
-        objNode                       = uriRefQNameOrBlank bUrl pms res
-        bIdNode                       = (BNode bId)
-        bGenIdNode                    = (BNodeGen bGenId)
-        bSubj                         = maybe (error "BNode id required.") (\n -> R_Blank (B_BlankGen n)) i
-        bCollGenIdNode                = maybe (error "BNode id required.") (\n -> BNodeGen n) i
-        (O_Literal lnode)             = obj
-        (O_Resource res)              = obj
-        (O_Blank (B_BlankId bId))     = obj
-        (O_Blank (B_BlankGen bGenId)) = obj
-        (O_Blank (B_Collection coll)) = obj
-        (O_Blank (B_POList pol))      = obj
-             
---convertObjectListItem bUrl pms subj pred (_, O_Resource res) =
---  where subjNode = uriRefQNameOrBlank bUrl
+  | isOBlankPOList    obj   = makeTriple' bCollGenIdNode ++ convertPOLists bUrl pms (bSubj, pol)
+  | otherwise               = error $ "Unexpected case: " ++ show obj
+  where 
+    log                           = unsafePerformIO $ putStrLn $ show subj ++ show pred ++ show obj
+    makeTriple                    = triple subjNode predNode
+    makeTriple'                   = (:[]) . makeTriple
+    subjNode                      = uriRefQNameOrBlank bUrl pms subj
+    predNode                      = uriRefQNameOrBlank bUrl pms pred
+    objNode                       = uriRefQNameOrBlank bUrl pms res
+    bIdNode                       = BNode bId
+    bGenIdNode                    = BNodeGen bGenId
+    bSubj                         = maybe (error "BNode id required.") (\n -> R_Blank (B_BlankGen n)) i
+    bCollGenIdNode                = maybe (error "BNode id required.") (\n -> BNodeGen n) i
+    (O_Literal lnode)             = obj
+    (O_Resource res)              = obj
+    (O_Blank (B_BlankId bId))     = obj
+    (O_Blank (B_BlankGen bGenId)) = obj
+    (O_Blank (B_Collection coll)) = obj
+    (O_Blank (B_POList pol))      = obj
+
+isBNodeListSubject (R_Blank (B_POList _))    = True
+isBNodeListSubject _                         = False
 
 isOResource (O_Resource _)                   = True
 isOResource _                                = False
@@ -401,13 +416,13 @@ isOBlankBNodeColl _                          = False
 isOBlankPOList (O_Blank (B_POList _))        = True
 isOBlankPOList _                             = False
 
-
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
 uriRefQNameOrBlank  _        _     (R_URIRef url)            = UNode url
 uriRefQNameOrBlank  _        pms   (R_QName pre local)       = UNode $ (resolveQName pre pms) ++ local
 uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId)) = BNode bId
 uriRefQNameOrBlank  bUrl     _     (R_Blank (B_BlankGen genId))  = BNodeGen genId -- TODO: decide how to handle this
-uriRefQNameOrBlank  _        _      _                        = error "TurtleParser.subject"
+uriRefQNameOrBlank  _        _      res                        = error $ show res -- TODO: 
+--"TurtleParser.uriRefQNameOrBlank"
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
 uriRefOrQName _      _     (R_URIRef url)            = UNode url
@@ -421,6 +436,7 @@ handleResult result =
   case result of
     (Left err)                      -> Left (ParseFailure $ show err)
     (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
+
 test :: Int -> IO ()
 test testNum = readFile fpath >>= f
   where
