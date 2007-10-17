@@ -432,6 +432,9 @@ The Notation3 spec has the following to say on lists:
 -}
 convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> Triples
 convertColl = undefined
+  where convertColl' []         = []
+        convertColl' (o1:o2:os) = undefined
+        convertColl' (o:os)     = undefined
 
 isBNodeListSubject (R_Blank (B_POList _ _))    = True
 isBNodeListSubject _                         = False
