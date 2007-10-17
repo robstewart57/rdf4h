@@ -1,12 +1,16 @@
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
 -- for smallish graphs.
-module TriplesGraph(TriplesGraph, 
-                    empty, mkGraph, triplesOf, select, query)
+module TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
 
-import Data.Set.AVL(toList,fromList)
+import Data.Map.AVL (Map)
+import qualified Data.Map.AVL as Map
+import Data.Set.AVL (Set)
+import qualified Data.Set.AVL as Set
+
 import RDF
+import Namespace
 
 -- |A simple implementation of the 'Graph' type class that represents
 -- the graph internally as a list of triples. 
@@ -27,14 +31,33 @@ import RDF
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(n)
-newtype TriplesGraph = TriplesGraph [Triple]
+newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
 
 instance Graph TriplesGraph where
-  empty                                = TriplesGraph []
-  mkGraph                              = TriplesGraph . toList . fromList
-  triplesOf    (TriplesGraph ts)       = ts
-  select       (TriplesGraph ts) s p o = filter (matchSelect s p o) ts
-  query        (TriplesGraph ts) s p o = filter (matchPattern s p o) ts
+  baseUrl      = baseUrl'
+  empty        = empty'
+  mkGraph      = mkGraph'
+  triplesOf    = triplesOf'
+  select       = select'
+  query        = query'
+
+baseUrl' :: TriplesGraph -> Maybe BaseUrl
+baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
+
+empty' :: TriplesGraph
+empty' = TriplesGraph ([], Nothing, Map.empty)
+
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
+mkGraph' ts baseUrl pms = TriplesGraph ((Set.toList $ Set.fromList ts), baseUrl, pms)
+
+triplesOf' :: TriplesGraph -> Triples
+triplesOf' (TriplesGraph (ts, _, _)) = ts
+
+select' :: TriplesGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' (TriplesGraph (ts, _, _)) s p o = filter (matchSelect s p o) ts
+
+query' :: TriplesGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' (TriplesGraph (ts, _, _)) s p o = filter (matchPattern s p o) ts
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
 matchSelect s p o t = 
