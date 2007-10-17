@@ -9,10 +9,12 @@ recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
 
 import RDF
+import ParserUtils
+import Data.Map.AVL (Map)
+import qualified Data.Map.AVL as Map
 import Text.ParserCombinators.Parsec
-import Network.URI
-import Network.HTTP.Simple
 import Control.Monad
+
 
 {-
 URIs are not validated syntactically, nor are datatype URIs checked in 
@@ -53,7 +55,9 @@ character 	::= 	[#x20-#x7E] /* US-ASCII space to decimal 126 */
 -- nt_ntripleDoc).
 
 -- |nt_ntripleDoc is simply zero or more lines.
-nt_ntripleDoc = many nt_line
+nt_ntripleDoc = 
+  many nt_line >>= \lines ->
+  return (lines, Nothing, Map.empty)
 
 -- |nt_line is optional whitespace followed by either a comment, a triple, or 
 -- empty. The 'empty' option is a simple deviation from the EBNF grammar
@@ -204,57 +208,21 @@ inner_string   =
 -- ==========================================================
 
 
--- Keep the (Just t) triples (eliminating the Nothing comments), and unbox the
--- triples, leaving a list of triples.
-justTriples :: [Maybe(Triple)] -> [Triple]
-justTriples = map (maybe (error "NTriples.justTriples") id) . 
-              filter (/= Nothing)
-
--- |Represents a failure in parsing an N-Triples document, including
--- an error message with information about the cause for the failure.
-newtype ParseFailure = ParseFailure String
-  deriving (Eq, Show)
-
 -- |Parse the N-Triples document at the given filepath,
 -- generating a graph containing the parsed triples.
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
-parseFile path =
-  do
-    result <- parseFromFile nt_ntripleDoc path
-    case result of
-         (Left err)  -> return (Left (ParseFailure (show err)))
-         (Right ts)  -> return (Right (mkGraph (justTriples ts)))
+parseFile path = parseFromFile nt_ntripleDoc path >>= 
+                 return . handleParse mkGraph
 
 -- |Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
-parseURL  url = 
-  return (parseURI url) >>=  
-    maybe (return (errResult $ "Unable to parse URL: " ++ url)) parseURL'
-
--- Internal function to parse given a Network.URI.URI
-parseURL' :: Graph gr => URI -> IO (Either ParseFailure gr)
-parseURL' url =
-  do 
-    result <- httpGet url
-    case result of
-      Nothing -> return (errResult $ "couldn't retrieve from URL: " ++ show url)
-      Just str -> return (parseString str) 
-
--- A convenience function for terminating a parse with a parse failure, using 
--- the given error message as the message for the failure.
-errResult :: Graph gr => String -> Either ParseFailure gr
-errResult msg = Left (ParseFailure msg)
+parseURL url = _parseURL parseString url
 
 -- |Parse the given string as an N-Triples document, 
 -- generating a graph containing the parsed triples.
 parseString :: Graph gr => String -> Either ParseFailure gr
-parseString str = 
-  case res of 
-    (Left err) -> Left (ParseFailure (show err))
-    (Right ts) -> Right (mkGraph (justTriples ts))
-  where
-    res = parse nt_ntripleDoc "" str 
+parseString str = handleParse mkGraph $ parse nt_ntripleDoc "" str 
 
 ------------------------------------------------------------------------------
 --             prototyping and testing stuff only below this                 -
@@ -266,15 +234,5 @@ _test filepath = do
   let path = if filepath == [] then "w3c-testcases.nt" else filepath
   result <- parseFromFile nt_ntripleDoc path
   case (result) of
-    Left err -> print err
-    Right xs -> mapM_ (putStrLn . show) (justTriples xs)
-
-
---_tg1 = _testGraph "w3c-testcases.nt"
---_tg2 = _testGraph "all-fawlty-towers.nt"
-
--- _testGraph filename = do
---   result <- parseFile filename
---   case result of 
---     (Left err) -> error (show err)
---     (Right g)  -> return g
+    Left err         -> print err
+    Right (xs, _, _) -> mapM_ (putStrLn . show) (justTriples xs)
