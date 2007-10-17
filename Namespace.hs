@@ -1,8 +1,12 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS,
+                 PrefixMapping, PrefixMappings,
                  makeUri,
                  prefixOf, uriOf,
                  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
 where
+
+import Data.Map.AVL (Map)
+import qualified Data.Map.AVL as Map
 
 -- Standard namespaces defined here for convenience:
 -- |The RDF namespace.
@@ -35,6 +39,13 @@ ex    =   makePrefixedNS  "ex"    "http://www.example.org/"
 -- |Example namespace #2.
 ex2  :: Namespace
 ex2   =   makePrefixedNS  "ex2"   "http://www2.example.org/"
+
+-- |An alias for a set of prefix mappings.
+type PrefixMappings   = Map String String
+
+-- |A mapping of a prefix to the URI for that prefix.
+type PrefixMapping = (String, String)
+
 
 -- |Make a URI consisting of the given namespace and the given localname.
 makeUri :: Namespace -> String -> String
