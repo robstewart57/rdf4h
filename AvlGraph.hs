@@ -5,6 +5,7 @@ module AvlGraph(AvlGraph,
 where
 
 import RDF
+import Namespace
 
 import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
@@ -28,14 +29,15 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype AvlGraph = AvlGraph SPOMap
+newtype AvlGraph = AvlGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
 
 instance Graph AvlGraph where
-  empty          = AvlGraph Map.empty
-  mkGraph ts     = AvlGraph (mergeTs Map.empty ts)
-  triplesOf      = triplesOf'
-  select         = select'
-  query          = query'
+  baseUrl                 = baseUrl'
+  empty                   = empty'
+  mkGraph                 = mkGraph'
+  triplesOf               = triplesOf'
+  select                  = select'
+  query                   = query'
 
 -- some convenience type alias for readability
 
@@ -47,6 +49,14 @@ type AdjacencyMap = Map Predicate Adjacencies
 type Adjacencies = Set Object
 type SPOMap    = Map Subject AdjacencyMap
 
+baseUrl' :: AvlGraph -> Maybe BaseUrl
+baseUrl' (AvlGraph (_, baseUrl, _)) = baseUrl
+
+empty' :: AvlGraph 
+empty' = AvlGraph (Map.empty, Nothing, Map.empty)
+
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> AvlGraph
+mkGraph' ts baseUrl pms = AvlGraph ((mergeTs Map.empty ts), baseUrl, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT
@@ -76,7 +86,7 @@ mergeT' m s p o =
     
 -- 3 following functions support triplesOf
 triplesOf' :: AvlGraph -> Triples
-triplesOf' (AvlGraph spoMap) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' (AvlGraph (spoMap, _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = Map.toList spoMap
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
@@ -88,7 +98,7 @@ tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: AvlGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (AvlGraph spoMap) subjFn predFn objFn = 
+select' (AvlGraph (spoMap,_,_)) subjFn predFn objFn = 
   map (\(s,p,o) -> triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
@@ -118,7 +128,7 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
 query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
-query' (AvlGraph spoMap) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
+query' (AvlGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
   where f (s, p, o) = triple s p o
 {-
 subj1 -> pred1 -> obj1, obj2, obj3
