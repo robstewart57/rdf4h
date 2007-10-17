@@ -17,7 +17,7 @@ justTriples :: [Maybe(Triple)] -> [Triple]
 justTriples = map (maybe (error "ParserUtils.justTriples") id) . 
               filter (/= Nothing)
 
-
+-- TODO: put this back in triples parser: not reusable in turtle parser
 handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) -> 
                            Either ParseError ([Maybe Triple], Maybe BaseUrl, PrefixMappings) ->
                            Either ParseFailure gr
