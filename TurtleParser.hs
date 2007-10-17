@@ -147,8 +147,8 @@ t_objectList =
   where obj = many t_ws >> char ',' >> many t_ws >> t_object
 
 t_verb = 
-  t_predicate <|> 
-  (char 'a' >> return (R_URIRef "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
+  (char 'a' >> return (R_URIRef "http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) <|> 
+  t_predicate
   <?> "verb"
 
 t_predicateObjectList = 
@@ -228,11 +228,10 @@ t_blank = (try t_nodeID >>= return . B_BlankId)
 
 t_itemList = 
   do obj1 <- t_object <?> "object"
-     objs <- many (many1 t_ws >> try t_object) <?> "object"
+     objs <- many (try $ many1 t_ws >> try t_object) <?> "object"
      return (obj1:objs)
 
---t_collection :: GenParser Char st [Object]
-t_collection = between (char '(') (char ')') g
+t_collection = try $ between (char '(') (char ')') g
   where
     g = do { many t_ws; l <- option [] t_itemList; many t_ws; return l }
 
@@ -377,7 +376,7 @@ convertObjectListItem bUrl pms subj pred obj
   | isOResource       obj   = log `seq` makeTriple' objNode
   | isOBlankBNode     obj   = log `seq` makeTriple' bIdNode
   | isOBlankBNodeGen  obj   = log `seq` makeTriple' bGenIdNode
-  | isOBlankBNodeColl obj   = error "TurtleParser.convertObjectListItem.isOBlankBNodeColl"
+  | isOBlankBNodeColl obj   = convertColl bUrl pms subj pred ocoll -- error "TurtleParser.convertObjectListItem.isOBlankBNodeColl"
   -- if object is a POList, then we create a bnode to use as the object in a triple and cons
   -- that triple onto the triples that represent the POList, each of which has the same bnode
   -- as the subject.
@@ -400,6 +399,39 @@ convertObjectListItem bUrl pms subj pred obj
     (O_Blank (B_BlankGen bGenId))         = obj
     (O_Blank ocoll@(B_Collection _ _))    = obj
     (O_Blank opol@(B_POList poObjId pol)) = obj
+
+{-
+Collections are interpreted as follows:
+
+( object1 object2 ) is short for:
+
+[ rdf:first object1; rdf:rest [ rdf:first object2; rdf:rest rdf:nil ] ]
+
+Which expands to the following triples:
+:genid0 rdf:first object1 .
+:genid0 rdf:rest :genid1 .
+:genid1 rdf:first object2 .
+:genid1 rdf:rest rdf:nil .
+
+( ) is short for the resource:
+rdf:nil
+
+The Notation3 spec has the following to say on lists:
+
+1. All lists exist. The statement [rdf:first <a>; rdf:rest rdf:nil]. carries no
+   information in that the list ( <a> ) exists and this expression carries no 
+   new information about it.
+
+2. A list has only one rdf:first. rdf:first is functional. If the same thing
+   has rdf:first arcs from it, they must be to nodes which are RDF
+   equivalent - are the same RDF node.
+
+3. Lists are the same RDF node if they have the same the:first and the
+   same rdf:rest.
+
+-}
+convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> Triples
+convertColl = undefined
 
 isBNodeListSubject (R_Blank (B_POList _ _))    = True
 isBNodeListSubject _                         = False
@@ -442,27 +474,9 @@ test testNum = readFile fpath >>= f
   where
     fpath = printf "data/ttl/conformance/test-%02d.ttl" testNum :: String
     f s = case parseString s of
-            (Left err) -> error (show err)
+            (Left err) -> putStrLn $ show err
             (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr::AvlGraph))
-{-
-data Statement = S_Directive Directive
-               | S_Triples (Resource, [(Resource, [Object])])
-type Statements = [Statement]
-data Directive = D_BaseUrl String
-               | D_PrefixId (String, String)
-data Blank = B_BlankId String
-           | B_BlankGenId
-           | B_POList POList
-           | B_Collection Collection
-type POList = [(Resource, [Object])]
-type Collection = [Object]
-data Object = O_Resource Resource
-            | O_Blank Blank
-            | O_Literal Node
-data Resource = R_URIRef String
-              | R_QName String String
-              | R_Blank Blank
--}
+
 resolveQName :: String -> PrefixMappings -> String
 resolveQName pre = Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ pre) pre
 
