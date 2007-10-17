@@ -17,7 +17,7 @@ Description:
     It is experimental and certain to change, but I'm making it
     publicly available while it develops in case it's of any use
     to others, even in its present humble state.
-Exposed-modules: RDF, Namespace, AvlGraph, TriplesGraph, NTriplesParser
+Exposed-modules: RDF, Namespace, AvlGraph, TriplesGraph, NTriplesParser, TurtleParser
 -- -ddump-simpl-stats for optimization info
 Ghc-Options:     -O -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures
 
