@@ -147,8 +147,8 @@ t_objectList =
   where obj = many t_ws >> char ',' >> many t_ws >> t_object
 
 t_verb = 
-  (char 'a' >> return (R_URIRef "http://www.w3.org/1999/02/22-rdf-syntax-ns#type")) <|> 
-  t_predicate
+  try t_predicate <|>
+  (char 'a' >> return (R_URIRef "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
   <?> "verb"
 
 t_predicateObjectList = 
