@@ -93,7 +93,7 @@ data Directive = D_BaseUrl String
 data Blank = B_BlankId String
            | B_BlankGen Int              -- int is genid used for []
            | B_POList Int POList         -- int is genid used for [ :p1 :o1; :p2 :o2 ]
-           | B_Collection Int Collection -- int is genid used for ( :obj1 :obj2 )
+           | B_Collection [(Int,Object)] -- int is genid used for ( :obj1 :obj2 )
   deriving Show
 type POList = [(Resource, [Object])]
 type Collection = [Object]
@@ -166,7 +166,7 @@ t_comment =
 
 t_subject = (t_resource <?> "resource") <|> (t_blank >>= conv <?> "blank")
   where 
-    conv (B_Collection _ _)  = error "Blank Collection not permitted as Subject"
+    conv (B_Collection _)  = error "Blank Collection not permitted as Subject"
     conv (B_POList i pol)      = return (R_Blank (B_POList i pol)) --error "Subject POList not implemented yet."
     conv blank               = return (R_Blank blank)
 
@@ -222,9 +222,10 @@ t_boolean = (string "true" >> return True) <|> (string "false" >> return False)
 t_blank = (try t_nodeID >>= return . B_BlankId)
           <|> try (do string "[]"; n <- getState; updateState (+1); return (B_BlankGen n))
           <|> try (do char '['; poList <- predObjList; n <- getState; updateState (+1); char ']'; return (B_POList n poList))
-          <|> (do coll <- t_collection; n <- getState; updateState (+1);  return $ B_Collection n coll)
+          <|> (do coll <- t_collection;  ids <- getIds (length coll); return $ B_Collection (zip ids coll))
   where
     predObjList = do { many t_ws; l <- t_predicateObjectList; many t_ws; return l}
+    getIds n = mapM (\_ -> do i <- getState; updateState (+1); return i) $ replicate n False
 
 t_itemList = 
   do obj1 <- t_object <?> "object"
@@ -397,7 +398,7 @@ convertObjectListItem bUrl pms subj pred obj
     (O_Resource res)                      = obj
     (O_Blank (B_BlankId bId))             = obj
     (O_Blank (B_BlankGen bGenId))         = obj
-    (O_Blank ocoll@(B_Collection _ _))    = obj
+    (O_Blank ocoll@(B_Collection _))      = obj
     (O_Blank opol@(B_POList poObjId pol)) = obj
 
 {-
@@ -412,6 +413,8 @@ Which expands to the following triples:
 :genid0 rdf:rest :genid1 .
 :genid1 rdf:first object2 .
 :genid1 rdf:rest rdf:nil .
+# plus the initial:
+:subj :pred :genid0
 
 ( ) is short for the resource:
 rdf:nil
@@ -431,10 +434,57 @@ The Notation3 spec has the following to say on lists:
 
 -}
 convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> Triples
-convertColl = undefined
-  where convertColl' []         = []
-        convertColl' (o1:o2:os) = undefined
-        convertColl' (o:os)     = undefined
+convertColl bUrl pms subj pred (B_Collection objs) =  
+  if null objs
+     then collTriples
+     else initialTriple (head objs) : collTriples
+  where initialTriple (initId, initObj) = triple subjNode predNode (BNodeGen initId)
+        collTriples = convertColl' objs
+        subjNode = uriRefQNameOrBlank  bUrl pms subj
+        predNode = uriRefOrQName bUrl pms pred
+        -- only called with empty list if collection was empty
+        convertColl' :: [(Int, Object)] -> Triples
+        convertColl' []                = [triple subjNode predNode rdfNil]
+        -- if next elem is nil, then we're finished, and make rdf:next nil
+        convertColl' ((i, obj):[])     = triple (BNodeGen i) rdfFirst (bObjToNode obj) :
+                                           triple (BNodeGen i) rdfRest rdfNil : []
+        convertColl' ((i1,obj1):o2@(i2,obj2):os) = triple (BNodeGen i1) rdfFirst (bObjToNode obj1) :
+                                                  triple (BNodeGen i1) rdfRest (BNodeGen i2) : convertColl' (o2:os)
+        bObjToNode (O_Resource res) = uriRefOrQName bUrl pms res
+        bObjToNode (O_Literal lit)  = lit
+        bObjToNode errObj           = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
+
+rdfNil   = UNode $ makeUri rdf "nil"
+rdfFirst = UNode $ makeUri rdf "first"
+rdfRest  = UNode $ makeUri rdf "rest"
+rdfNext  = UNode $ makeUri rdf "next"
+
+resourceToNode :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
+resourceToNode baseUrl pms res =
+  case (baseUrl, res) of
+    (Nothing, (R_URIRef uri))  -> UNode $ resolveUri Nothing uri
+    (bUrl,    (R_URIRef uri))  -> UNode $ resolveUri bUrl    uri
+    (_,       (R_QName p u))   -> UNode $ resolveQName p pms ++ u
+    (_,       (R_Blank b))     -> blankToNode b
+  where 
+    blankToNode (B_BlankId bId) = BNode bId
+    blankToNode (B_BlankGen i)  = BNodeGen i
+    blankToNode b               = error $ "Cannot convert blank '" ++ show b ++ "' to a single node."
+
+resolveUri :: Maybe BaseUrl -> String -> String
+resolveUri Nothing uri | isAbsoluteUri uri = uri
+                       | otherwise         = error "No Base URL against which to resolve relative URI"
+resolveUri (Just (BaseUrl bUrl)) uri | isAbsoluteUri uri = uri
+                                     | otherwise         = bUrl ++ uri
+
+{-
+Need to determine if the uriref is really an absolute uri by checking to
+see if it begins with a scheme, which would satisfy the regex:
+scheme        = alpha *( alpha | digit | "+" | "-" | "." )
+
+alpha is lowercase letters, but rfc says best to normalize uppercase to lower.
+-}
+isAbsoluteUri uriref = True
 
 isBNodeListSubject (R_Blank (B_POList _ _))    = True
 isBNodeListSubject _                         = False
@@ -447,7 +497,7 @@ isOBlankBNode    (O_Blank   (B_BlankId _))   = True
 isOBlankBNode    _                           = False
 isOBlankBNodeGen (O_Blank (B_BlankGen _))    = True
 isOBlankBNodeGen _                           = False
-isOBlankBNodeColl (O_Blank (B_Collection _ _)) = True
+isOBlankBNodeColl (O_Blank (B_Collection _)) = True
 isOBlankBNodeColl _                          = False
 isOBlankPOList (O_Blank (B_POList _ _))        = True
 isOBlankPOList _                             = False
