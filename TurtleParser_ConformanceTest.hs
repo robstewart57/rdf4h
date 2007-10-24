@@ -11,7 +11,7 @@ import System.IO
 --runAllCTests :: IO T.Counts
 runAllCTests = allTests >>= return . T.TestList >>= runTest
   where runTest  = T.runTestText (T.putTextToHandle stdout True)
-        allTests = mapM checkConformanceTest [1..30]
+        allTests = mapM checkConformanceTest [0..30]
 
 checkConformanceTest :: Int -> IO T.Test
 checkConformanceTest i = 
