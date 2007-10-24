@@ -154,7 +154,7 @@ t_verb =
 t_predicateObjectList = 
   do v1 <- t_verb <?> "verb"
      many1 t_ws   <?> "whitespace"
-     ol1 <- t_objectList <?> "objectList" -- can not fail
+     ol1 <- t_objectList <?> "objectList" -- cannot fail
      ol_rest <- many $
        try (do v' <- many t_ws >> char ';' >> many t_ws >> t_verb
                ol' <- many1 t_ws >> t_objectList
@@ -177,6 +177,13 @@ t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
            <|> (((try t_literal) <?> "literal") >>= \l -> return (O_Literal l))
 
 t_literal = 
+  str_literal <|>
+  (do d <- try t_decimal; return (LNode $ TypedL d (makeUri xsd "decimal"))) <|>
+  (do d <- try t_double; return (LNode $ TypedL d (makeUri xsd "double")))   <|>
+  (do i <- try t_integer; return (LNode $ TypedL i (makeUri xsd "integer"))) <|>
+  (do b <- try t_boolean; return (LNode $ TypedL b (makeUri xsd "boolean")))
+     
+str_literal =
   do 
     str <- try (t_quotedString <?> "quotedString")
     rt <-  rest           
@@ -208,7 +215,7 @@ digits1_parser = many1 digit
 t_decimal = 
   do sign <- sign_parser
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
-             <|> do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) }
+             <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
      return (sign ++ rest)
      
@@ -217,7 +224,7 @@ t_exponent = do e <- oneOf "eE"
                 ds <- many1 digit; 
                 return (e:(s++ds))
 
-t_boolean = (string "true" >> return True) <|> (string "false" >> return False)
+t_boolean = try (string "true" <|> string "false")
 
 t_blank = (try t_nodeID >>= return . B_BlankId)
           <|> try (do string "[]"; n <- getState; updateState (+1); return (B_BlankGen n))
@@ -256,7 +263,10 @@ t_language =
      return (init ++ concat rest)
 
 
-t_nameStartChar = char '_' <|> satisfy (flip in_range blocks)
+t_nameStartChar = try (char '_') <|> t_nameStartCharMinusUnderscore
+
+t_nameStartCharMinusUnderscore = 
+  try (satisfy (flip in_range blocks))
   where blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'), 
                   ('\x00D8', '\x00F6'), ('\x00F8', '\x02FF'),
                   ('\x0370', '\x037D'), ('\x037F', '\x1FFF'),
@@ -273,7 +283,7 @@ in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
 t_name = do { c <- t_nameStartChar; cs <- many t_nameChar; return (c:cs) }
 
-t_prefixName = do { c <- t_nameStartChar; cs <- many t_nameChar; return (c:cs) }
+t_prefixName = do { c <- t_nameStartCharMinusUnderscore; cs <- many t_nameChar; return (c:cs) }
 
 t_relativeURI = many t_ucharacter >>= return . concat
 
@@ -286,13 +296,13 @@ t_string =
      return (concat schars)
 
 t_longString = 
-  do try (count 3 (char '"'))
+  do try $ count 3 (char '"')
      strs <- many t_lcharacter
-     count 3 (char '"'); 
+     count 3 (char '"')
      return (concat strs)
 
 
-t_character = try unicode_escape <|> try (non_ctrl_char_except ['\\'])
+t_character =  try (non_ctrl_char_except ['\\']) <|> try (string "\\") <|> try unicode_escape
 
 t_echaracter = try( do { (char '\\'); c <- oneOf ['t', 'n', 'r']; return ('\\':c:[]);}) <|>
                t_character
@@ -308,7 +318,12 @@ t_scharacter =
      <|> try  (do char '\\'; c <- oneOf ['t', 'n', 'r']; return ('\\':c:[])) -- echaracter part 1
      <|> unicode_escape <|> non_ctrl_char_except ['\\', '"']         -- echaracter part 2 minus "
 
-t_lcharacter = t_echaracter <|> (oneOf ['"', '\x0009', '\x000A', '\x000D'] >>= (\c -> return [c]))
+-- characters used in long strings
+t_lcharacter = 
+  t_echaracter <|> 
+  -- FIXME: doesn't work with 2 embedded quotes
+  (char '"' >> notFollowedBy  (char '"') >>  (return "\"")) <|>
+  (oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return [c])
 
 unicode_escape = 
   do {
