@@ -178,9 +178,9 @@ t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
 
 t_literal = 
   try str_literal <|>
-  (do d <- try t_decimal; return (LNode $ TypedL d (makeUri xsd "decimal"))) <|>
-  (do d <- try t_double; return (LNode $ TypedL d (makeUri xsd "double")))   <|>
   (do i <- try t_integer; return (LNode $ TypedL i (makeUri xsd "integer"))) <|>
+  (do d <- try t_double; return (LNode $ TypedL d (makeUri xsd "double")))   <|>
+  (do d <- try t_decimal; return (LNode $ TypedL d (makeUri xsd "decimal"))) <|>
   (do b <- try t_boolean; return (LNode $ TypedL b (makeUri xsd "boolean")))
      
 str_literal =
@@ -200,13 +200,14 @@ str_literal =
 t_integer = 
   do sign <- sign_parser <?> "+-"
      ds <- many1 digit   <?> "digit"
+     notFollowedBy (char '.')
      return (sign ++ ds)
 
 t_double =
   do sign <- sign_parser <?> "+-"
-     rest <- do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (ds ++ "." ++ ds' ++ e) }
-             <|> do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.':ds ++ e) }
-             <|> do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return (ds ++ e) }
+     rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (ds ++ "." ++ ds' ++ e) }) <|>
+             try (do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.':ds ++ e) }) <|>
+             try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return (ds ++ e) })
      return (sign ++ rest)
 
 sign_parser = option "" (oneOf "-+" >>= (\c -> return (c:[]))) 
@@ -304,6 +305,7 @@ t_longString =
     tripleQuote = count 3 (char '"')
 
 longString_char  = 
+  (try $ string "\\\"" >> return "\"") <|>
   (try $ oneOf ['\x0009', '\x000A', '\x000D'] >>= return . (:[]))         <|>  -- \r|\n|\t as single char
   (try $ char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return ('\\':c:[])) <|>
   (try $ non_ctrl_char_except ['\\']) <|> 
