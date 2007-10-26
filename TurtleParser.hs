@@ -177,7 +177,7 @@ t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
            <|> (((try t_literal) <?> "literal") >>= \l -> return (O_Literal l))
 
 t_literal = 
-  str_literal <|>
+  try str_literal <|>
   (do d <- try t_decimal; return (LNode $ TypedL d (makeUri xsd "decimal"))) <|>
   (do d <- try t_double; return (LNode $ TypedL d (makeUri xsd "double")))   <|>
   (do i <- try t_integer; return (LNode $ TypedL i (makeUri xsd "integer"))) <|>
@@ -287,20 +287,27 @@ t_prefixName = do { c <- t_nameStartCharMinusUnderscore; cs <- many t_nameChar; 
 
 t_relativeURI = many t_ucharacter >>= return . concat
 
-t_quotedString = t_longString <|> t_string
+t_quotedString = try t_longString <|> try t_string
 
 t_string = 
-  do try $ char '"'
+  do char '"'
      schars <- many t_scharacter
      char '"'
      return (concat schars)
 
 t_longString = 
-  do try $ count 3 (char '"')
-     strs <- many t_lcharacter
-     count 3 (char '"')
+  do tripleQuote
+     strs <- manyTill longString_char (try tripleQuote)
+     -- the manyTill already read the closing quotes, so don't read again
      return (concat strs)
+  where
+    tripleQuote = count 3 (char '"')
 
+longString_char  = 
+  (try $ oneOf ['\x0009', '\x000A', '\x000D'] >>= return . (:[]))         <|>  -- \r|\n|\t as single char
+  (try $ char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return ('\\':c:[])) <|>
+  (try $ non_ctrl_char_except ['\\']) <|> 
+  (try unicode_escape)
 
 t_character =  try (non_ctrl_char_except ['\\']) <|> try (string "\\") <|> try unicode_escape
 
