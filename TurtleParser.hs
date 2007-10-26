@@ -14,6 +14,7 @@ import Text.Printf
 import AvlGraph -- FIXME: just for testing
 import Foreign  -- FIXME: "
 import Control.Monad
+import System.IO
 --import qualified Control.Monad.State as S
 
 {-
@@ -320,8 +321,8 @@ t_echaracter = try( do { (char '\\'); c <- oneOf ['t', 'n', 'r']; return ('\\':c
 t_hex = satisfy (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
 
 t_ucharacter = 
-  do try (string "\\>") <|> try unicode_escape <|> try (non_ctrl_char_except ['\\', '>'])
-                  
+  do try unicode_escape <|> try (string "\\>") <|> try (non_ctrl_char_except ['>'])
+
 t_scharacter =
   do try (string "\\\"") 
      <|> try  (do char '\\'; c <- oneOf ['t', 'n', 'r']; return ('\\':c:[])) -- echaracter part 1
