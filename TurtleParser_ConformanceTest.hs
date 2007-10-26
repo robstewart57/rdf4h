@@ -8,6 +8,8 @@ import TriplesGraph
 import Text.ParserCombinators.Parsec
 import System.IO
 
+main = runAllCTests >>= putStrLn . show
+
 --runAllCTests :: IO T.Counts
 runAllCTests = allTests >>= return . T.TestList >>= runTest
   where runTest  = T.runTestText (T.putTextToHandle stdout True)
