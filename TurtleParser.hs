@@ -10,6 +10,7 @@ import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
 import Data.Maybe(isJust, fromJust)
 import Text.Printf
+import Data.Char
 
 import AvlGraph -- FIXME: just for testing
 import Foreign  -- FIXME: "
@@ -109,8 +110,9 @@ data Resource = R_URIRef String
 type T_Triples     = (Resource, [(Resource, [Object])])
 --type T_TriplesList = [T_Triples]
 type ResourceWithId = (Maybe Int, Resource)
+type ParseState = (Maybe BaseUrl, Int)
 
-t_turtleDoc = many t_statement :: GenParser Char Int [Maybe Statement]
+t_turtleDoc = many t_statement :: GenParser Char ParseState [Maybe Statement]
 
 t_statement = (d >>= return . Just) <|> 
               (t >>= return . Just) <|> 
@@ -133,6 +135,8 @@ t_base =
   do string "@base"
      many1 t_ws        <?> "whitespace"
      (R_URIRef uri) <- t_uriref <?> "uriref"
+     (oldBaseUrl, i) <- getState
+     setState (Just $ BaseUrl uri, i)
      return $ D_BaseUrl uri
 
 t_triples = 
@@ -174,7 +178,7 @@ t_subject = (t_resource <?> "resource") <|> (t_blank >>= conv <?> "blank")
 t_predicate = t_resource <?> "resource"
 
 t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
-           <|> (((try t_blank) <?> "blank") >>= \r -> do i <- getState; updateState (+1); return (O_Blank r))
+           <|> (((try t_blank) <?> "blank") >>= \r -> do (b,i) <- getState; setState (b,i+1); return (O_Blank r))
            <|> (((try t_literal) <?> "literal") >>= \l -> return (O_Literal l))
 
 t_literal = 
@@ -229,12 +233,12 @@ t_exponent = do e <- oneOf "eE"
 t_boolean = try (string "true" <|> string "false")
 
 t_blank = (try t_nodeID >>= return . B_BlankId)
-          <|> try (do string "[]"; n <- getState; updateState (+1); return (B_BlankGen n))
-          <|> try (do char '['; poList <- predObjList; n <- getState; updateState (+1); char ']'; return (B_POList n poList))
+          <|> try (do string "[]"; (b,n) <- getState; setState (b,n+1); return (B_BlankGen n))
+          <|> try (do char '['; poList <- predObjList; (b,n) <- getState; setState (b,n+1); char ']'; return (B_POList n poList))
           <|> (do coll <- t_collection;  ids <- getIds (length coll); return $ B_Collection (zip ids coll))
   where
     predObjList = do { many t_ws; l <- t_predicateObjectList; many t_ws; return l}
-    getIds n = mapM (\_ -> do i <- getState; updateState (+1); return i) $ replicate n False
+    getIds n = mapM (\_ -> do (b,i) <- getState; setState (b,i+1); return i) $ replicate n False
 
 t_itemList = 
   do obj1 <- t_object <?> "object"
@@ -349,54 +353,59 @@ non_ctrl_char_except cs =
 
 --
 
-post_process :: Maybe BaseUrl -> Either ParseError [Maybe Statement]
+post_process :: Maybe BaseUrl -> String -> Either ParseError [Maybe Statement]
                 -> Either ParseError (Triples, Maybe BaseUrl, PrefixMappings)
-post_process _baseUrl _result = 
+post_process _baseUrl _docUrl _result = 
   case _result of
     (Left err)     ->  Left err
-    (Right sts)    ->  Right $ post_process' _baseUrl $ map fromJust $ filter isJust sts
+    (Right sts)    ->  Right $ post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts
 
-post_process' :: Maybe BaseUrl -> Statements -> (Triples, Maybe BaseUrl, PrefixMappings)
-post_process' baseUrl stmts = f $ post_process'' ([], baseUrl, Map.empty) stmts
-  where f (ts, lastBaseUrl, pms) = (ts, baseUrl, pms)
+post_process' :: Maybe BaseUrl -> String -> Statements -> (Triples, Maybe BaseUrl, PrefixMappings)
+post_process' baseUrl docUrl stmts = f $ post_process'' ([], baseUrl, docUrl, Map.empty) stmts
+  where f (ts, lastBaseUrl, docUrl, pms) = (ts, baseUrl, pms)
 
 
-post_process'' :: (Triples, Maybe BaseUrl, PrefixMappings) -> Statements ->
-                  (Triples, Maybe BaseUrl, PrefixMappings)
+post_process'' :: (Triples, Maybe BaseUrl, String, PrefixMappings) -> Statements ->
+                  (Triples, Maybe BaseUrl, String, PrefixMappings)
 post_process'' tup [] = tup
-post_process'' (ts, currBaseUrl, pms) (stmt:stmts) =
+post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
   case stmt of
     S_Directive sdir -> 
       case sdir of
-        D_PrefixId (pre,url) -> post_process'' (ts, currBaseUrl, Map.insert pre url pms) stmts
-        D_BaseUrl url        -> post_process'' (ts, (Just $ BaseUrl url), pms) stmts
+        D_PrefixId (pre,url) -> post_process'' (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl url) pms) stmts
+        D_BaseUrl url        -> post_process'' (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
     S_Triples strp    ->
-      let (new_ts, new_baseUrl, newPms) = process_ts (ts, currBaseUrl, pms) strp
-      in post_process'' (new_ts ++ ts, new_baseUrl, newPms) stmts
-
-process_ts :: (Triples, Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
-              (Triples, Maybe BaseUrl, PrefixMappings)
-process_ts (ts, bUrl, pms) (subj, poLists) = (new_ts ++ ts, bUrl, pms)
+      let (new_ts, new_baseUrl, new_docUrl, newPms) = process_ts (ts, currBaseUrl, docUrl, pms) strp
+      in post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
   where
-    new_ts = convertPOLists bUrl pms (subj, poLists)
+    resolveUrl Nothing               url = url
+    resolveUrl (Just (BaseUrl bUrl)) url = if isAbsoluteUri url then url else (if url == "#" then docUrl ++ "#" else bUrl ++ url)
+    newBaseUrl Nothing               url = BaseUrl url
+    newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $ if isAbsoluteUri url then url else bUrl ++ url
+
+process_ts :: (Triples, Maybe BaseUrl, String, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
+              (Triples, Maybe BaseUrl, String, PrefixMappings)
+process_ts (ts, bUrl, docUrl, pms) (subj, poLists) = (new_ts ++ ts, bUrl, docUrl, pms)
+  where
+    new_ts = convertPOLists bUrl docUrl pms (subj, poLists)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
-convertPOLists :: Maybe BaseUrl -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> Triples
-convertPOLists bUrl pms (subj, poLists) = concatMap (convertPOListItem bUrl pms subj) poLists
+convertPOLists :: Maybe BaseUrl -> String -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> Triples
+convertPOLists bUrl docUrl pms (subj, poLists) = concatMap (convertPOListItem bUrl docUrl pms subj) poLists
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
-convertPOListItem :: Maybe BaseUrl -> PrefixMappings -> Resource -> (Resource, [Object]) -> Triples
-convertPOListItem bUrl pms subj (pred, objs) = concatMap (convertObjectListItem bUrl pms subj pred) objs
+convertPOListItem :: Maybe BaseUrl -> String -> PrefixMappings -> Resource -> (Resource, [Object]) -> Triples
+convertPOListItem bUrl docUrl pms subj (pred, objs) = concatMap (convertObjectListItem bUrl docUrl pms subj pred) objs
 
 -- For a given object list item that is the object of supplied subject and predicate, convert it into a list
 -- of triples.
-convertObjectListItem :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Object -> Triples
-convertObjectListItem bUrl pms subj pred obj
+convertObjectListItem :: Maybe BaseUrl -> String -> PrefixMappings -> Resource -> Resource -> Object -> Triples
+convertObjectListItem bUrl docUrl pms subj pred obj
   -- if we have a bnode po list as the subject, we create a set of triples with a bnode as subject
   -- and all the pred-obj pairs as pred and obj; and additionally create a set of triples representing
   -- the bnode as subj, the curr pred as pred, and each object (in possibly a collection) as object.
-  | isBNodeListSubject subj = (\(R_Blank (B_POList i' polist')) ->  convertObjectListItem bUrl pms (R_Blank $ B_BlankGen i') pred obj
-                                                                      ++ concatMap (convertPOListItem bUrl pms (R_Blank $ B_BlankGen i')) polist') 
+  | isBNodeListSubject subj = (\(R_Blank (B_POList i' polist')) ->  convertObjectListItem bUrl docUrl pms (R_Blank $ B_BlankGen i') pred obj
+                                                                      ++ concatMap (convertPOListItem bUrl docUrl pms (R_Blank $ B_BlankGen i')) polist') 
                                 subj
   | isOLiteral        obj   = log `seq` makeTriple' lnode
   | isOResource       obj   = log `seq` makeTriple' objNode
@@ -406,7 +415,7 @@ convertObjectListItem bUrl pms subj pred obj
   -- if object is a POList, then we create a bnode to use as the object in a triple and cons
   -- that triple onto the triples that represent the POList, each of which has the same bnode
   -- as the subject.
-  | isOBlankPOList    obj   = makeTriple' bObjPolGenNode ++ convertPOLists bUrl pms (R_Blank opol, pol)
+  | isOBlankPOList    obj   = makeTriple' bObjPolGenNode ++ convertPOLists bUrl docUrl pms (R_Blank opol, pol)
   | otherwise               = error $ "Unexpected case: " ++ show obj
   where 
     log                                   = False --unsafePerformIO $ putStrLn $ show subj ++ show pred ++ show obj
@@ -484,10 +493,10 @@ rdfFirst = UNode $ makeUri rdf "first"
 rdfRest  = UNode $ makeUri rdf "rest"
 rdfNext  = UNode $ makeUri rdf "next"
 
+{-
 resourceToNode :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
 resourceToNode baseUrl pms res =
   case (baseUrl, res) of
-    (Nothing, (R_URIRef uri))  -> UNode $ resolveUri Nothing uri
     (bUrl,    (R_URIRef uri))  -> UNode $ resolveUri bUrl    uri
     (_,       (R_QName p u))   -> UNode $ resolveQName p pms ++ u
     (_,       (R_Blank b))     -> blankToNode b
@@ -495,12 +504,15 @@ resourceToNode baseUrl pms res =
     blankToNode (B_BlankId bId) = BNode bId
     blankToNode (B_BlankGen i)  = BNodeGen i
     blankToNode b               = error $ "Cannot convert blank '" ++ show b ++ "' to a single node."
+-}
 
+{-
 resolveUri :: Maybe BaseUrl -> String -> String
 resolveUri Nothing uri | isAbsoluteUri uri = uri
                        | otherwise         = error "No Base URL against which to resolve relative URI"
 resolveUri (Just (BaseUrl bUrl)) uri | isAbsoluteUri uri = uri
                                      | otherwise         = bUrl ++ uri
+-}
 
 {-
 Need to determine if the uriref is really an absolute uri by checking to
@@ -509,7 +521,11 @@ scheme        = alpha *( alpha | digit | "+" | "-" | "." )
 
 alpha is lowercase letters, but rfc says best to normalize uppercase to lower.
 -}
-isAbsoluteUri uriref = True
+isAbsoluteUri []     = False
+isAbsoluteUri (x:xs) = isLetter x && not (null s2) && all f s1
+  where
+    (s1, s2) = span (/= ':') xs
+    f c = isLetter c || isDigit c || c == '+' || c == '-' || c == '.'
 
 isBNodeListSubject (R_Blank (B_POList _ _))    = True
 isBNodeListSubject _                         = False
@@ -528,35 +544,50 @@ isOBlankPOList (O_Blank (B_POList _ _))        = True
 isOBlankPOList _                             = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefQNameOrBlank  _        _     (R_URIRef url)            = UNode url
-uriRefQNameOrBlank  _        pms   (R_QName pre local)       = UNode $ (resolveQName pre pms) ++ local
-uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId)) = BNode bId
-uriRefQNameOrBlank  bUrl     _     (R_Blank (B_BlankGen genId))  = BNodeGen genId -- TODO: decide how to handle this
-uriRefQNameOrBlank  _        _      res                        = error $ show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
+uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = UNode url
+uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = 
+  if isAbsoluteUri url 
+     then UNode url 
+     else UNode (u++url)
+uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = UNode $ (resolveQName bUrl pre pms) ++ local
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = BNode bId
+uriRefQNameOrBlank  bUrl     _     (R_Blank (B_BlankGen genId))  = BNodeGen genId
+uriRefQNameOrBlank  _        _      res                          = error $ show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefOrQName _      _     (R_URIRef url)            = UNode url
-uriRefOrQName _      pms   (R_QName pre local)       = UNode $ (resolveQName pre pms) ++ local
-uriRefOrQName _      _     _                         = error "TurtleParser.predicate"
+uriRefOrQName Nothing _     (R_URIRef url)            = UNode url
+uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = if isAbsoluteUri url then (UNode url) else (UNode $ u++url)
+uriRefOrQName bUrl    pms   (R_QName pre local)       = UNode $ (resolveQName bUrl pre pms) ++ local
+uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
 
-parseString str = handleResult  $ post_process Nothing result
-  where result = runParser t_turtleDoc 0 "" str
+parseString :: Maybe BaseUrl -> String -> String -> Either ParseFailure AvlGraph
+parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl docUrl result
+  where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
 
 handleResult result =
   case result of
     (Left err)                      -> Left (ParseFailure $ show err)
     (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
 
+testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
+mtestBaseUri = Just $ BaseUrl testBaseUri
+
 test :: Int -> IO ()
 test testNum = readFile fpath >>= f
   where
-    fpath = printf "data/ttl/conformance/test-%02d.ttl" testNum :: String
-    f s = case parseString s of
+    fname = printf "test-%02d.ttl" testNum :: String
+    fpath = "data/ttl/conformance/" ++ fname
+    f s = case parseString mtestBaseUri (testBaseUri ++ fname) s of
             (Left err) -> putStrLn $ show err
-            (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr::AvlGraph))
+            --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::AvlGraph))) ++ " triples"
+            (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: AvlGraph))
 
-resolveQName :: String -> PrefixMappings -> String
-resolveQName pre = Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ pre) pre
+resolveQName :: Maybe BaseUrl -> String -> PrefixMappings -> String
+resolveQName Nothing            []   pms = error "Cannot resolve empty QName prefix to a base URL."
+resolveQName (Just (BaseUrl u)) []   pms = 
+  Map.findWithDefault u "" pms
+resolveQName bUrl               pre  pms = 
+  Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ pre) pre pms
 
 
 -- Parse the N-Triples document at the given filepath,
@@ -574,36 +605,3 @@ resolveQName pre = Map.findWithDefault (error $ "Cannot resolve QName Prefix: " 
 -- generating a graph containing the parsed triples.
 --parseString :: Graph gr => String -> Either ParseFailure gr
 --parseString str = handleParse mkGraph $ parse t_turtleDoc "" str 
-
-{-
-### Error in:   4:1
-Blank POList not permitted as Subject
-### Error in:   5:1
-user error (HUnit:   input06:ParseFailure "(line 3, column 5):\nunexpected \" \"\nexpecting \"_\", \"-\", \"\\183\" or \":\"")
-### Error in:   6:1
-user error (HUnit:   input07:ParseFailure "(line 2, column 7):\nunexpected \"(\"\nexpecting whitespace or objectList")
-### Error in:   8:1
-user error (HUnit:   input09:ParseFailure "(line 6, column 14):\nunexpected \" \"\nexpecting \"_\", \"-\", \"\\183\" or \":\"")
-### Error in:   9:1
-user error (HUnit:   input10:ParseFailure "(line 1, column 54):\nunexpected \"0\"\nexpecting whitespace or objectList")
-### Error in:   16:1
-user error (HUnit:   input17:ParseFailure "(line 3, column 7):\nunexpected \"\\\"\"\nexpecting whitespace or objectList")
-### Error in:   17:1
-user error (HUnit:   input18:ParseFailure "(line 3, column 7):\nunexpected \"\\\"\"\nexpecting whitespace or objectList")
-### Error in:   18:1
-user error (HUnit:   input19:ParseFailure "(line 3, column 8):\nunexpected \"1\"\nexpecting whitespace or objectList")
-### Error in:   19:1
-user error (HUnit:   input20:ParseFailure "(line 5, column 7):\nunexpected \"\\\"\"\nexpecting whitespace or objectList")
-### Error in:   20:1
-user error (HUnit:   input21:ParseFailure "(line 2, column 7):\nunexpected \"1\"\nexpecting whitespace or objectList")
-### Error in:   21:1
-user error (HUnit:   input22:ParseFailure "(line 2, column 7):\nunexpected \"-\"\nexpecting whitespace or objectList")
-### Error in:   22:1
-user error (HUnit:   input23:ParseFailure "(line 3, column 7):\nunexpected \"\\\"\"\nexpecting whitespace or objectList")
-### Error in:   23:1
-user error (HUnit:   input24:ParseFailure "(line 2, column 7):\nunexpected \"t\"\nexpecting whitespace or objectList")
-### Error in:   28:1
-user error (HUnit:   input29:ParseFailure "(line 1, column 53):\nunexpected \"<\"\nexpecting whitespace or objectList")
-Cases: 60  Tried: 60  Errors: 14  Failures: 0
-(Counts {cases = 60, tried = 60, errors = 14, failures = 0},0)
--}
