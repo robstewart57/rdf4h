@@ -112,7 +112,7 @@ type T_Triples     = (Resource, [(Resource, [Object])])
 type ResourceWithId = (Maybe Int, Resource)
 type ParseState = (Maybe BaseUrl, Int)
 
-t_turtleDoc = many t_statement :: GenParser Char ParseState [Maybe Statement]
+t_turtleDoc = many t_statement >>= \ts -> eof >> return ts :: GenParser Char ParseState [Maybe Statement]
 
 t_statement = (d >>= return . Just) <|> 
               (t >>= return . Just) <|> 
@@ -267,7 +267,6 @@ t_language =
   do init <- many1 lower;
      rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ('-':cs)})
      return (init ++ concat rest)
-
 
 t_nameStartChar = try (char '_') <|> t_nameStartCharMinusUnderscore
 
@@ -560,7 +559,7 @@ uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = if isAbsoluteUri url the
 uriRefOrQName bUrl    pms   (R_QName pre local)       = UNode $ (resolveQName bUrl pre pms) ++ local
 uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
 
-parseString :: Maybe BaseUrl -> String -> String -> Either ParseFailure AvlGraph
+parseString :: Graph gr => Maybe BaseUrl -> String -> String -> Either ParseFailure gr
 parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl docUrl result
   where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
 
@@ -568,19 +567,6 @@ handleResult result =
   case result of
     (Left err)                      -> Left (ParseFailure $ show err)
     (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
-
-testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
-mtestBaseUri = Just $ BaseUrl testBaseUri
-
-test :: Int -> IO ()
-test testNum = readFile fpath >>= f
-  where
-    fname = printf "test-%02d.ttl" testNum :: String
-    fpath = "data/ttl/conformance/" ++ fname
-    f s = case parseString mtestBaseUri (testBaseUri ++ fname) s of
-            (Left err) -> putStrLn $ show err
-            --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::AvlGraph))) ++ " triples"
-            (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: AvlGraph))
 
 resolveQName :: Maybe BaseUrl -> String -> PrefixMappings -> String
 resolveQName Nothing            []   pms = error "Cannot resolve empty QName prefix to a base URL."
