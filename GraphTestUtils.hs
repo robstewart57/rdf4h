@@ -11,7 +11,7 @@ import System.Random
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Test.QuickCheck
-import Foreign(unsafePerformIO)
+import System.IO.Unsafe(unsafePerformIO)
 
 -- Test stubs, which just require the appropriate graph impl function
 -- passed in to determine the graph implementation to be tested.
