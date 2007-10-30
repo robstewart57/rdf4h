@@ -2,21 +2,17 @@ module TurtleParser where
 
 import RDF hiding (Object)
 import Namespace
-import ParserUtils
 import Text.ParserCombinators.Parsec
-import Data.Set.AVL (Set)
-import qualified Data.Set.AVL as Set
 import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
 import Data.Maybe(isJust, fromJust)
-import Text.Printf
-import Data.Char
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
 
 import AvlGraph -- FIXME: just for testing
 import Foreign  -- FIXME: "
 import Control.Monad
-import System.IO
---import qualified Control.Monad.State as S
+
 
 {-
 
@@ -89,10 +85,10 @@ data Statement = S_Directive Directive
                | S_Triples T_Triples
   deriving Show
 type Statements = [Statement]
-data Directive = D_BaseUrl String
-               | D_PrefixId (String, String)
+data Directive = D_BaseUrl ByteString
+               | D_PrefixId (ByteString, ByteString)
   deriving Show
-data Blank = B_BlankId String
+data Blank = B_BlankId ByteString
            | B_BlankGen Int              -- int is genid used for []
            | B_POList Int POList         -- int is genid used for [ :p1 :o1; :p2 :o2 ]
            | B_Collection [(Int,Object)] -- int is genid used for ( :obj1 :obj2 )
@@ -103,8 +99,8 @@ data Object = O_Resource Resource
             | O_Blank Blank
             | O_Literal Node
   deriving Show
-data Resource = R_URIRef String
-              | R_QName String String
+data Resource = R_URIRef ByteString
+              | R_QName ByteString ByteString
               | R_Blank Blank
   deriving Show
 type T_Triples     = (Resource, [(Resource, [Object])])
@@ -125,7 +121,7 @@ t_directive = (try t_prefixID <|> try t_base <?> "directive") >>= return . S_Dir
 t_prefixID =
   do string "@prefix"
      many1 t_ws <?> "whitespace"
-     pn <- option "" t_prefixName
+     pn <- option (s2b "") t_prefixName
      char ':'
      many1 t_ws
      (R_URIRef uri) <- t_uriref <?> "uriref"
@@ -135,7 +131,7 @@ t_base =
   do string "@base"
      many1 t_ws        <?> "whitespace"
      (R_URIRef uri) <- t_uriref <?> "uriref"
-     (oldBaseUrl, i) <- getState
+     (_, i) <- getState
      setState (Just $ BaseUrl uri, i)
      return $ D_BaseUrl uri
 
@@ -153,7 +149,7 @@ t_objectList =
 
 t_verb = 
   try t_predicate <|>
-  (char 'a' >> return (R_URIRef "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
+  (char 'a' >> return (R_URIRef $ s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
   <?> "verb"
 
 t_predicateObjectList = 
@@ -183,19 +179,19 @@ t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
 
 t_literal = 
   try str_literal <|>
-  (do i <- try t_integer; return (LNode $ TypedL i (makeUri xsd "integer"))) <|>
-  (do d <- try t_double; return (LNode $ TypedL d (makeUri xsd "double")))   <|>
-  (do d <- try t_decimal; return (LNode $ TypedL d (makeUri xsd "decimal"))) <|>
-  (do b <- try t_boolean; return (LNode $ TypedL b (makeUri xsd "boolean")))
+  (do i <- try t_integer; return (lnode $ TypedL (s2b i) (makeUri xsd $ s2b "integer"))) <|>
+  (do d <- try t_double; return (lnode $ TypedL (s2b d) (makeUri xsd $ s2b "double")))   <|>
+  (do d <- try t_decimal; return (lnode $ TypedL (s2b d) (makeUri xsd $ s2b "decimal"))) <|>
+  (do b <- try t_boolean; return (lnode $ TypedL (s2b b) (makeUri xsd $ s2b "boolean")))
      
 str_literal =
   do 
     str <- try (t_quotedString <?> "quotedString")
     rt <-  rest           
     case rt of
-      Nothing                        -> return (LNode $ PlainL str Nothing)
-      (Just (Left lng))              -> return (LNode $ PlainL str (Just lng))
-      (Just (Right (R_URIRef uri)))  -> return (LNode $ TypedL str uri)
+      Nothing                        -> return (lnode $ PlainL str Nothing)
+      (Just (Left lng))              -> return (lnode $ PlainL str (Just $ s2b lng))
+      (Just (Right (R_URIRef uri)))  -> return (lnode $ TypedL str uri)
       _                              -> error "t_literal"
   where
     rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
@@ -253,12 +249,12 @@ t_ws = char '\x000A' <|> char '\x000D' <|> char '\x0020' <|> t_comment <?> "whit
 
 t_resource = t_uriref <|> t_qname
 
-t_nodeID = do { string "_:"; cs <- t_name; return ("_:" ++ cs) }
+t_nodeID = do { string "_:"; cs <- t_name; return $ s2b "_:" `B.append` cs }
 
 t_qname = 
-  do pre <- option "" t_prefixName
+  do pre <- option (s2b "") t_prefixName
      char ':'
-     name <- option "" t_name
+     name <- option (s2b "") t_name
      return (R_QName pre name)
 
 t_uriref = between (char '<') (char '>') t_relativeURI >>= return . R_URIRef
@@ -286,11 +282,11 @@ t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
-t_name = do { c <- t_nameStartChar; cs <- many t_nameChar; return (c:cs) }
+t_name = do { c <- t_nameStartChar; cs <- many t_nameChar; return $ s2b (c:cs) }
 
-t_prefixName = do { c <- t_nameStartCharMinusUnderscore; cs <- many t_nameChar; return (c:cs) }
+t_prefixName = do { c <- t_nameStartCharMinusUnderscore; cs <- many t_nameChar; return $ s2b (c:cs) }
 
-t_relativeURI = many t_ucharacter >>= return . concat
+t_relativeURI = many t_ucharacter >>= return . s2b . concat
 
 t_quotedString = try t_longString <|> try t_string
 
@@ -298,13 +294,13 @@ t_string =
   do char '"'
      schars <- many t_scharacter
      char '"'
-     return (concat schars)
+     return (s2b $ concat schars)
 
 t_longString = 
   do tripleQuote
      strs <- manyTill longString_char (try tripleQuote)
      -- the manyTill already read the closing quotes, so don't read again
-     return (concat strs)
+     return (s2b $ concat strs)
   where
     tripleQuote = count 3 (char '"')
 
@@ -352,20 +348,20 @@ non_ctrl_char_except cs =
 
 --
 
-post_process :: Maybe BaseUrl -> String -> Either ParseError [Maybe Statement]
+post_process :: Maybe BaseUrl -> ByteString -> Either ParseError [Maybe Statement]
                 -> Either ParseError (Triples, Maybe BaseUrl, PrefixMappings)
 post_process _baseUrl _docUrl _result = 
   case _result of
     (Left err)     ->  Left err
     (Right sts)    ->  Right $ post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts
 
-post_process' :: Maybe BaseUrl -> String -> Statements -> (Triples, Maybe BaseUrl, PrefixMappings)
+post_process' :: Maybe BaseUrl -> ByteString -> Statements -> (Triples, Maybe BaseUrl, PrefixMappings)
 post_process' baseUrl docUrl stmts = f $ post_process'' ([], baseUrl, docUrl, Map.empty) stmts
   where f (ts, lastBaseUrl, docUrl, pms) = (ts, baseUrl, pms)
 
 
-post_process'' :: (Triples, Maybe BaseUrl, String, PrefixMappings) -> Statements ->
-                  (Triples, Maybe BaseUrl, String, PrefixMappings)
+post_process'' :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
+                  (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
 post_process'' tup [] = tup
 post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
   case stmt of
@@ -378,27 +374,28 @@ post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
       in post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
   where
     resolveUrl Nothing               url = url
-    resolveUrl (Just (BaseUrl bUrl)) url = if isAbsoluteUri url then url else (if url == "#" then docUrl ++ "#" else bUrl ++ url)
+    resolveUrl (Just (BaseUrl bUrl)) url = if isAbsoluteUri url then url else (if url == hash then docUrl `B.append` hash else bUrl `B.append` url)
     newBaseUrl Nothing               url = BaseUrl url
-    newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $ if isAbsoluteUri url then url else bUrl ++ url
+    newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $ if isAbsoluteUri url then url else bUrl `B.append` url
+    hash = s2b "#"
 
-process_ts :: (Triples, Maybe BaseUrl, String, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
-              (Triples, Maybe BaseUrl, String, PrefixMappings)
+process_ts :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
+              (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
 process_ts (ts, bUrl, docUrl, pms) (subj, poLists) = (new_ts ++ ts, bUrl, docUrl, pms)
   where
     new_ts = convertPOLists bUrl docUrl pms (subj, poLists)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
-convertPOLists :: Maybe BaseUrl -> String -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> Triples
+convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> Triples
 convertPOLists bUrl docUrl pms (subj, poLists) = concatMap (convertPOListItem bUrl docUrl pms subj) poLists
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
-convertPOListItem :: Maybe BaseUrl -> String -> PrefixMappings -> Resource -> (Resource, [Object]) -> Triples
+convertPOListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> Triples
 convertPOListItem bUrl docUrl pms subj (pred, objs) = concatMap (convertObjectListItem bUrl docUrl pms subj pred) objs
 
 -- For a given object list item that is the object of supplied subject and predicate, convert it into a list
 -- of triples.
-convertObjectListItem :: Maybe BaseUrl -> String -> PrefixMappings -> Resource -> Resource -> Object -> Triples
+convertObjectListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> Resource -> Object -> Triples
 convertObjectListItem bUrl docUrl pms subj pred obj
   -- if we have a bnode po list as the subject, we create a set of triples with a bnode as subject
   -- and all the pred-obj pairs as pred and obj; and additionally create a set of triples representing
@@ -471,7 +468,7 @@ convertColl bUrl pms subj pred (B_Collection objs) =
   if null objs
      then collTriples
      else initialTriple (head objs) : collTriples
-  where initialTriple (initId, initObj) = triple subjNode predNode (BNodeGen initId)
+  where initialTriple (initId, _) = triple subjNode predNode (BNodeGen initId)
         collTriples = convertColl' objs
         subjNode = uriRefQNameOrBlank  bUrl pms subj
         predNode = uriRefOrQName bUrl pms pred
@@ -481,16 +478,16 @@ convertColl bUrl pms subj pred (B_Collection objs) =
         -- if next elem is nil, then we're finished, and make rdf:next nil
         convertColl' ((i, obj):[])     = triple (BNodeGen i) rdfFirst (bObjToNode obj) :
                                            triple (BNodeGen i) rdfRest rdfNil : []
-        convertColl' ((i1,obj1):o2@(i2,obj2):os) = triple (BNodeGen i1) rdfFirst (bObjToNode obj1) :
+        convertColl' ((i1,obj1):o2@(i2,_):os) = triple (BNodeGen i1) rdfFirst (bObjToNode obj1) :
                                                   triple (BNodeGen i1) rdfRest (BNodeGen i2) : convertColl' (o2:os)
         bObjToNode (O_Resource res) = uriRefOrQName bUrl pms res
         bObjToNode (O_Literal lit)  = lit
         bObjToNode errObj           = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
 
-rdfNil   = UNode $ makeUri rdf "nil"
-rdfFirst = UNode $ makeUri rdf "first"
-rdfRest  = UNode $ makeUri rdf "rest"
-rdfNext  = UNode $ makeUri rdf "next"
+rdfNil   = UNode $ makeUri rdf (s2b "nil")
+rdfFirst = UNode $ makeUri rdf (s2b "first")
+rdfRest  = UNode $ makeUri rdf (s2b "rest")
+rdfNext  = UNode $ makeUri rdf (s2b "next")
 
 {-
 resourceToNode :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
@@ -520,11 +517,7 @@ scheme        = alpha *( alpha | digit | "+" | "-" | "." )
 
 alpha is lowercase letters, but rfc says best to normalize uppercase to lower.
 -}
-isAbsoluteUri []     = False
-isAbsoluteUri (x:xs) = isLetter x && not (null s2) && all f s1
-  where
-    (s1, s2) = span (/= ':') xs
-    f c = isLetter c || isDigit c || c == '+' || c == '-' || c == '.'
+isAbsoluteUri = B.elem ':'
 
 isBNodeListSubject (R_Blank (B_POList _ _))    = True
 isBNodeListSubject _                         = False
@@ -547,20 +540,20 @@ uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = UNode url
 uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = 
   if isAbsoluteUri url 
      then UNode url 
-     else UNode (u++url)
-uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = UNode $ (resolveQName bUrl pre pms) ++ local
+     else UNode (u `B.append` url)
+uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = UNode $ (resolveQName bUrl pre pms) `B.append` local
 uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = BNode bId
-uriRefQNameOrBlank  bUrl     _     (R_Blank (B_BlankGen genId))  = BNodeGen genId
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = BNodeGen genId
 uriRefQNameOrBlank  _        _      res                          = error $ show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
 uriRefOrQName Nothing _     (R_URIRef url)            = UNode url
-uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = if isAbsoluteUri url then (UNode url) else (UNode $ u++url)
-uriRefOrQName bUrl    pms   (R_QName pre local)       = UNode $ (resolveQName bUrl pre pms) ++ local
+uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = if isAbsoluteUri url then (UNode url) else (UNode $ u `B.append` url)
+uriRefOrQName bUrl    pms   (R_QName pre local)       = UNode $ (resolveQName bUrl pre pms) `B.append` local
 uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
 
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> Either ParseFailure gr
-parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl docUrl result
+parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl (s2b docUrl) result
   where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
 
 handleResult result =
@@ -568,12 +561,13 @@ handleResult result =
     (Left err)                      -> Left (ParseFailure $ show err)
     (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
 
-resolveQName :: Maybe BaseUrl -> String -> PrefixMappings -> String
-resolveQName Nothing            []   pms = error "Cannot resolve empty QName prefix to a base URL."
-resolveQName (Just (BaseUrl u)) []   pms = 
-  Map.findWithDefault u "" pms
-resolveQName bUrl               pre  pms = 
-  Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ pre) pre pms
+resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
+resolveQName Nothing            pre   _ 
+  | pre == B.empty =  error "Cannot resolve empty QName prefix to a base URL."
+resolveQName (Just (BaseUrl u)) pre   pms 
+  | pre == B.empty =  Map.findWithDefault u B.empty pms
+resolveQName _                  pre   pms = 
+  Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ B.unpack pre) pre pms
 
 
 -- Parse the N-Triples document at the given filepath,

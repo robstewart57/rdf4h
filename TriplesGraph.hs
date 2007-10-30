@@ -8,6 +8,9 @@ import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
 import Data.Set.AVL (Set)
 import qualified Data.Set.AVL as Set
+import qualified Data.Set as Set2
+
+import Data.List
 
 import RDF
 import Namespace
@@ -48,7 +51,10 @@ empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkGraph' ts baseUrl pms = TriplesGraph ((Set.toList $ Set.fromList ts), baseUrl, pms)
+mkGraph' ts baseUrl pms = TriplesGraph (removeDupes ts, baseUrl, pms)
+
+removeDupes :: Triples -> Triples
+removeDupes = id
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
@@ -65,7 +71,6 @@ matchSelect s p o t =
   where 
     match Nothing   _ = True
     match (Just fn) n = fn n
-
 
 matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object 
                               -> Triple -> Bool

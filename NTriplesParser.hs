@@ -10,11 +10,9 @@ module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
 
 import RDF
 import ParserUtils
-import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
 import Text.ParserCombinators.Parsec
 import Control.Monad
-
 
 {-
 URIs are not validated syntactically, nor are datatype URIs checked in 
@@ -98,17 +96,18 @@ nt_empty     = do skipMany nt_space; return Nothing
 
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
-nt_subject   = do {uri <- nt_uriref; return (UNode uri);} <|> 
-               do {nodeId <- nt_nodeID; return (BNode nodeId);}
+nt_subject   = do {uri <- nt_uriref; return (unode uri);} <|> 
+               do {nodeId <- nt_nodeID; return (bnode nodeId);}
+
 
 -- A predicate may only be a URI reference to a resource.
-nt_predicate = do uri <- nt_uriref; return (UNode uri);
+nt_predicate = do uri <- nt_uriref; return (unode uri);
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
-nt_object = do {uri    <- nt_uriref;  return (UNode uri) } <|> 
-            do {nodeId <- nt_nodeID;  return (BNode nodeId)} <|> 
-            do {lit    <- nt_literal; return (LNode lit)}
+nt_object = do {uri    <- nt_uriref;  return (unode uri) } <|> 
+            do {nodeId <- nt_nodeID;  return (bnode nodeId)} <|> 
+            do {lit    <- nt_literal; return (lnode lit)}
 
 -- A URI reference is an absolute URI inside angle brackets.
 nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return uri
@@ -131,9 +130,9 @@ nt_literal    =
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
     case rt of
-      Nothing              -> return (PlainL str Nothing)
-      (Just (Left lng))    -> return (PlainL str (Just lng))
-      (Just (Right uri))   -> return (TypedL str uri)
+      Nothing              -> return (plainL str Nothing)
+      (Just (Left lng))    -> return (plainL str (Just lng))
+      (Just (Right uri))   -> return (typedL str uri)
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
@@ -201,7 +200,6 @@ inner_string   =
        do {char 'u'; chrs <- count 4 hexDigit; return ('\\':'u':chrs)} <|>
        do {char 'U'; chrs <- count 8 hexDigit; return ('\\':'U':chrs)}
   }  <|> do {c <- satisfy is_nonquote_char; return (c:[])} 
-
 
 -- ==========================================================
 -- ==  END OF PARSER COMBINATORS AND SUPPORTING FUNCTIONS  ==

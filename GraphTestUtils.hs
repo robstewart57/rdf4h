@@ -8,6 +8,8 @@ import Data.List
 import qualified Data.Set.AVL as S
 import Control.Monad
 import System.Random
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
 import Test.QuickCheck
 import Foreign(unsafePerformIO)
 
@@ -130,9 +132,9 @@ p_select_match_p =
   p_select_match_fn same mkPattern
   where 
     same = equivNode equiv predicateOf
-    equiv (UNode u1) (UNode u2) = last u1 == last u2
+    equiv (UNode u1) (UNode u2) = B.last u1 == B.last u2
     mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
-    lastChar (UNode uri) = last uri
+    lastChar (UNode uri) = B.last uri
     
 
 p_select_match_o :: Graph g => (g -> Triples) -> g -> Property
@@ -232,17 +234,17 @@ queryT :: Graph g => g -> Triple -> Triples
 queryT gr t = query gr (Just $ subjectOf t) (Just $ predicateOf t) (Just $ objectOf t)
 
 
-languages = [Nothing, Just "fr", Just "en"]
-datatypes = [makeUri xsd "string", makeUri xsd "int", makeUri xsd "token"]
-uris = map (makeUri ex) [n ++ show i | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
+languages = [Nothing, Just $ s2b "fr", Just $ s2b "en"]
+datatypes = [makeUri xsd (s2b "string"), makeUri xsd (s2b "int"), makeUri xsd (s2b "token")]
+uris = map (makeUri ex) [s2b n `B.append` (s2b $ show i) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
 plainliterals = [PlainL lit lang | lit <- litvalues, lang <- languages]
 typedliterals = [TypedL lit dtype | lit <- litvalues, dtype <- datatypes]
-litvalues = ["hello", "world", "peace", "earth", "", "haskell"]
+litvalues = map B.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
 unodes :: [Node]
 unodes = map UNode uris
 bnodes :: [Node]
-bnodes = map (\s -> BNode $ ":_anon" ++ show s) [1..5]
+bnodes = map (\s -> BNode $ s2b ":_anon" `B.append` (s2b $ show s)) [1..5]
 lnodes :: [Node]
 lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
 

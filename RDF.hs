@@ -7,12 +7,23 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             ParseFailure(ParseFailure),
+            s2b,b2s,unode,bnode,lnode,plainL,typedL,
             printT, printTs, printN, printNs)
 where
 
 import Namespace
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
 
 import Text.Printf
+
+-- |A convenience function for converting from a string to a bytestring.
+b2s :: ByteString -> String
+b2s = B.unpack
+
+-- |A convenience function for converting from a bytestring to a string.
+s2b :: String -> ByteString
+s2b = B.pack
 
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
@@ -82,27 +93,46 @@ data Node =
   -- |An RDF URI reference. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
-  UNode String 
+  UNode !ByteString
   -- |An RDF blank node. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
-  | BNode String
+  | BNode !ByteString
   -- |An RDF blank node with an auto-generated identifier, as used in 
   -- Turtle.
-  | BNodeGen Int
+  | BNodeGen !Int
   -- |An RDF literal. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
-  | LNode LValue
-  deriving (Eq, Ord)
+  | LNode !LValue
 
+instance Eq Node where
+  (UNode u1) == (UNode u2) = u1 == u2
+  (UNode _)  == _          = False
+  (BNode s1) == (BNode s2) = s1 == s2
+  (BNode _)  == _          = False
+  (BNodeGen i1) == (BNodeGen i2) = i1 == i2
+  (BNodeGen _)  == _       = False
+  (LNode lv1) == (LNode lv2) = lv1 == lv2
+  (LNode _)   == _         = False
+instance Ord Node where
+  compare (UNode u1) (UNode u2) = compare u1 u2
+  compare (UNode _)  _          = LT
+  compare (BNode s1) (BNode s2) = compare s1 s2
+  compare (BNode _)  (UNode _)  = GT
+  compare (BNode _)  _          = LT
+  compare (BNodeGen i1) (BNodeGen i2) = compare i1 i2
+  compare (BNodeGen _)  (LNode _) = GT
+  compare (BNodeGen _)  _         = LT
+  compare (LNode l1) (LNode l2)   = compare l1 l2
+  compare (LNode _) _             = GT
 
 -- |An RDF triple is a statement consisting of a subject, predicate,
 -- and object, respectively.
 --
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for 
 -- more information.
-data Triple = Triple Subject Predicate Object
+data Triple = Triple !Subject !Predicate !Object
   deriving (Eq, Ord)
 
 -- |A list of triples. This is defined for convenience and readability.
@@ -113,14 +143,14 @@ type Triples = [Triple]
 -- parameter of an 'LNode'.
 data LValue = 
   -- |A plain literal value, with an optional language specifier.
-  PlainL String (Maybe String)
+  PlainL !ByteString !(Maybe ByteString)
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
-  | TypedL String String
+  | TypedL !ByteString !ByteString
   deriving (Eq, Ord)
 
 -- |The base URL of a graph.
-newtype BaseUrl = BaseUrl String
+newtype BaseUrl = BaseUrl ByteString
 
 -- |Represents a failure in parsing an N-Triples document, including
 -- an error message with information about the cause for the failure.
@@ -146,17 +176,17 @@ instance Show Triple where
     printf "%s %s %s ." (show subj) (show pred) (show obj)
 
 instance Show Node where
-  show (UNode uri)                      = printf "<%s>" uri
+  show (UNode uri)                      = printf "<%s>" (show uri)
   show (BNode  id)                      = show id
   show (BNodeGen genId)                 = "_:genid" ++ show genId
-  show (LNode (PlainL lit Nothing))     = printf "\"%s\"" lit
-  show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" lit lang
-  show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" lit uri
+  show (LNode (PlainL lit Nothing))     = printf "\"%s\"" (show lit)
+  show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" (show lit) (show lang)
+  show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" (show lit) (show uri)
 
 instance Show LValue where
-  show (PlainL lit Nothing)     = printf "\"%s\"" lit
-  show (PlainL lit (Just lang)) = printf "\"%s\"@%s" lit lang
-  show (TypedL lit dtype)       = printf "\"%s\"^^%s" lit dtype
+  show (PlainL lit Nothing)     = printf "\"%s\"" (show lit)
+  show (PlainL lit (Just lang)) = printf "\"%s\"@%s" (show lit) (show lang)
+  show (TypedL lit dtype)       = printf "\"%s\"^^%s" (show lit) (show dtype)
 
 -- Functions for testing type of a node --
 
@@ -196,6 +226,28 @@ objectOf     (Triple _ _ o) = o
 -- node selectors are used to match a triple.
 type NodeSelector = Maybe (Node -> Bool)
 
+-- |A convenience function for creating a UNode for the given String URI.
+unode :: String -> Node
+unode = UNode . B.pack
+
+-- |A convenience function for creating a BNode for the given string id. 
+bnode :: String -> Node
+bnode = BNode . B.pack
+
+-- |A convenience function for creating an LNode for the given LValue.
+lnode :: LValue -> Node
+lnode = LNode
+
+-- |A convenience function for creating a PlainL LValue for the given
+-- string value, and optionally, language identifier.
+plainL :: String -> Maybe String -> LValue
+plainL str Nothing    = PlainL (s2b str) Nothing
+plainL str (Just lng) = PlainL (s2b str) (Just $ s2b lng)
+
+-- |A convenience function for creating a TypedL LValue for the given
+-- string value and datatype URI, respectively.
+typedL :: String -> String -> LValue
+typedL str uri        = TypedL (s2b str) (s2b uri)
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.

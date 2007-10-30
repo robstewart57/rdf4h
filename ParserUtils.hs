@@ -5,6 +5,8 @@ import Namespace
 import Network.URI
 import Network.HTTP.Simple
 import Text.ParserCombinators.Parsec(ParseError)
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
 
 -- A convenience function for terminating a parse with a parse failure, using 
 -- the given error message as the message for the failure.
