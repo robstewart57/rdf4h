@@ -14,19 +14,25 @@ import Data.IORef
 -- |A wrapper around a bytestring that contains a uniq int associated with the bytestring,
 -- together with the length of the bytestring and the value of the bytestring
 data FastString = FS {
+      rev    :: {-# UNPACK #-} !Bool,
       uniq   :: {-# UNPACK #-} !Int,
       len    :: {-# UNPACK #-} !Int,
       value  :: {-# UNPACK #-} !ByteString
 }
 
 instance Show FastString where
-  show = B.unpack . B.reverse . value
+  show fs@(FS rev _ _ _) = B.unpack $ f $ value fs
+    where f = if rev then B.reverse else id
+
 
 instance Eq FastString where
-  (FS u1 _ _) == (FS u2 _ _) = u1 == u2
+  (FS u1 _ _ _) == (FS u2 _ _ _) = u1 == u2
 
 instance Ord FastString where
-  compare (FS _ _ v1) (FS _ _ v2) = compare v1 v2
+  compare (FS True _ _ v1)  (FS True _ _ v2)  = compare v1 v2
+  compare (FS False _ _ v1) (FS False _ _ v2) = compare v1 v2
+  compare (FS True _ _ v1)  (FS False _ _ v2) = compare v1 $ B.reverse v2
+  compare (FS False _ _ v1) (FS True _ _ v2)  = compare (B.reverse v1) v2
 
 fsCounter :: IO (IORef Int)
 fsCounter = newIORef 0
@@ -55,9 +61,16 @@ mkFastString' fst str =
                        return fs
        (Just fs)  -> return fs
 
-newFastString :: ByteString -> IO FastString
-newFastString str = 
+newFastString   :: ByteString -> IO FastString
+newFastString    = newFastString' False
+
+newFastStringR  :: ByteString -> IO FastString
+newFastStringR   = newFastString' True
+
+newFastString' :: Bool -> ByteString -> IO FastString
+newFastString' rev str = 
   do curr <- readIORef =<< fsCounter
      fsCounter >>= flip writeIORef (curr+1)
-     return $ FS curr (B.length str) (B.reverse str)
+     return $ FS rev curr (B.length str) val
+  where val = if rev then B.reverse str else str
 
