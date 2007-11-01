@@ -7,6 +7,7 @@ import Test.QuickCheck
 
 import TriplesGraph
 
+{-
 ----------------------------------------------------
 -- instances and graph functions for TriplesGraph --
 ----------------------------------------------------
@@ -91,3 +92,5 @@ prop_select_match_po = p_select_match_po _triplesOf
 
 prop_select_match_spo :: TriplesGraph -> Property
 prop_select_match_spo = p_select_match_spo _triplesOf
+
+-}
