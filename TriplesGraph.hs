@@ -51,7 +51,7 @@ mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
 mkGraph' ts baseUrl pms = return $ TriplesGraph (removeDupes ts, baseUrl, pms)
 
 removeDupes :: Triples -> Triples
-removeDupes =  Set.toList . Set.fromList 
+removeDupes = id -- Set.toList . Set.fromList 
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts

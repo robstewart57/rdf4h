@@ -3,6 +3,7 @@ module Utils where
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
+import System.IO.Unsafe(unsafePerformIO)
 import Control.Monad
 import Data.HashTable(HashTable)
 import qualified Data.HashTable as HT
@@ -29,17 +30,25 @@ instance Eq FastString where
   (FS u1 _ _ _) == (FS u2 _ _ _) = u1 == u2
 
 instance Ord FastString where
-  compare (FS True _ _ v1)  (FS True _ _ v2)  = compare v1 v2
-  compare (FS False _ _ v1) (FS False _ _ v2) = compare v1 v2
-  compare (FS True _ _ v1)  (FS False _ _ v2) = compare v1 $ B.reverse v2
-  compare (FS False _ _ v1) (FS True _ _ v2)  = compare (B.reverse v1) v2
+  compare (FS True u1 _ v1)  (FS True u2 _ v2)  = compareFS u1 v1 u2 v2
+  compare (FS False u1 _ v1) (FS False u2 _ v2) = compareFS u1 v1 u2 v2
+  compare (FS True u1 _ v1)  (FS False u2 _ v2) = compareFS u1 v1 u2 (B.reverse v2)
+  compare (FS False u1 _ v1) (FS True u2 _ v2)  = compareFS u1 (B.reverse v1) u2 v2
 
-fsCounter :: IO (IORef Int)
-fsCounter = newIORef 0
+compareFS u1 v1 u2 v2 =
+  case u1 == u2 of
+    True    ->  EQ
+    False   ->  compare v1 v2
+
+fsCounter :: IORef Int
+fsCounter = unsafePerformIO $ newIORef 0
 
 -- The hashfunction is adapted for bytestring but otherwise copied from Data.HashTable.
 fsTable :: IO (HashTable ByteString FastString)
-fsTable = HT.new (==) (B.foldl f 0)
+fsTable = HT.new (==) hashByteString 
+
+hashByteString :: ByteString -> Int32
+hashByteString str = B.foldl f 0 str
   where f m c = fromIntegral (ord c + 1) * golden + mulHi m golden
         golden =  -1640531527 :: Int32
         -- hi 32 bits of a x-bit * 32 bit -> 64-bit multiply
@@ -66,8 +75,10 @@ mkFastString' rev fst str =
 
 newFastString :: Bool -> ByteString -> IO FastString
 newFastString rev str = 
-  do curr <- readIORef =<< fsCounter
-     fsCounter >>= flip writeIORef (curr+1)
-     return $ FS rev curr (B.length str) val
+  do curr <- readIORef fsCounter
+     modifyIORef fsCounter (+1)
+     return (FS rev curr (B.length str) val)
   where val = if rev then B.reverse str else str
 
+b1 = B.pack "asdf"
+b2 = B.pack "zxcv"
