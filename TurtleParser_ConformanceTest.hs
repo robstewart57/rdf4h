@@ -63,10 +63,10 @@ equivalent (Right gr1) (Right gr2) = test $ zip t1s t2s
     t2s = ordered $! triplesOf gr2
 
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-input name n = readFile (fpath name n "ttl") >>=  return . parseString mtestBaseUri (testBaseUri ++ name)
+input name n = readFile (fpath name n "ttl") >>=   parseString mtestBaseUri (testBaseUri ++ name)
 
 expected :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-expected name n = readFile (fpath name n "out") >>= return . NT.parseString
+expected name n = readFile (fpath name n "out") >>= NT.parseString
 
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left err) = T.assertFailure $ idStr  ++ show err
@@ -87,7 +87,8 @@ test testGood testNum = readFile fpath >>= f
     fname = printf "%s-%02d.ttl" name testNum :: String
     fpath = "data/ttl/conformance/" ++ fname
     name = if testGood then "test" else "bad" :: String
-    f s = case parseString mtestBaseUri (testBaseUri ++ fname) s of
-            (Left err) -> putStrLn $ "ERROR:" ++ show err
-            --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::AvlGraph))) ++ " triples"
-            (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
+    f s = do result <- parseString mtestBaseUri (testBaseUri ++ fname) s
+             case result of
+               (Left err) -> putStrLn $ "ERROR:" ++ show err
+               --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::AvlGraph))) ++ " triples"
+               (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
