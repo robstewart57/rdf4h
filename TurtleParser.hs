@@ -3,15 +3,13 @@ module TurtleParser where
 import RDF hiding (Object)
 import Utils
 import Namespace
+import ParserUtils
 import Text.ParserCombinators.Parsec
-import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
 import Data.Maybe(isJust, fromJust)
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
-import AvlGraph -- FIXME: just for testing
-import System.IO.Unsafe(unsafePerformIO)  -- FIXME: "
 import Control.Monad
 
 
@@ -190,7 +188,7 @@ t_predicate = t_resource <?> "resource"
 
 t_object :: GenParser Char ParseState (IO Object)
 t_object = (((try t_resource) <?> "resource") >>= return . liftM O_Resource) <|>
-           (((try t_blank) <?> "blank") >>= \(r :: IO Blank) ->
+           (((try t_blank) <?> "blank") >>= \r ->
                do (b,i) <- getState; 
                   setState (b,i+1); 
                   return (r >>= return . O_Blank))
@@ -213,8 +211,7 @@ str_literal =
     case rt of
       Nothing                        -> return (lnode $ PlainL str Nothing)
       (Just (Left lng))              -> return (lnode $ PlainL str (Just $ s2b lng))
-      (Just (Right urires))  ->         return (urires >>= \(R_URIRef uri) -> lnode $ TypedL str uri)
-      _                              -> error "t_literal"
+      (Just (Right urires))          -> return (urires >>= \(R_URIRef uri) -> lnode $ TypedL str uri)
   where
     rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
            do { try (char '@'); t_language >>= return . Just . Left} <|>
@@ -255,7 +252,7 @@ t_blank =
   (try t_nodeID >>= return . return . B_BlankId) <|>
   try (do string "[]"; (b,n) <- getState; setState (b,n+1); return $ return (B_BlankGen n)) <|>
   try (do char '['; poList <- predObjList; (b,n) <- getState; setState (b,n+1); char ']'; return (poList >>= return . B_POList n )) <|>
-  do objs :: [IO Object] <- t_collection
+  do objs <- t_collection
      let len = length objs
      ids <- getIds len
      return $ z objs ids >>= return . B_Collection
@@ -383,16 +380,14 @@ non_ctrl_char_except cs =
 
 --
 
-post_process :: Maybe BaseUrl -> ByteString -> Either ParseError [Maybe Statement]
-                -> IO (Either ParseError (Triples, Maybe BaseUrl, PrefixMappings))
-post_process _baseUrl _docUrl _result = 
-  case _result of
-    (Left err)     ->  return $ Left err
-    (Right sts)    ->  (post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts) >>= return . Right
+post_process :: Maybe BaseUrl -> ByteString -> [Maybe Statement]
+                -> IO (Triples, Maybe BaseUrl, PrefixMappings)
+post_process _baseUrl _docUrl sts = 
+  (post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts) >>= return
 
 post_process' :: Maybe BaseUrl -> ByteString -> Statements -> IO (Triples, Maybe BaseUrl, PrefixMappings)
 post_process' baseUrl docUrl stmts = post_process'' ([], baseUrl, docUrl, Map.empty) stmts >>= return . f
-  where f (ts, lastBaseUrl, docUrl, pms) = (ts, baseUrl, pms)
+  where f (ts, _, _, pms) = (ts, baseUrl, pms)
 
 
 post_process'' :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
@@ -405,7 +400,7 @@ post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
         D_PrefixId (pre,url) -> post_process'' (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl url) pms) stmts
         D_BaseUrl url        -> post_process'' (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
     S_Triples strp    ->
-      do (new_ts, new_baseUrl, new_docUrl, newPms) <- process_ts (ts, currBaseUrl, docUrl, pms) strp
+      do (new_ts, new_baseUrl, _, newPms) <- process_ts (ts, currBaseUrl, docUrl, pms) strp
          post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
   where
     resolveUrl Nothing               url = url
@@ -451,11 +446,9 @@ convertObjectListItem bUrl docUrl pms subj pred obj
   | isOBlankPOList    obj   = convertPOLists bUrl docUrl pms (R_Blank opol, pol) >>= \ts ->  (bObjPolGenNode >>= makeTriple' >>= \ts' -> return (ts' ++ ts))
   | otherwise               = error $ "Unexpected case: " ++ show obj
   where 
-    log                                   = False --unsafePerformIO $ putStrLn $ show subj ++ show pred ++ show obj
     makeTriple :: Node -> IO Triple
     makeTriple                            = \o -> subjNode >>= \s -> predNode >>= \p -> return (triple s p o)
     makeTriple'                           = \t -> makeTriple t >>= return . (:[])
-    makeTriple'' s p o                    = triple s p o
     subjNode                              = uriRefQNameOrBlank bUrl pms subj
     predNode                              = uriRefQNameOrBlank bUrl pms pred
     objNode                               = uriRefQNameOrBlank bUrl pms res
@@ -515,7 +508,7 @@ convertColl bUrl pms subj pred (B_Collection objs) =
     -- only called with empty list if collection was empty
     convertColl' :: [(Int, Object)] -> IO Triples
     convertColl' []                = do {s <- subjNode; p <- predNode; o <- rdfNil; return [triple s p o]}
-    -- if next elem is nil, then we're finished, and make rdf:next nil
+    -- if next elem is nil, then we're finished, and make rdf:rest nil
     convertColl' ((i, obj):[])     = do { f <- rdfFirst;r <- rdfRest;n <- rdfNil;o <- bObjToNode obj;return $ triple (BNodeGen i) f o : triple (BNodeGen i) r n : [] }
     convertColl' ((i1,obj1):o2@(i2,_):os) = do {f <- rdfFirst;r <- rdfRest;o <- bObjToNode obj1; convertColl' (o2:os) >>= \ts -> return $ triple (BNodeGen i1) f o : triple (BNodeGen i1) r (BNodeGen i2) : ts}
     bObjToNode :: Object -> IO Node
@@ -525,9 +518,8 @@ convertColl bUrl pms subj pred (B_Collection objs) =
     rdfNil   = rdfNode "nil"
     rdfFirst = rdfNode "first"
     rdfRest  = rdfNode "rest"
-    rdfNext  = rdfNode "next"
     rdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
-
+convertColl _ _ _ _ coll = error $ "TurtleParser.convertColl. Unexpected blank: " ++ show coll
 {-
 resourceToNode :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
 resourceToNode baseUrl pms res =
@@ -587,20 +579,11 @@ uriRefQNameOrBlank  _        _      res                          = error $ show 
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
 uriRefOrQName Nothing _     (R_URIRef url)            = mkFastString url >>= return . UNode
-uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = let u = if isAbsoluteUri url then url else u `B.append` url
-                                                        in mkFastString u >>= return . UNode
+uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = let url' = if isAbsoluteUri url then url else u `B.append` url
+                                                        in mkFastString url' >>= return . UNode
 uriRefOrQName bUrl    pms   (R_QName pre local)       = let u = (resolveQName bUrl pre pms) `B.append` local
                                                         in mkFastString u >>= return . UNode
 uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
-
---parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
---parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl (s2b docUrl) result
---  where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
-
---handleResult result =
---  case result of
---    (Left err)                      -> Left (ParseFailure $ show err)
---    (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
 resolveQName Nothing            pre   _ 
@@ -611,18 +594,25 @@ resolveQName _                  pre   pms =
   Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ B.unpack pre) pre pms
 
 
--- Parse the N-Triples document at the given filepath,
--- generating a graph containing the parsed triples.
---parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
---parseFile path = parseFromFile t_turtleDoc path >>= 
---                 return . handleParse mkGraph
+parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
+parseString bUrl docUrl ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) "" ttlStr)
+
+handleResult :: Graph gr => Maybe BaseUrl -> String -> Either ParseError (IO [Maybe Statement]) -> IO (Either ParseFailure gr)
+handleResult bUrl docUrl result =
+  case result of
+     l@(Left err) -> return $ Left (ParseFailure $ show err)
+     (Right res)  -> do stmts <- res
+                        (ts, mbUrl, pms) <- post_process bUrl (s2b docUrl) stmts
+                        g <- mkGraph ts bUrl pms
+                        return (Right g)
+
+parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
+parseFile bUrl docUrl fpath = 
+  readFile fpath >>= \str -> handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) docUrl str)
 
 -- Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
 --parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 --parseURL url = _parseURL parseString url
-
--- Parse the given string as an N-Triples document, 
--- generating a graph containing the parsed triples.
---parseString :: Graph gr => String -> Either ParseFailure gr
---parseString str = handleParse mkGraph $ parse t_turtleDoc "" str 
+parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
+parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl

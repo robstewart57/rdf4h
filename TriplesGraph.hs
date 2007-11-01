@@ -4,11 +4,8 @@ module TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
 
-import Data.Map.AVL (Map)
 import qualified Data.Map.AVL as Map
-import Data.Set.AVL (Set)
 import qualified Data.Set.AVL as Set
-import qualified Data.Set as Set2
 
 import Data.List
 
@@ -54,7 +51,7 @@ mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
 mkGraph' ts baseUrl pms = return $ TriplesGraph (removeDupes ts, baseUrl, pms)
 
 removeDupes :: Triples -> Triples
-removeDupes = id
+removeDupes =  Set.toList . Set.fromList 
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts

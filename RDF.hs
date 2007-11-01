@@ -7,6 +7,7 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             ParseFailure(ParseFailure),
+            FastString(uniq,len,value),mkFastString,mkFastStringR,
             s2b,b2s,unode,bnode,lnode,plainL,typedL,
             printT, printTs, printN, printNs)
 where
