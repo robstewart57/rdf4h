@@ -13,6 +13,8 @@ import qualified Data.ByteString.Char8 as B
 import Test.QuickCheck
 import System.IO.Unsafe(unsafePerformIO)
 
+{-
+
 -- Test stubs, which just require the appropriate graph impl function
 -- passed in to determine the graph implementation to be tested.
 
@@ -132,9 +134,9 @@ p_select_match_p =
   p_select_match_fn same mkPattern
   where 
     same = equivNode equiv predicateOf
-    equiv (UNode u1) (UNode u2) = B.last u1 == B.last u2
+    equiv (UNode u1) (UNode u2) = B.last (value u1) == B.last (value u2)
     mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
-    lastChar (UNode uri) = B.last uri
+    lastChar (UNode uri) = B.last $ value uri
     
 
 p_select_match_o :: Graph g => (g -> Triples) -> g -> Property
@@ -198,6 +200,8 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
 
 -- Utility functions and test data ... --
 
+-}
+
 -- a curried version of query that delegates to the actual query after unpacking
 -- curried maybe node pattern.
 queryC :: Graph g => g -> (Maybe Node, Maybe Node, Maybe Node) -> Triples
@@ -223,6 +227,14 @@ sameSubj t1 t2 = subjectOf t1 == subjectOf t2
 samePred t1 t2 = predicateOf t1 == predicateOf t2
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
+ordered :: Triples -> Triples
+ordered = sort
+
+uordered :: Triples -> Triples
+uordered = sort . S.toList . S.fromList
+
+{-
+
 tripleFromGen :: Graph g => (g -> Triples) -> g -> Gen (Maybe Triple)
 tripleFromGen _triplesOf gr = 
   case null ts of
@@ -241,24 +253,18 @@ plainliterals = [PlainL lit lang | lit <- litvalues, lang <- languages]
 typedliterals = [TypedL lit dtype | lit <- litvalues, dtype <- datatypes]
 litvalues = map B.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
-unodes :: [Node]
-unodes = map UNode uris
-bnodes :: [Node]
-bnodes = map (\s -> BNode $ s2b ":_anon" `B.append` (s2b $ show s)) [1..5]
-lnodes :: [Node]
-lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
+unodes :: [IO Node]
+unodes = map (\u -> do fs <- mkFastString u; return (UNode fs)) uris
+bnodes :: [IO Node]
+--bnodes = mapM (\s -> mkFastString (s2b ":_genid" `B.append` (s2b $ show s))) [1..5] >>= mapM (return . BNode)
+bnodes = map (\i -> do fs <- mkFastString (s2b ":_genid" `B.append` (s2b $ show i)); return (BNode fs)) [1..5]
+lnodes :: [IO Node]
+lnodes = [return (LNode lit) | lit <- plainliterals ++ typedliterals]
 
-test_triples :: Triples
-test_triples = [triple subj pred obj | subj <- unodes ++ bnodes, 
-                                       pred <- unodes,
-                                       obj <- unodes ++ bnodes ++ lnodes]
-
-
-ordered :: Triples -> Triples
-ordered = sort
-
-uordered :: Triples -> Triples
-uordered = sort . S.toList . S.fromList
+test_triples :: [IO Triple]
+test_triples = [triple' s p o | s <- (unodes ++ bnodes), p <- unodes, o <- (unodes ++ bnodes ++ lnodes)]
+triple' :: IO Node -> IO Node -> IO Node -> IO Triple
+triple' = liftM3 triple
 
 maxN = min 100 (length test_triples - 1)
 
@@ -285,9 +291,10 @@ arbitraryT = elements test_triples
 arbitraryN = choose (0, maxN - 1)
 
 
-arbitraryS, arbitraryP, arbitraryO :: Gen Node
+arbitraryS, arbitraryP, arbitraryO :: Gen (IO Node)
 arbitraryS = oneof $ map return $ unodes ++ bnodes
 arbitraryP = oneof $ map return unodes
 arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
 
 
+-}
