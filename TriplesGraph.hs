@@ -50,8 +50,8 @@ baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, Map.empty)
 
-mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkGraph' ts baseUrl pms = TriplesGraph (removeDupes ts, baseUrl, pms)
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
+mkGraph' ts baseUrl pms = return $ TriplesGraph (removeDupes ts, baseUrl, pms)
 
 removeDupes :: Triples -> Triples
 removeDupes = id

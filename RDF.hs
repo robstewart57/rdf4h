@@ -12,6 +12,7 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
 where
 
 import Namespace
+import Utils
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
@@ -50,7 +51,7 @@ class Graph gr where
   -- |Answer a graph containing all the given triples. Duplicate triples
   -- are permitted in the input, but the resultant graph will contains only 
   -- unique triples.
-  mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> gr
+  mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO gr
   -- |Answer a list of all triples in the graph.
   triplesOf :: gr -> Triples
   -- |Answer the triples in the graph that match the given selectors.
@@ -93,11 +94,11 @@ data Node =
   -- |An RDF URI reference. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
-  UNode !ByteString
+  UNode !FastString
   -- |An RDF blank node. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
-  | BNode !ByteString
+  | BNode !FastString
   -- |An RDF blank node with an auto-generated identifier, as used in 
   -- Turtle.
   | BNodeGen !Int
@@ -227,16 +228,16 @@ objectOf     (Triple _ _ o) = o
 type NodeSelector = Maybe (Node -> Bool)
 
 -- |A convenience function for creating a UNode for the given String URI.
-unode :: String -> Node
-unode = UNode . B.pack
+unode :: ByteString -> IO Node
+unode str = mkFastStringR str >>= return . UNode
 
 -- |A convenience function for creating a BNode for the given string id. 
-bnode :: String -> Node
-bnode = BNode . B.pack
+bnode :: ByteString -> IO Node
+bnode str = mkFastStringR str >>= return . BNode
 
 -- |A convenience function for creating an LNode for the given LValue.
-lnode :: LValue -> Node
-lnode = LNode
+lnode :: LValue -> IO Node
+lnode = return . LNode
 
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value, and optionally, language identifier.

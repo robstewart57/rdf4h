@@ -1,6 +1,7 @@
 module TurtleParser where
 
 import RDF hiding (Object)
+import Utils
 import Namespace
 import Text.ParserCombinators.Parsec
 import Data.Map.AVL (Map)
@@ -10,7 +11,7 @@ import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
 import AvlGraph -- FIXME: just for testing
-import Foreign  -- FIXME: "
+import System.IO.Unsafe(unsafePerformIO)  -- FIXME: "
 import Control.Monad
 
 
@@ -104,54 +105,63 @@ data Resource = R_URIRef ByteString
               | R_Blank Blank
   deriving Show
 type T_Triples     = (Resource, [(Resource, [Object])])
---type T_TriplesList = [T_Triples]
-type ResourceWithId = (Maybe Int, Resource)
+
 type ParseState = (Maybe BaseUrl, Int)
 
-t_turtleDoc = many t_statement >>= \ts -> eof >> return ts :: GenParser Char ParseState [Maybe Statement]
+t_turtleDoc :: GenParser Char ParseState (IO [Maybe Statement])
+t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $ mapM id ts)
 
-t_statement = (d >>= return . Just) <|> 
-              (t >>= return . Just) <|> 
-              (many1 t_ws >> (return Nothing))
+     
+t_statement :: GenParser Char ParseState (IO (Maybe Statement))
+t_statement = (d >>= return . liftM Just) <|> 
+              (t >>= return . liftM Just) <|> 
+              (many1 t_ws >> (return $ return Nothing))
   where d = do { dir <- t_directive; many t_ws >> (char '.' <?> "end-of-directive") >> many t_ws >> return dir}
         t = do { trp <- t_triples; many t_ws >> (char '.' <?> "end-of-triple") >> many t_ws >> return trp}
-      
-t_directive = (try t_prefixID <|> try t_base <?> "directive") >>= return . S_Directive
 
+t_directive :: GenParser Char ParseState (IO Statement)
+t_directive = 
+  do d <- (try t_prefixID <|> try t_base <?> "directive")
+     return $ d >>=  return . S_Directive
+
+t_prefixID :: GenParser Char ParseState (IO Directive)
 t_prefixID =
   do string "@prefix"
      many1 t_ws <?> "whitespace"
      pn <- option (s2b "") t_prefixName
      char ':'
      many1 t_ws
-     (R_URIRef uri) <- t_uriref <?> "uriref"
-     return $ D_PrefixId (pn, uri)
+     uriref <- t_uriref
+     return $ uriref >>= \(R_URIRef uri) -> return (D_PrefixId (pn, uri))
 
+t_base :: GenParser Char ParseState (IO Directive)
 t_base =
   do string "@base"
      many1 t_ws        <?> "whitespace"
-     (R_URIRef uri) <- t_uriref <?> "uriref"
-     (_, i) <- getState
-     setState (Just $ BaseUrl uri, i)
-     return $ D_BaseUrl uri
+     uriref <- t_uriref
+     return $ uriref >>= \(R_URIRef uri) -> return (D_BaseUrl uri)
 
+t_triples :: GenParser Char ParseState (IO Statement)
 t_triples = 
   do subj <- t_subject <?> "subject"
      many1 t_ws        <?> "whitespace"
      poList <- t_predicateObjectList <?> "predicateObjectList"
-     return $ S_Triples (subj, poList)
+     return (subj >>= \s -> poList >>= \pol -> (return (S_Triples (s, pol))))
 
+t_objectList :: GenParser Char ParseState (IO [Object])
 t_objectList =
   do obj1 <- t_object <?> "object"
      obj_rest <- many (try obj <?> "object")
-     return (obj1:obj_rest)
+     return $ mapM id (obj1:obj_rest)
   where obj = many t_ws >> char ',' >> many t_ws >> t_object
 
+t_verb :: GenParser Char ParseState (IO Resource)
 t_verb = 
   try t_predicate <|>
-  (char 'a' >> return (R_URIRef $ s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"))
+  (char 'a' >> return (return (R_URIRef $ s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#type")))
   <?> "verb"
 
+t_predicateObjectList :: GenParser Char ParseState (IO [(Resource, [Object])])
 t_predicateObjectList = 
   do v1 <- t_verb <?> "verb"
      many1 t_ws   <?> "whitespace"
@@ -160,38 +170,50 @@ t_predicateObjectList =
        try (do v' <- many t_ws >> char ';' >> many t_ws >> t_verb
                ol' <- many1 t_ws >> t_objectList
                return (v', ol'))
-     return ((v1, ol1):ol_rest) <?> "predicateObjectList"
+     return (mapM (\(res, objs) -> res >>= \r -> objs >>= \os -> return (r,os)) (((v1, ol1):ol_rest))) <?> "predicateObjectList"
 
 t_comment = 
   try (char '#') >> many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >> return '#' -- FIXME
 
-t_subject = (t_resource <?> "resource") <|> (t_blank >>= conv <?> "blank")
+t_subject :: GenParser Char ParseState (IO Resource)
+t_subject = 
+  (t_resource <?> "resource") <|> 
+  (t_blank >>= return . (\b -> b >>= return . conv) <?> "blank")
   where 
+    conv :: Blank -> Resource
     conv (B_Collection _)  = error "Blank Collection not permitted as Subject"
-    conv (B_POList i pol)      = return (R_Blank (B_POList i pol)) --error "Subject POList not implemented yet."
-    conv blank               = return (R_Blank blank)
+    conv (B_POList i pol)  = R_Blank (B_POList i pol)
+    conv blank             = R_Blank blank
 
+t_predicate :: GenParser Char ParseState (IO Resource)
 t_predicate = t_resource <?> "resource"
 
-t_object = (((try t_resource) <?> "resource") >>= \r -> return (O_Resource r))
-           <|> (((try t_blank) <?> "blank") >>= \r -> do (b,i) <- getState; setState (b,i+1); return (O_Blank r))
-           <|> (((try t_literal) <?> "literal") >>= \l -> return (O_Literal l))
+t_object :: GenParser Char ParseState (IO Object)
+t_object = (((try t_resource) <?> "resource") >>= return . liftM O_Resource) <|>
+           (((try t_blank) <?> "blank") >>= \(r :: IO Blank) ->
+               do (b,i) <- getState; 
+                  setState (b,i+1); 
+                  return (r >>= return . O_Blank))
+           <|> (((try t_literal) <?> "literal") >>= \l -> return (l >>= return . O_Literal))
 
+
+t_literal :: GenParser Char ParseState (IO Node)
 t_literal = 
   try str_literal <|>
   (do i <- try t_integer; return (lnode $ TypedL (s2b i) (makeUri xsd $ s2b "integer"))) <|>
   (do d <- try t_double; return (lnode $ TypedL (s2b d) (makeUri xsd $ s2b "double")))   <|>
   (do d <- try t_decimal; return (lnode $ TypedL (s2b d) (makeUri xsd $ s2b "decimal"))) <|>
   (do b <- try t_boolean; return (lnode $ TypedL (s2b b) (makeUri xsd $ s2b "boolean")))
-     
+
+str_literal :: GenParser Char ParseState (IO Node)
 str_literal =
   do 
     str <- try (t_quotedString <?> "quotedString")
-    rt <-  rest           
+    rt <-  rest
     case rt of
       Nothing                        -> return (lnode $ PlainL str Nothing)
       (Just (Left lng))              -> return (lnode $ PlainL str (Just $ s2b lng))
-      (Just (Right (R_URIRef uri)))  -> return (lnode $ TypedL str uri)
+      (Just (Right urires))  ->         return (urires >>= \(R_URIRef uri) -> lnode $ TypedL str uri)
       _                              -> error "t_literal"
   where
     rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
@@ -228,36 +250,49 @@ t_exponent = do e <- oneOf "eE"
 
 t_boolean = try (string "true" <|> string "false")
 
-t_blank = (try t_nodeID >>= return . B_BlankId)
-          <|> try (do string "[]"; (b,n) <- getState; setState (b,n+1); return (B_BlankGen n))
-          <|> try (do char '['; poList <- predObjList; (b,n) <- getState; setState (b,n+1); char ']'; return (B_POList n poList))
-          <|> (do coll <- t_collection;  ids <- getIds (length coll); return $ B_Collection (zip ids coll))
+t_blank :: GenParser Char ParseState (IO Blank)
+t_blank = 
+  (try t_nodeID >>= return . return . B_BlankId) <|>
+  try (do string "[]"; (b,n) <- getState; setState (b,n+1); return $ return (B_BlankGen n)) <|>
+  try (do char '['; poList <- predObjList; (b,n) <- getState; setState (b,n+1); char ']'; return (poList >>= return . B_POList n )) <|>
+  do objs :: [IO Object] <- t_collection
+     let len = length objs
+     ids <- getIds len
+     return $ z objs ids >>= return . B_Collection
   where
+    z :: [IO Object] -> [Int] -> IO [(Int, Object)]
+    z cs ids = mapM id (zipWith f cs ids)
+    f obj id' = obj >>= \o -> return (id', o)
     predObjList = do { many t_ws; l <- t_predicateObjectList; many t_ws; return l}
-    getIds n = mapM (\_ -> do (b,i) <- getState; setState (b,i+1); return i) $ replicate n False
+    getIds :: Int -> GenParser Char ParseState [Int]
+    getIds n = mapM (\_ -> do (b,i) <- getState; setState (b,i+1); return i) (replicate n False)
 
 t_itemList = 
   do obj1 <- t_object <?> "object"
      objs <- many (try $ many1 t_ws >> try t_object) <?> "object"
      return (obj1:objs)
 
+t_collection :: GenParser Char ParseState ([IO Object])
 t_collection = try $ between (char '(') (char ')') g
   where
     g = do { many t_ws; l <- option [] t_itemList; many t_ws; return l }
 
 t_ws = char '\x000A' <|> char '\x000D' <|> char '\x0020' <|> t_comment <?> "whitespace"
 
+t_resource :: GenParser Char ParseState (IO Resource)
 t_resource = t_uriref <|> t_qname
 
 t_nodeID = do { string "_:"; cs <- t_name; return $ s2b "_:" `B.append` cs }
 
+t_qname :: GenParser Char ParseState (IO Resource)
 t_qname = 
   do pre <- option (s2b "") t_prefixName
      char ':'
      name <- option (s2b "") t_name
-     return (R_QName pre name)
+     return $ return (R_QName pre name)
 
-t_uriref = between (char '<') (char '>') t_relativeURI >>= return . R_URIRef
+t_uriref :: GenParser Char ParseState (IO Resource)
+t_uriref = between (char '<') (char '>') t_relativeURI >>= return . return . R_URIRef
 
 t_language = 
   do init <- many1 lower;
@@ -349,20 +384,20 @@ non_ctrl_char_except cs =
 --
 
 post_process :: Maybe BaseUrl -> ByteString -> Either ParseError [Maybe Statement]
-                -> Either ParseError (Triples, Maybe BaseUrl, PrefixMappings)
+                -> IO (Either ParseError (Triples, Maybe BaseUrl, PrefixMappings))
 post_process _baseUrl _docUrl _result = 
   case _result of
-    (Left err)     ->  Left err
-    (Right sts)    ->  Right $ post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts
+    (Left err)     ->  return $ Left err
+    (Right sts)    ->  (post_process' _baseUrl _docUrl $ map fromJust $ filter isJust sts) >>= return . Right
 
-post_process' :: Maybe BaseUrl -> ByteString -> Statements -> (Triples, Maybe BaseUrl, PrefixMappings)
-post_process' baseUrl docUrl stmts = f $ post_process'' ([], baseUrl, docUrl, Map.empty) stmts
+post_process' :: Maybe BaseUrl -> ByteString -> Statements -> IO (Triples, Maybe BaseUrl, PrefixMappings)
+post_process' baseUrl docUrl stmts = post_process'' ([], baseUrl, docUrl, Map.empty) stmts >>= return . f
   where f (ts, lastBaseUrl, docUrl, pms) = (ts, baseUrl, pms)
 
 
 post_process'' :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
-                  (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
-post_process'' tup [] = tup
+                  IO (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
+post_process'' tup [] = return tup
 post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
   case stmt of
     S_Directive sdir -> 
@@ -370,8 +405,8 @@ post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
         D_PrefixId (pre,url) -> post_process'' (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl url) pms) stmts
         D_BaseUrl url        -> post_process'' (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
     S_Triples strp    ->
-      let (new_ts, new_baseUrl, new_docUrl, newPms) = process_ts (ts, currBaseUrl, docUrl, pms) strp
-      in post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
+      do (new_ts, new_baseUrl, new_docUrl, newPms) <- process_ts (ts, currBaseUrl, docUrl, pms) strp
+         post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
   where
     resolveUrl Nothing               url = url
     resolveUrl (Just (BaseUrl bUrl)) url = if isAbsoluteUri url then url else (if url == hash then docUrl `B.append` hash else bUrl `B.append` url)
@@ -380,50 +415,53 @@ post_process'' (ts, currBaseUrl, docUrl, pms) (stmt:stmts) =
     hash = s2b "#"
 
 process_ts :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
-              (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
-process_ts (ts, bUrl, docUrl, pms) (subj, poLists) = (new_ts ++ ts, bUrl, docUrl, pms)
+              IO (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
+process_ts (ts, bUrl, docUrl, pms) (subj, poLists) = new_ts >>= \ts' -> return (ts' ++ ts, bUrl, docUrl, pms)
   where
     new_ts = convertPOLists bUrl docUrl pms (subj, poLists)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
-convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> Triples
-convertPOLists bUrl docUrl pms (subj, poLists) = concatMap (convertPOListItem bUrl docUrl pms subj) poLists
+convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
+convertPOLists bUrl docUrl pms (subj, poLists) = mapM (convertPOListItem bUrl docUrl pms subj) poLists >>= return . concat
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
-convertPOListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> Triples
-convertPOListItem bUrl docUrl pms subj (pred, objs) = concatMap (convertObjectListItem bUrl docUrl pms subj pred) objs
+convertPOListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> IO Triples
+convertPOListItem bUrl docUrl pms subj (pred, objs) = mapM (convertObjectListItem bUrl docUrl pms subj pred) objs >>= return . concat
 
 -- For a given object list item that is the object of supplied subject and predicate, convert it into a list
 -- of triples.
-convertObjectListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> Resource -> Object -> Triples
+convertObjectListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> Resource -> Object -> IO Triples
 convertObjectListItem bUrl docUrl pms subj pred obj
   -- if we have a bnode po list as the subject, we create a set of triples with a bnode as subject
   -- and all the pred-obj pairs as pred and obj; and additionally create a set of triples representing
   -- the bnode as subj, the curr pred as pred, and each object (in possibly a collection) as object.
-  | isBNodeListSubject subj = (\(R_Blank (B_POList i' polist')) ->  convertObjectListItem bUrl docUrl pms (R_Blank $ B_BlankGen i') pred obj
-                                                                      ++ concatMap (convertPOListItem bUrl docUrl pms (R_Blank $ B_BlankGen i')) polist') 
-                                subj
-  | isOLiteral        obj   = log `seq` makeTriple' lnode
-  | isOResource       obj   = log `seq` makeTriple' objNode
-  | isOBlankBNode     obj   = log `seq` makeTriple' bIdNode
-  | isOBlankBNodeGen  obj   = log `seq` makeTriple' bGenIdNode
-  | isOBlankBNodeColl obj   = convertColl bUrl pms subj pred ocoll -- error "TurtleParser.convertObjectListItem.isOBlankBNodeColl"
+  | isBNodeListSubject subj =
+        (\(R_Blank (B_POList i' polist')) ->  
+           convertObjectListItem bUrl docUrl pms (R_Blank $ B_BlankGen i') pred obj >>= \i1s ->
+             mapM (convertPOListItem bUrl docUrl pms (R_Blank $ B_BlankGen i')) polist' >>= return . concat >>= \i2s -> return (i1s ++ i2s))
+          subj
+  | isOLiteral        obj   = makeTriple' lnode
+  | isOResource       obj   = objNode >>= makeTriple'
+  | isOBlankBNode     obj   = bIdNode >>= makeTriple'
+  | isOBlankBNodeGen  obj   = bGenIdNode >>= makeTriple'
+  | isOBlankBNodeColl obj   = convertColl bUrl pms subj pred ocoll
   -- if object is a POList, then we create a bnode to use as the object in a triple and cons
   -- that triple onto the triples that represent the POList, each of which has the same bnode
   -- as the subject.
-  | isOBlankPOList    obj   = makeTriple' bObjPolGenNode ++ convertPOLists bUrl docUrl pms (R_Blank opol, pol)
+  | isOBlankPOList    obj   = convertPOLists bUrl docUrl pms (R_Blank opol, pol) >>= \ts ->  (bObjPolGenNode >>= makeTriple' >>= \ts' -> return (ts' ++ ts))
   | otherwise               = error $ "Unexpected case: " ++ show obj
   where 
     log                                   = False --unsafePerformIO $ putStrLn $ show subj ++ show pred ++ show obj
-    makeTriple                            = triple subjNode predNode
-    makeTriple'                           = (:[]) . makeTriple
+    makeTriple :: Node -> IO Triple
+    makeTriple                            = \o -> subjNode >>= \s -> predNode >>= \p -> return (triple s p o)
+    makeTriple'                           = \t -> makeTriple t >>= return . (:[])
     makeTriple'' s p o                    = triple s p o
     subjNode                              = uriRefQNameOrBlank bUrl pms subj
     predNode                              = uriRefQNameOrBlank bUrl pms pred
     objNode                               = uriRefQNameOrBlank bUrl pms res
-    bIdNode                               = BNode bId
-    bGenIdNode                            = BNodeGen bGenId
-    bObjPolGenNode                        = BNodeGen poObjId
+    bIdNode                               = mkFastString bId >>= return . BNode
+    bGenIdNode                            = return (BNodeGen bGenId)
+    bObjPolGenNode                        = return (BNodeGen poObjId)
     (O_Literal lnode)                     = obj
     (O_Resource res)                      = obj
     (O_Blank (B_BlankId bId))             = obj
@@ -463,31 +501,32 @@ The Notation3 spec has the following to say on lists:
    same rdf:rest.
 
 -}
-convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> Triples
+convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> IO Triples
 convertColl bUrl pms subj pred (B_Collection objs) =  
-  if null objs
-     then collTriples
-     else initialTriple (head objs) : collTriples
-  where initialTriple (initId, _) = triple subjNode predNode (BNodeGen initId)
-        collTriples = convertColl' objs
-        subjNode = uriRefQNameOrBlank  bUrl pms subj
-        predNode = uriRefOrQName bUrl pms pred
-        -- only called with empty list if collection was empty
-        convertColl' :: [(Int, Object)] -> Triples
-        convertColl' []                = [triple subjNode predNode rdfNil]
-        -- if next elem is nil, then we're finished, and make rdf:next nil
-        convertColl' ((i, obj):[])     = triple (BNodeGen i) rdfFirst (bObjToNode obj) :
-                                           triple (BNodeGen i) rdfRest rdfNil : []
-        convertColl' ((i1,obj1):o2@(i2,_):os) = triple (BNodeGen i1) rdfFirst (bObjToNode obj1) :
-                                                  triple (BNodeGen i1) rdfRest (BNodeGen i2) : convertColl' (o2:os)
-        bObjToNode (O_Resource res) = uriRefOrQName bUrl pms res
-        bObjToNode (O_Literal lit)  = lit
-        bObjToNode errObj           = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
-
-rdfNil   = UNode $ makeUri rdf (s2b "nil")
-rdfFirst = UNode $ makeUri rdf (s2b "first")
-rdfRest  = UNode $ makeUri rdf (s2b "rest")
-rdfNext  = UNode $ makeUri rdf (s2b "next")
+  do ts <- convertColl' objs
+     if null objs
+        then return ts
+        else initialTriple (head objs) >>= return . (:ts)
+  where
+    initialTriple :: (Int, Object) -> IO Triple
+    initialTriple (initId, _) = subjNode >>= \s -> predNode >>= \p -> return (triple s p (BNodeGen initId))
+    subjNode = uriRefQNameOrBlank  bUrl pms subj
+    predNode = uriRefOrQName bUrl pms pred
+    -- only called with empty list if collection was empty
+    convertColl' :: [(Int, Object)] -> IO Triples
+    convertColl' []                = do {s <- subjNode; p <- predNode; o <- rdfNil; return [triple s p o]}
+    -- if next elem is nil, then we're finished, and make rdf:next nil
+    convertColl' ((i, obj):[])     = do { f <- rdfFirst;r <- rdfRest;n <- rdfNil;o <- bObjToNode obj;return $ triple (BNodeGen i) f o : triple (BNodeGen i) r n : [] }
+    convertColl' ((i1,obj1):o2@(i2,_):os) = do {f <- rdfFirst;r <- rdfRest;o <- bObjToNode obj1; convertColl' (o2:os) >>= \ts -> return $ triple (BNodeGen i1) f o : triple (BNodeGen i1) r (BNodeGen i2) : ts}
+    bObjToNode :: Object -> IO Node
+    bObjToNode (O_Resource res) = uriRefOrQName bUrl pms res
+    bObjToNode (O_Literal lit)  = return lit
+    bObjToNode errObj           = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
+    rdfNil   = rdfNode "nil"
+    rdfFirst = rdfNode "first"
+    rdfRest  = rdfNode "rest"
+    rdfNext  = rdfNode "next"
+    rdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
 
 {-
 resourceToNode :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
@@ -535,31 +574,33 @@ isOBlankBNodeColl _                          = False
 isOBlankPOList (O_Blank (B_POList _ _))        = True
 isOBlankPOList _                             = False
 
-uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = UNode url
+uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
+uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = mkFastString url >>= return . UNode
 uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = 
   if isAbsoluteUri url 
-     then UNode url 
-     else UNode (u `B.append` url)
-uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = UNode $ (resolveQName bUrl pre pms) `B.append` local
-uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = BNode bId
-uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = BNodeGen genId
+     then mkFastString url >>= return . UNode
+     else mkFastString (u `B.append` url) >>= return . UNode
+uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = return ((resolveQName bUrl pre pms) `B.append` local) >>= mkFastString >>= return . UNode
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = mkFastString bId >>= return . BNode
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = return $ BNodeGen genId
 uriRefQNameOrBlank  _        _      res                          = error $ show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
-uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefOrQName Nothing _     (R_URIRef url)            = UNode url
-uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = if isAbsoluteUri url then (UNode url) else (UNode $ u `B.append` url)
-uriRefOrQName bUrl    pms   (R_QName pre local)       = UNode $ (resolveQName bUrl pre pms) `B.append` local
+uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
+uriRefOrQName Nothing _     (R_URIRef url)            = mkFastString url >>= return . UNode
+uriRefOrQName (Just (BaseUrl u)) _ (R_URIRef url)     = let u = if isAbsoluteUri url then url else u `B.append` url
+                                                        in mkFastString u >>= return . UNode
+uriRefOrQName bUrl    pms   (R_QName pre local)       = let u = (resolveQName bUrl pre pms) `B.append` local
+                                                        in mkFastString u >>= return . UNode
 uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
 
-parseString :: Graph gr => Maybe BaseUrl -> String -> String -> Either ParseFailure gr
-parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl (s2b docUrl) result
-  where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
+--parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
+--parseString bUrl docUrl ttlStr = handleResult  $ post_process bUrl (s2b docUrl) result
+--  where result = runParser t_turtleDoc (bUrl, 0) "" ttlStr
 
-handleResult result =
-  case result of
-    (Left err)                      -> Left (ParseFailure $ show err)
-    (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
+--handleResult result =
+--  case result of
+--    (Left err)                      -> Left (ParseFailure $ show err)
+--    (Right (ts, baseUrl, prefixes)) -> Right $ mkGraph ts baseUrl prefixes
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
 resolveQName Nothing            pre   _ 

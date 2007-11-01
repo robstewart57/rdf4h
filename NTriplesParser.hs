@@ -9,9 +9,12 @@ recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
 
 import RDF
+import Namespace
 import ParserUtils
 import qualified Data.Map.AVL as Map
 import Text.ParserCombinators.Parsec
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
 import Control.Monad
 
 {-
@@ -88,7 +91,7 @@ nt_triple    =
     many nt_space
     char '.'
     many nt_space
-    return $ Just (triple subj pred obj)
+    return $ Just (liftM3 triple subj pred obj)
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the 
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
@@ -110,10 +113,10 @@ nt_object = do {uri    <- nt_uriref;  return (unode uri) } <|>
             do {lit    <- nt_literal; return (lnode lit)}
 
 -- A URI reference is an absolute URI inside angle brackets.
-nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return uri
+nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return $ s2b uri
 
 -- A node id is "_:" followed by a name.
-nt_nodeID = do string "_:"; n <- nt_name; return ('_':':':n)
+nt_nodeID = do string "_:"; n <- nt_name; return $ s2b ('_':':':n)
 
 -- A literal is either a language literal (with optional language
 -- specified) or a datatype literal (with required datatype
@@ -130,9 +133,9 @@ nt_literal    =
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
     case rt of
-      Nothing              -> return (plainL str Nothing)
-      (Just (Left lng))    -> return (plainL str (Just lng))
-      (Just (Right uri))   -> return (typedL str uri)
+      Nothing              -> return (PlainL str Nothing)
+      (Just (Left lng))    -> return (PlainL str (Just $ s2b lng))
+      (Just (Right uri))   -> return (TypedL str uri)
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
@@ -185,7 +188,7 @@ is_character c =   c >= '\x0020' && c <= '\x007E'
 is_nonquote_char c = is_character c && c/= '"'
 
 -- The nt_string is simply a bunch of inner_string parts concatenated.
-nt_string = do strs <- many inner_string; return (foldl (++) "" strs)
+nt_string = do strs <- many inner_string; return $ B.concat $ map B.pack strs
 
 -- An inner_string is a fragment of a string (this is used inside double 
 -- quotes), and consists of the non-quote characters allowed and the 
@@ -209,8 +212,7 @@ inner_string   =
 -- |Parse the N-Triples document at the given filepath,
 -- generating a graph containing the parsed triples.
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
-parseFile path = parseFromFile nt_ntripleDoc path >>= 
-                 return . handleParse mkGraph
+parseFile path = parseFromFile nt_ntripleDoc path >>= handleParse mkGraph
 
 -- |Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
@@ -219,8 +221,22 @@ parseURL url = _parseURL parseString url
 
 -- |Parse the given string as an N-Triples document, 
 -- generating a graph containing the parsed triples.
-parseString :: Graph gr => String -> Either ParseFailure gr
-parseString str = handleParse mkGraph $ parse nt_ntripleDoc "" str 
+parseString :: Graph gr => String -> IO (Either ParseFailure gr)
+parseString str = handleParse mkGraph (parse nt_ntripleDoc "" str)
+
+handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> IO gr) ->
+                           Either ParseError ([Maybe (IO Triple)], Maybe BaseUrl, PrefixMappings) ->
+                           IO (Either ParseFailure gr)
+handleParse _        (Left err) = 
+  return $ Left $ ParseFailure $ show err
+handleParse _mkGraph (Right (ts, baseUrl, prefixes)) = 
+  do trps <- mapM id (conv ts)
+     _mkGraph trps baseUrl prefixes >>= return . Right
+  where
+    conv [] = []
+    conv (Nothing:ts)  = conv ts
+    conv ((Just t):ts) = t : conv ts
+
 
 ------------------------------------------------------------------------------
 --             prototyping and testing stuff only below this                 -
@@ -228,9 +244,11 @@ parseString str = handleParse mkGraph $ parse nt_ntripleDoc "" str
 
 -- A test function, which parses a test file, defaulting to the w3c test cases
 -- if an empty path is given.
-_test filepath = do
-  let path = if filepath == [] then "w3c-testcases.nt" else filepath
-  result <- parseFromFile nt_ntripleDoc path
-  case (result) of
-    Left err         -> print err
-    Right (xs, _, _) -> mapM_ (putStrLn . show) (justTriples xs)
+--_test :: String -> IO ()
+--_test filepath = 
+--  do
+--    let path = if filepath == [] then "data/w3c-testcases.nt" else filepath
+--    result <- parseFile path
+--    case (result) of
+--      Left err         -> undefined -- print err
+--      Right (xs, _, _) -> undefined -- mapM_ (putStrLn . show) (justTriples xs)

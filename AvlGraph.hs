@@ -55,8 +55,8 @@ baseUrl' (AvlGraph (_, baseUrl, _)) = baseUrl
 empty' :: AvlGraph 
 empty' = AvlGraph (Map.empty, Nothing, Map.empty)
 
-mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> AvlGraph
-mkGraph' ts baseUrl pms = AvlGraph ((mergeTs Map.empty ts), baseUrl, pms)
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO AvlGraph
+mkGraph' ts baseUrl pms = return $ AvlGraph ((mergeTs Map.empty ts), baseUrl, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT

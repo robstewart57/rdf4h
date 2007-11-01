@@ -19,17 +19,8 @@ justTriples :: [Maybe(Triple)] -> [Triple]
 justTriples = map (maybe (error "ParserUtils.justTriples") id) . 
               filter (/= Nothing)
 
--- TODO: put this back in triples parser: not reusable in turtle parser
-handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) -> 
-                           Either ParseError ([Maybe Triple], Maybe BaseUrl, PrefixMappings) ->
-                           Either ParseFailure gr
-handleParse _mkGraph result =
-  case result of
-    (Left err)                      -> Left (ParseFailure $ show err)
-    (Right (ts, baseUrl, prefixes)) -> Right $ _mkGraph (justTriples ts) baseUrl prefixes
 
-
-_parseURL :: Graph gr => (String -> Either ParseFailure gr) 
+_parseURL :: Graph gr => (String -> IO (Either ParseFailure gr)) 
                          -> String 
                          -> IO (Either ParseFailure gr)
 _parseURL parseFunc url =
@@ -40,4 +31,4 @@ _parseURL parseFunc url =
       httpGet url >>= \result ->
         case result of
           Nothing  -> return (errResult $ "couldn't retrieve from URL: " ++ show url)
-          Just str -> return $ parseFunc str
+          Just str -> parseFunc str
