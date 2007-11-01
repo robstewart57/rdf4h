@@ -49,26 +49,23 @@ fsTable = HT.new (==) (B.foldl f 0)
                 r = fromIntegral a * fromIntegral b :: Int64
 
 mkFastString :: ByteString -> IO FastString
-mkFastString str = mkFastString' fsTable str
+mkFastString str = mkFastString' False fsTable str
 
-mkFastString' :: IO (HashTable ByteString FastString) -> ByteString -> IO FastString
-mkFastString' fst str =
+mkFastStringR :: ByteString -> IO FastString
+mkFastStringR str = mkFastString' True fsTable str
+
+mkFastString' :: Bool -> IO (HashTable ByteString FastString) -> ByteString -> IO FastString
+mkFastString' rev fst str =
   do ht <- fst
      res <- HT.lookup ht str
      case res of
-       Nothing   -> do fs <- newFastString str
+       Nothing   -> do fs <- newFastString rev str
                        HT.insert ht str fs
                        return fs
        (Just fs)  -> return fs
 
-newFastString   :: ByteString -> IO FastString
-newFastString    = newFastString' False
-
-newFastStringR  :: ByteString -> IO FastString
-newFastStringR   = newFastString' True
-
-newFastString' :: Bool -> ByteString -> IO FastString
-newFastString' rev str = 
+newFastString :: Bool -> ByteString -> IO FastString
+newFastString rev str = 
   do curr <- readIORef =<< fsCounter
      fsCounter >>= flip writeIORef (curr+1)
      return $ FS rev curr (B.length str) val
