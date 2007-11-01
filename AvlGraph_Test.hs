@@ -7,6 +7,8 @@ import Test.QuickCheck
 
 import AvlGraph
 
+{-
+
 ----------------------------------------------------
 --   instances and graph functions for AvlGraph   --
 ----------------------------------------------------
@@ -91,3 +93,5 @@ prop_select_match_po = p_select_match_po _triplesOf
 
 prop_select_match_spo :: AvlGraph -> Property
 prop_select_match_spo = p_select_match_spo _triplesOf
+
+-}
