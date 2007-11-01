@@ -5,8 +5,7 @@ module Namespace(Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
                  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
 where
 
-import Data.Map.AVL (Map)
-import qualified Data.Map.AVL as Map
+import Data.Map.AVL(Map)
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
