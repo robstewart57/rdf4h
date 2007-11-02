@@ -51,7 +51,7 @@ fsTable :: HashTable ByteString FastString
 fsTable = unsafePerformIO $ HT.new (==) hashByteString 
 
 hashByteString :: ByteString -> Int32
-hashByteString !str = B.foldl f 0 str
+hashByteString !str = B.foldl' f 0 str
 
 f :: Int32 -> Char -> Int32
 f !m !c = fromIntegral (ord c + 1) * golden + mulHi m golden

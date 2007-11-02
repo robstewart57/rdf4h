@@ -178,7 +178,8 @@ compareTriple !t1 !t2 =
     EQ -> case compP of
             EQ -> compO
             sp -> sp
-    sc  -> sc
+    GT -> GT
+    LT -> LT
   where
     compS = compareNode (subjectOf $! t1) (subjectOf $! t2)
     compP = compareNode (predicateOf t1) (predicateOf t2)
@@ -201,31 +202,33 @@ instance Eq LValue where
   l1 == l2 = l1 `equalLValue` l2
 
 equalLValue :: LValue -> LValue -> Bool
-equalLValue  !(PlainL _ _) !(TypedL _ _) = False
-equalLValue  !(TypedL _ _) !(PlainL _ _) = False
-equalLValue  !(PlainL _ Nothing) !(PlainL _ (Just _)) = False
-equalLValue  !(PlainL _ (Just _)) !(PlainL _ Nothing) = False
-equalLValue  !(PlainL !l1 (Just l1')) !(PlainL !l2 (Just !l2')) = l1' == l2' && l1 == l2
-equalLValue  !(PlainL !l1 Nothing) !(PlainL !l2 Nothing) = l1 == l2
+equalLValue  !(PlainL !_ !_) !(TypedL !_ !_) = False
+equalLValue  !(TypedL !_ !_) !(PlainL !_ !_) = False
+equalLValue  !(PlainL !_ !Nothing) !(PlainL !_ !(Just !_)) = False
+equalLValue  !(PlainL !_ !(Just !_)) !(PlainL !_ !Nothing) = False
+equalLValue  !(PlainL !l1 !(Just !l1')) !(PlainL !l2 !(Just !l2')) = l1' == l2' && l1 == l2
+equalLValue  !(PlainL !l1 !Nothing) !(PlainL !l2 !Nothing) = l1 == l2
 equalLValue  !(TypedL !l1 !t1) !(TypedL !l2 !t2) = l1 == l2 && t1 == t2
 
 instance Ord LValue where
   compare !l1 !l2 = compareLValue l1 l2
 
 compareLValue :: LValue -> LValue -> Ordering
-compareLValue !(PlainL _ _) !(TypedL _ _) = LT
-compareLValue !(TypedL _ _) !(PlainL _ _) = GT
-compareLValue !(PlainL _ !Nothing) !(PlainL _ !(Just _)) = LT
-compareLValue !(PlainL _ !(Just _)) !(PlainL _ !Nothing) = GT
+compareLValue !(PlainL !_ !_) !(TypedL !_ !_) = LT
+compareLValue !(TypedL !_ !_) !(PlainL !_ !_) = GT
+compareLValue !(PlainL !_ !Nothing) !(PlainL !_ !(Just !_)) = LT
+compareLValue !(PlainL !_ !(Just !_)) !(PlainL !_ !Nothing) = GT
 compareLValue !(PlainL !l1 !Nothing) !(PlainL !l2 !Nothing) = compare l1 l2
-compareLValue !(PlainL !l1 !(Just l1')) !(PlainL !l2 !(Just l2')) =
+compareLValue !(PlainL !l1 !(Just !l1')) !(PlainL !l2 !(Just !l2')) =
   case compare l1' l2' of
     EQ -> compare l1 l2
-    c  -> c
-compareLValue (TypedL !l1 !t1) (TypedL !l2 !t2) =
+    GT -> GT
+    LT -> LT
+compareLValue !(TypedL !l1 !t1) !(TypedL !l2 !t2) =
   case compare l1 l2 of
     EQ -> compare t1 t2
-    c  -> c
+    GT -> GT
+    LT -> LT
 
 -- |The base URL of a graph.
 newtype BaseUrl = BaseUrl ByteString
@@ -267,29 +270,22 @@ instance Show LValue where
   show (TypedL lit dtype)       = printf "\"%s\"^^%s" (show lit) (show dtype)
 
 sortTriples :: Triples -> Triples
-sortTriples !ts = sort ts
---  sortBy (compareByNode subjectOf)    $!
---  sortBy (compareByNode objectOf)     $!
---  sortBy (compareByNode predicateOf)  ts
-
---compareByNode :: (Triple -> Node) -> Triple -> Triple -> Ordering
---compareByNode !fn !t1 !t2 = compareNode (fn $! t1) (fn $! t2)
-
+sortTriples !ts = sort $! ts
 
 -- Functions for testing type of a node --
 
 -- |Answer if given node is a URI Ref node.
 isUNode :: Node -> Bool
-isUNode !(UNode _) = True
+isUNode !(UNode !_) = True
 isUNode !_         = False
 -- |Answer if given node is a blank node.
 isBNode :: Node -> Bool
-isBNode !(BNode _)    = True
-isBNode !(BNodeGen _) = True
+isBNode !(BNode !_)    = True
+isBNode !(BNodeGen !_) = True
 isBNode !_            = False
 -- |Answer if given node is a literal node.
 isLNode :: Node -> Bool
-isLNode !(LNode _) = True
+isLNode !(LNode !_) = True
 isLNode !_         = False
 
 -- |A 'NodeSelector' is either a function that returns 'True'
@@ -305,26 +301,27 @@ type NodeSelector = Maybe (Node -> Bool)
 
 -- |A convenience function for creating a UNode for the given String URI.
 unode :: ByteString -> IO Node
-unode !str = mkFastString str >>= return . UNode
+unode !str = mkFastString str >>= \s -> return $! (UNode s)
 
 -- |A convenience function for creating a BNode for the given string id. 
 bnode :: ByteString -> IO Node
-bnode !str = mkFastString str >>= return . BNode
+bnode !str = mkFastString str >>= \s -> return $! (BNode s)
 
 -- |A convenience function for creating an LNode for the given LValue.
 lnode :: LValue -> IO Node
-lnode !str = return $ LNode str
+lnode !str = return $! (LNode str)
 
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value, and optionally, language identifier.
 plainL :: String -> Maybe String -> LValue
-plainL !str Nothing    = PlainL (s2b str) Nothing
-plainL !str (Just !lng) = PlainL (s2b str) (Just $ s2b lng)
+plainL !str Nothing    = PlainL (s2b $! str) Nothing
+plainL !str (Just !lng) = PlainL (s2b $! str) (Just $! s2b $! lng)
 
 -- |A convenience function for creating a TypedL LValue for the given
 -- string value and datatype URI, respectively.
 typedL :: String -> String -> LValue
-typedL !str !uri        = TypedL (s2b str) (s2b uri)
+typedL !str !uri        = TypedL (s2b $! str) (s2b $! uri)
+-- TODO: these should be using FastSTring, especially for datatype URI
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.

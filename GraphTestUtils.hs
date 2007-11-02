@@ -231,7 +231,7 @@ ordered :: Triples -> Triples
 ordered !ts = sortTriples ts
 
 uordered :: Triples -> Triples
-uordered !ts  = nub $! (sortTriples $! ts)
+uordered !ts  = (map head . group . sortTriples) $! ts
 
 {-
 
