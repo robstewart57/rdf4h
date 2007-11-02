@@ -228,10 +228,10 @@ samePred t1 t2 = predicateOf t1 == predicateOf t2
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
 ordered :: Triples -> Triples
-ordered = sort
+ordered !ts = sortTriples ts
 
 uordered :: Triples -> Triples
-uordered = sort . S.toList . S.fromList
+uordered !ts  = nub $! (sortTriples $! ts)
 
 {-
 

@@ -51,7 +51,8 @@ checkBadConformanceTest i =
 equivalent :: Graph gr => Either ParseFailure gr -> Either ParseFailure gr -> Maybe String
 equivalent (Left _) _        = Nothing
 equivalent _        (Left _) = Nothing
-equivalent (Right gr1) (Right gr2) = test $ zip t1s t2s
+equivalent (Right gr1) (Right gr2) = 
+  test $ zip (ordered $! triplesOf $! gr1) (ordered $! triplesOf $! gr2)
   where
     test []           = Nothing
     test ((t1,t2):ts) = 
@@ -59,9 +60,7 @@ equivalent (Right gr1) (Right gr2) = test $ zip t1s t2s
         Nothing -> test ts
         err     -> err
     compare t1 t2 = if t1 == t2 then Nothing else Just ("[" ++ show t1 ++ "]\n[" ++ show t2 ++ "]")
-    t1s = ordered $! triplesOf gr1
-    t2s = ordered $! triplesOf gr2
-
+    
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 input name n = readFile (fpath name n "ttl") >>=   parseString mtestBaseUri (testBaseUri ++ name)
 
