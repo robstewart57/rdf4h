@@ -1,3 +1,5 @@
+module Main where
+
 import qualified Test.HUnit as T
 
 import Text.Printf

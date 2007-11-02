@@ -7,7 +7,7 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             ParseFailure(ParseFailure),
-            FastString(uniq,len,value),mkFastString,mkFastStringR,
+            FastString(uniq,value),mkFastString,
             s2b,b2s,unode,bnode,lnode,plainL,typedL,
             printT, printTs, printN, printNs)
 where
@@ -272,8 +272,8 @@ sortTriples !ts = sort ts
 --  sortBy (compareByNode objectOf)     $!
 --  sortBy (compareByNode predicateOf)  ts
 
-compareByNode :: (Triple -> Node) -> Triple -> Triple -> Ordering
-compareByNode !fn !t1 !t2 = compareNode (fn $! t1) (fn $! t2)
+--compareByNode :: (Triple -> Node) -> Triple -> Triple -> Ordering
+--compareByNode !fn !t1 !t2 = compareNode (fn $! t1) (fn $! t2)
 
 
 -- Functions for testing type of a node --
@@ -305,11 +305,11 @@ type NodeSelector = Maybe (Node -> Bool)
 
 -- |A convenience function for creating a UNode for the given String URI.
 unode :: ByteString -> IO Node
-unode !str = mkFastStringR str >>= return . UNode
+unode !str = mkFastString str >>= return . UNode
 
 -- |A convenience function for creating a BNode for the given string id. 
 bnode :: ByteString -> IO Node
-bnode !str = mkFastStringR str >>= return . BNode
+bnode !str = mkFastString str >>= return . BNode
 
 -- |A convenience function for creating an LNode for the given LValue.
 lnode :: LValue -> IO Node

@@ -159,7 +159,8 @@ t_verb =
   (char 'a' >> return (return $! (R_URIRef $! rdfTypeBs)))
   <?> "verb"
 
-rdfTypeBs = s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+rdfTypeBs :: ByteString
+rdfTypeBs = s2b $! "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 t_predicateObjectList :: GenParser Char ParseState (IO [(Resource, [Object])])
 t_predicateObjectList = 
@@ -172,6 +173,7 @@ t_predicateObjectList =
                return (v', ol'))
      (return $! (mapM (\(res, objs) -> res >>= \r -> objs >>= \os -> return (r,os)) (((v1, ol1):ol_rest)))) <?> "predicateObjectList"
 
+t_comment :: GenParser Char ParseState Char
 t_comment = 
   try (char '#') >> many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >> return '#' -- FIXME
 
@@ -205,9 +207,13 @@ t_literal =
   (do d <- try t_decimal; return $! (lnode $! TypedL d  xsdDecimalUri)) <|>
   (do b <- try t_boolean; return $! (lnode $! TypedL b  xsdBooleanUri))
 
+xsdIntUri :: ByteString
 xsdIntUri     = ($!) makeUri xsd $! s2b "integer"
+xsdDoubleUri :: ByteString
 xsdDoubleUri  = ($!) makeUri xsd $! s2b "double"
+xsdDecimalUri :: ByteString
 xsdDecimalUri = ($!) makeUri xsd $! s2b "decimal"
+xsdBooleanUri :: ByteString
 xsdBooleanUri = ($!) makeUri xsd $! s2b "boolean"
 
 str_literal :: GenParser Char ParseState (IO Node)
@@ -223,13 +229,14 @@ str_literal =
     rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
            do { try (char '@'); t_language >>= return . Just . Left} <|>
            return Nothing
-
+t_integer :: GenParser Char ParseState ByteString
 t_integer = 
   do sign <- sign_parser <?> "+-"
      ds <- many1 digit   <?> "digit"
      notFollowedBy (char '.')
      return $! (s2b sign `B.append` s2b ds)
 
+t_double :: GenParser Char ParseState ByteString
 t_double =
   do sign <- sign_parser <?> "+-"
      rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.snoc` '.' `B.append` s2b ds' `B.append` e) }) <|>
@@ -237,9 +244,13 @@ t_double =
              try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.append` e) })
      return $! (s2b sign `B.append` rest)
 
-sign_parser = option "" (oneOf "-+" >>= (\c -> return (c:[]))) 
+sign_parser :: GenParser Char ParseState String
+sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[]))) 
+
+digits1_parser :: GenParser Char ParseState String
 digits1_parser = many1 digit
 
+t_decimal :: GenParser Char ParseState ByteString
 t_decimal = 
   do sign <- sign_parser
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
@@ -247,13 +258,16 @@ t_decimal =
              <|> many1 digit <?> "digit"
      return $!(s2b sign `B.append` s2b rest)
      
+t_exponent :: GenParser Char ParseState ByteString
 t_exponent = do e <- oneOf "eE"
                 s <- option "" (oneOf "-+" >>= \c -> return (c:[]))
                 ds <- many1 digit; 
                 return $! (e `B.cons` (s2b s `B.append` s2b ds))
 
+t_boolean :: GenParser Char ParseState ByteString
 t_boolean = try ((string "true" >> return trueBs) <|> (string "false" >> return falseBs))
 
+trueBs, falseBs :: ByteString
 trueBs = s2b $! "true"
 falseBs = s2b $! "false"
 
@@ -274,6 +288,7 @@ t_blank =
     getIds :: Int -> GenParser Char ParseState [Int]
     getIds !n = mapM (\_ -> do (b,i) <- getState; setState (b,i+1); return i) (replicate n False)
 
+t_itemList :: GenParser Char ParseState [IO Object]
 t_itemList = 
   do obj1 <- t_object <?> "object"
      objs <- many (try $ many1 t_ws >> try t_object) <?> "object"
@@ -284,11 +299,13 @@ t_collection = try $! between (char '(') (char ')') g
   where
     g = do { many t_ws; l <- option [] t_itemList; many t_ws; return l }
 
+t_ws  :: GenParser Char ParseState Char
 t_ws = char '\x000A' <|> char '\x000D' <|> char '\x0020' <|> t_comment <?> "whitespace"
 
 t_resource :: GenParser Char ParseState (IO Resource)
 t_resource = t_uriref <|> t_qname
 
+t_nodeID  :: GenParser Char ParseState ByteString
 t_nodeID = do { string "_:"; cs <- t_name; return $! s2b "_:" `B.append` cs }
 
 t_qname :: GenParser Char ParseState (IO Resource)
@@ -301,13 +318,16 @@ t_qname =
 t_uriref :: GenParser Char ParseState (IO Resource)
 t_uriref = between (char '<') (char '>') t_relativeURI >>= \uri -> return $! return $! (R_URIRef $! uri)
 
+t_language  :: GenParser Char ParseState String
 t_language = 
   do init <- many1 lower;
      rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ('-':cs)})
      return $! (init ++ concat rest)
 
+t_nameStartChar  :: GenParser Char ParseState Char
 t_nameStartChar = try (char '_') <|> t_nameStartCharMinusUnderscore
 
+t_nameStartCharMinusUnderscore  :: GenParser Char ParseState Char
 t_nameStartCharMinusUnderscore = 
   try (satisfy (flip in_range blocks))
   where blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'), 
@@ -318,26 +338,33 @@ t_nameStartCharMinusUnderscore =
                   ('\xF900', '\xFDCF'), ('\xFDF0', '\xFFFD'),
                   ('\x10000', '\xEFFFF')]
 
+t_nameChar :: GenParser Char ParseState Char
 t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
   where f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
             
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range !c = any $! (\(c1, c2) -> c >= c1 && c <= c2)
 
+t_name :: GenParser Char ParseState ByteString
 t_name = do { c <- t_nameStartChar; cs <- many t_nameChar; return $! s2b $! (c:cs) }
 
+t_prefixName :: GenParser Char ParseState ByteString
 t_prefixName = do { c <- t_nameStartCharMinusUnderscore; cs <- many t_nameChar; return $! s2b $! (c:cs) }
 
+t_relativeURI  :: GenParser Char ParseState ByteString
 t_relativeURI = many t_ucharacter >>= return . s2b . concat
 
+t_quotedString  :: GenParser Char ParseState ByteString
 t_quotedString = try t_longString <|> try t_string
 
+t_string  :: GenParser Char ParseState ByteString
 t_string = 
   do char '"'
      schars <- many t_scharacter
      char '"'
      return $! (s2b $! concat $! schars)
 
+t_longString  :: GenParser Char ParseState ByteString
 t_longString = 
   do tripleQuote
      strs <- manyTill longString_char (try tripleQuote)
@@ -346,6 +373,7 @@ t_longString =
   where
     tripleQuote = count 3 (char '"')
 
+longString_char  :: GenParser Char ParseState String
 longString_char  = 
   (try $! string "\\\"" >> return "\"") <|>
   (try $! oneOf ['\x0009', '\x000A', '\x000D'] >>= return  . (:[]))         <|>  -- \r|\n|\t as single char
@@ -353,29 +381,35 @@ longString_char  =
   (try $! non_ctrl_char_except ['\\']) <|> 
   (try unicode_escape)
 
+t_character  :: GenParser Char ParseState String
 t_character =  try (non_ctrl_char_except ['\\']) <|> try (string "\\") <|> try unicode_escape
 
+t_echaracter  :: GenParser Char ParseState String
 t_echaracter = try( do { (char '\\'); c <- oneOf ['t', 'n', 'r']; return $! ('\\':c:[]);}) <|>
                t_character
                
-
+t_hex  :: GenParser Char ParseState Char
 t_hex = (satisfy $! (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) <?> "hexadecimal digit"
 
+t_ucharacter  :: GenParser Char ParseState String
 t_ucharacter = 
   do try unicode_escape <|> try (string "\\>") <|> try (non_ctrl_char_except ['>'])
 
+t_scharacter  :: GenParser Char ParseState String
 t_scharacter =
   do try (string "\\\"") 
      <|> try (do char '\\'; c <- oneOf ['t', 'n', 'r']; return $! ('\\':c:[])) -- echaracter part 1
      <|> unicode_escape <|> non_ctrl_char_except ['\\', '"']         -- echaracter part 2 minus "
 
 -- characters used in long strings
+t_lcharacter  :: GenParser Char ParseState String
 t_lcharacter = 
   t_echaracter <|> 
   -- FIXME: doesn't work with 2 embedded quotes
   (char '"' >> notFollowedBy  (char '"') >>  (return "\"")) <|>
   (oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return [c])
 
+unicode_escape  :: GenParser Char ParseState String
 unicode_escape = 
   do {
      try $ char '\\';
@@ -384,6 +418,7 @@ unicode_escape =
      do { char 'U'; chrs <- count 8 t_hex; return ('\\':'U':chrs) }
   }
        
+non_ctrl_char_except  :: String -> GenParser Char ParseState String
 non_ctrl_char_except !cs = 
   satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>= 
     \c -> return $! (c:[])
@@ -466,7 +501,7 @@ convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
     subjNode                              = uriRefQNameOrBlank bUrl pms subj
     predNode                              = uriRefQNameOrBlank bUrl pms pred
     objNode                               = uriRefQNameOrBlank bUrl pms res
-    bIdNode                               = mkFastStringR bId >>= return . BNode
+    bIdNode                               = mkFastString bId >>= return . BNode
     bGenIdNode                            = return $! (BNodeGen $! bGenId)
     bObjPolGenNode                        = return $! (BNodeGen $! poObjId)
     (O_Literal lnode)                     = obj
@@ -538,7 +573,7 @@ rdfFirstNode = mkRdfNode "first"
 rdfRestNode  = mkRdfNode "rest"
 
 mkRdfNode :: String -> IO Node
-mkRdfNode localName = mkFastStringR (makeUri rdf (s2b localName)) >>= return . UNode
+mkRdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
 
 
 {-
@@ -580,22 +615,22 @@ isOBlankPOList !(O_Blank !(B_POList _ _))      = True
 isOBlankPOList !_                              = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefQNameOrBlank  !Nothing  !_     !(R_URIRef !url)                = mkFastStringR url >>= return . UNode
+uriRefQNameOrBlank  !Nothing  !_     !(R_URIRef !url)                = mkFastString url >>= return . UNode
 uriRefQNameOrBlank !(Just (BaseUrl u)) !_ !(R_URIRef !url)           = 
   if isAbsoluteUri url 
-     then mkFastStringR url >>= \s -> return $! (UNode $! s)
-     else mkFastStringR (u `B.append` url) >>= \s -> return $! (UNode $! s)
+     then mkFastString url >>= \s -> return $! (UNode $! s)
+     else mkFastString (u `B.append` url) >>= \s -> return $! (UNode $! s)
 uriRefQNameOrBlank  !bUrl     !pms   !(R_QName !pre !local)           = (return $! ((resolveQName bUrl pre pms) `B.append` local)) >>= mkFastString >>= \fs -> return $! (UNode $! fs)
-uriRefQNameOrBlank  !_        !_     !(R_Blank !(B_BlankId !bId))     = mkFastStringR bId >>= \fs -> return $! (BNode $! fs)
+uriRefQNameOrBlank  !_        !_     !(R_Blank !(B_BlankId !bId))     = mkFastString bId >>= \fs -> return $! (BNode $! fs)
 uriRefQNameOrBlank  !_        !_     !(R_Blank !(B_BlankGen !genId))  = return $! (BNodeGen $! genId)
 uriRefQNameOrBlank  !_        !_      !res                            = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefOrQName !Nothing !_     !(R_URIRef !url)            = mkFastStringR url >>= \s -> return $! (UNode $! s)
+uriRefOrQName !Nothing !_     !(R_URIRef !url)            = mkFastString url >>= \s -> return $! (UNode $! s)
 uriRefOrQName !(Just !(BaseUrl !u)) !_ !(R_URIRef !url)   = let url' = if isAbsoluteUri url then url else u `B.append` url
-                                                            in mkFastStringR url' >>= \s -> return $! (UNode $! s)
+                                                            in mkFastString url' >>= \s -> return $! (UNode $! s)
 uriRefOrQName !bUrl    !pms   !(R_QName !pre !local)      = let u = (resolveQName bUrl pre pms) `B.append` local
-                                                            in mkFastStringR u >>= \s -> return $! (UNode $! s)
+                                                            in mkFastString u >>= \s -> return $! (UNode $! s)
 uriRefOrQName !_       !_     !_                          = error "TurtleParser.predicate"
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
@@ -613,9 +648,9 @@ parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtle
 handleResult :: Graph gr => Maybe BaseUrl -> String -> Either ParseError (IO [Maybe Statement]) -> IO (Either ParseFailure gr)
 handleResult !bUrl !docUrl !result =
   case result of
-     l@(Left err) -> return (Left (ParseFailure $ show err))
+     (Left err) -> return (Left (ParseFailure $ show err))
      (Right res)  -> do stmts <- res
-                        (ts, mbUrl, pms) <- post_process bUrl (s2b docUrl) stmts
+                        (ts, _, pms) <- post_process bUrl (s2b docUrl) stmts
                         g <- mkGraph ts bUrl pms
                         return (Right g)
 

@@ -1,4 +1,4 @@
-module Utils(FastString(rev,uniq,len,value), mkFastString, mkFastStringR, equalFS) where
+module Utils(FastString(uniq,value), mkFastString, equalFS) where
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -13,17 +13,16 @@ import Data.Bits(shiftR)
 import Data.IORef
 
 -- |A wrapper around a bytestring that contains a uniq int associated with the bytestring,
--- together with the length of the bytestring and the value of the bytestring
+-- together with the value of the bytestring. ByteString has O(1) length, so we no longer
+-- include the length explicitly.
 data FastString = FS {
-      rev    :: {-# UNPACK #-} !Bool,
       uniq   :: {-# UNPACK #-} !Int,
-      len    :: {-# UNPACK #-} !Int,
       value  :: {-# UNPACK #-} !ByteString
 }
 
 instance Show FastString where
-  show fs = B.unpack $ f $ value fs
-    where f = if rev fs then B.reverse else id
+  show fs = B.unpack $! B.reverse $! value fs
+
 
 instance Eq FastString where
   (==) !fs1 !fs2 = equalFS fs1 fs2
@@ -32,17 +31,8 @@ equalFS :: FastString -> FastString -> Bool
 equalFS !fs1 ! fs2 = uniq fs1 == uniq fs2
 
 instance Ord FastString where
-  compare !fs1 !fs2 =
-    case (rev fs1, rev fs2) of
-      (True,  True)  -> compareFS u1 v1 u2 v2
-      (False, False) -> compareFS u1 v1 u2 v2
-      (True, False)  -> compareFS u1 v1 u2 (B.reverse v2)
-      (False, True)  -> compareFS u1 (B.reverse v1) u2 v2
-    where
-      u1 = uniq fs1
-      u2 = uniq fs2
-      v1 = value fs1
-      v2 = value fs2
+  compare !fs1 !fs2 = compareFS (uniq fs1) (value fs1) (uniq fs2) (value fs2)
+
 
 compareFS :: Int -> ByteString -> Int -> ByteString -> Ordering
 compareFS !u1 !v1 !u2 !v2 =
@@ -76,26 +66,23 @@ mulHi a b = fromIntegral (r `shiftR` 32)
         r = fromIntegral a * fromIntegral b :: Int64
 
 mkFastString :: ByteString -> IO FastString
-mkFastString !str = mkFastString' False fsTable str
+mkFastString !str = mkFastString' fsTable str
 
-mkFastStringR :: ByteString -> IO FastString
-mkFastStringR !str = mkFastString' True fsTable str
-
-mkFastString' :: Bool -> HashTable ByteString FastString -> ByteString -> IO FastString
-mkFastString' !rev !fst !str =
+mkFastString' :: HashTable ByteString FastString -> ByteString -> IO FastString
+mkFastString' !fst !str =
   do res <- HT.lookup fst str
      case res of
-       Nothing   -> do fs <- newFastString rev str
+       Nothing   -> do fs <- newFastString str
                        HT.insert fst str fs
                        return fs
        (Just fs)  -> return fs
 
-newFastString :: Bool -> ByteString -> IO FastString
-newFastString !rev !str = 
+newFastString ::  ByteString -> IO FastString
+newFastString !str = 
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
-     return (FS rev curr (B.length str) val)
-  where val = if rev then B.reverse str else str
+     return (FS curr val)
+  where val = B.reverse str
 
 _b1, _b2 :: ByteString
 _b1 = B.pack "asdf"
