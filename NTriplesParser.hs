@@ -135,8 +135,8 @@ nt_literal    =
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
     case rt of
-      Nothing              -> return (return $ PlainL str Nothing)
-      (Just (Left lng))    -> return (return $ PlainL str (Just $ s2b lng))
+      Nothing              -> return (return $! PlainL str)
+      (Just (Left lng))    -> return (return $! PlainLL str (s2b lng))
       (Just (Right uri))   -> return (mkFastString uri >>= \u -> return (TypedL str u))
 
 -- A language specifier of a language literal is any number of lowercase

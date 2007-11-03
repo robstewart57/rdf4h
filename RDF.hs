@@ -2,13 +2,13 @@ module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
             BaseUrl(BaseUrl),
             Triple, triple, Triples,sortTriples,
             Node(UNode, BNode, BNodeGen, LNode),
-            LValue(PlainL, TypedL),
+            LValue(PlainL, PlainLL, TypedL),
             NodeSelector, isUNode, isBNode, isLNode,
             subjectOf, predicateOf, objectOf,
             Subject, Predicate, Object,
             ParseFailure(ParseFailure),
             FastString(uniq,value),mkFastString,
-            s2b,b2s,unode,bnode,lnode,plainL,typedL,
+            s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
             printT, printTs, printN, printNs)
 where
 
@@ -156,21 +156,21 @@ compareNode (BNode _)                        _                                = 
 compareNode (BNodeGen i1)                    (BNodeGen i2)                    = compare i1 i2
 compareNode (BNodeGen _)                     (LNode _)                        = LT
 compareNode (BNodeGen _)                     _                                = GT
-compareNode (LNode (PlainL _ _))             (LNode (TypedL _ _))             = LT
-compareNode (LNode (TypedL _ _))             (LNode (PlainL _ _))             = GT
-compareNode (LNode (PlainL _ Nothing))       (LNode (PlainL _ (Just _)))      = LT
-compareNode (LNode (PlainL _ (Just _)))      (LNode (PlainL _ Nothing))       = GT
-compareNode (LNode (PlainL bs1 Nothing))     (LNode (PlainL bs2 Nothing))     = compare bs1 bs2
-compareNode (LNode (PlainL bs1 (Just bs1'))) (LNode (PlainL bs2 (Just bs2'))) = 
+compareNode (LNode (PlainL bs1))             (LNode (PlainL bs2))             = compare bs1 bs2
+compareNode (LNode (PlainL _))               (LNode _)                        = LT
+compareNode (LNode (PlainLL bs1 bs1'))       (LNode (PlainLL bs2 bs2'))       =
   case compare bs1' bs2' of
+    EQ -> compare bs1 bs2
     LT -> LT
     GT -> GT
+compareNode (LNode (PlainLL _ _))            (LNode (PlainL _))               = GT
+compareNode (LNode (PlainLL _ _))            (LNode _)                        = LT
+compareNode (LNode (TypedL bs1 fs1))         (LNode (TypedL bs2 fs2))         =
+  case compare fs1 fs2 of
     EQ -> compare bs1 bs2
-compareNode (LNode (TypedL bs1 fs1)) (LNode (TypedL bs2 fs2)) =
-  case compareFS fs1 fs2 of
     LT -> LT
     GT -> GT
-    EQ -> compare bs1 bs2
+compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
 compareNode (LNode _)                        _                                = GT
 {-
 compareNode !u1 !u2 =
@@ -255,8 +255,10 @@ type Triples = [Triple]
 -- |The actual value of an RDF literal, represented as the 'LValue'
 -- parameter of an 'LNode'.
 data LValue = 
-  -- |A plain literal value, with an optional language specifier.
-  PlainL {-# UNPACK #-} !ByteString {-# UNPACK #-} !(Maybe ByteString)
+  -- |A plain (untyped) literal value in an unspecified language.
+  PlainL {-# UNPACK #-} !ByteString
+  -- |A plain (untyped) literal value with a language specifier.
+  | PlainLL {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString 
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
   | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !FastString
@@ -266,34 +268,32 @@ instance Eq LValue where
 
 {-# INLINE equalLValue #-}
 equalLValue :: LValue -> LValue -> Bool
-equalLValue  (PlainL _ _) (TypedL _ _) = False
-equalLValue  (TypedL _ _) (PlainL _ _) = False
-equalLValue  (PlainL _ Nothing) (PlainL _ (Just _)) = False
-equalLValue  (PlainL _ (Just _)) (PlainL _ Nothing) = False
-equalLValue  (PlainL l1 (Just l1')) (PlainL l2 (Just l2')) = l1' == l2' && l1 == l2
-equalLValue  (PlainL l1 Nothing) (PlainL l2 Nothing) = l1 == l2
-equalLValue  (TypedL l1 t1) (TypedL l2 t2) = t1 == t2 && l1 == l2
+equalLValue (PlainL bs1)        (PlainL bs2)        = bs1 == bs2
+equalLValue (PlainLL bs1 bs1')  (PlainLL bs2 bs2')  = bs1' == bs2'    &&  bs1 == bs2
+equalLValue (TypedL bs1 fs1)    (TypedL bs2 fs2)    = equalFS fs1 fs2 &&  bs1 == bs2
+equalLValue _                   _                   = False
 
 instance Ord LValue where
   compare l1 l2 = compareLValue l1 l2
 
 {-# INLINE compareLValue #-}
 compareLValue :: LValue -> LValue -> Ordering
-compareLValue (PlainL _ _) (TypedL _ _) = LT
-compareLValue (TypedL _ _) (PlainL _ _) = GT
-compareLValue (PlainL _ Nothing) (PlainL _ (Just _)) = LT
-compareLValue (PlainL _ (Just _)) (PlainL _ Nothing) = GT
-compareLValue (PlainL l1 Nothing) (PlainL l2 Nothing) = compare l1 l2
-compareLValue (PlainL l1 (Just lang1)) (PlainL l2 (Just lang2)) =
-  case compare lang1 lang2 of
-    EQ -> compare l1 l2
+compareLValue (PlainL bs1)       (PlainL bs2)       = compare bs1 bs2
+compareLValue (PlainL _)         _                  = LT
+compareLValue _                  (PlainL _)         = GT
+compareLValue (PlainLL bs1 bs1') (PlainLL bs2 bs2') = 
+  case compare bs1' bs2' of
+    EQ -> compare bs1 bs2
     GT -> GT
     LT -> LT
+compareLValue (PlainLL _ _)       _                 = LT
+compareLValue _                   (PlainLL _ _)     = GT
 compareLValue (TypedL l1 t1) (TypedL l2 t2) =
   case compareFS t1 t2 of
     EQ -> compare l1 l2
     GT -> GT
     LT -> LT
+
 
 -- |The base URL of a graph.
 newtype BaseUrl = BaseUrl ByteString
@@ -322,17 +322,17 @@ instance Show Triple where
     printf "%s %s %s ." (show subj) (show pred) (show obj)
 
 instance Show Node where
-  show (UNode uri)                      = printf "<%s>" (show uri)
-  show (BNode  id)                      = show id
-  show (BNodeGen genId)                 = "_:genid" ++ show genId
-  show (LNode (PlainL lit Nothing))     = printf "\"%s\"" (show lit)
-  show (LNode (PlainL lit (Just lang))) = printf "\"%s\"@\"%s\"" (show lit) (show lang)
-  show (LNode (TypedL lit uri))         = printf "\"%s\"^^<%s>" (show lit) (show uri)
+  show (UNode uri)                = printf "<%s>" (show uri)
+  show (BNode  id)                = show id
+  show (BNodeGen genId)           = "_:genid" ++ show genId
+  show (LNode (PlainL lit))       = printf "\"%s\"" (show lit)
+  show (LNode (PlainLL lit lang)) = printf "\"%s\"@\"%s\"" (show lit) (show lang)
+  show (LNode (TypedL lit uri))   = printf "\"%s\"^^<%s>" (show lit) (show uri)
 
 instance Show LValue where
-  show (PlainL lit Nothing)     = printf "\"%s\"" (show lit)
-  show (PlainL lit (Just lang)) = printf "\"%s\"@%s" (show lit) (show lang)
-  show (TypedL lit dtype)       = printf "\"%s\"^^%s" (show lit) (show dtype)
+  show (PlainL lit)               = printf "\"%s\"" (show lit)
+  show (PlainLL lit lang)         = printf "\"%s\"@%s" (show lit) (show lang)
+  show (TypedL lit dtype)         = printf "\"%s\"^^%s" (show lit) (show dtype)
 
 -- Functions for testing type of a node --
 
@@ -382,9 +382,11 @@ lnode !str = return $! (LNode str)
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value, and optionally, language identifier.
 {-# INLINE plainL #-}
-plainL :: String -> Maybe String -> IO LValue
-plainL !str Nothing     = return $! PlainL (s2b str) Nothing
-plainL !str (Just !lng) = return $! PlainL (s2b str) (Just $! s2b lng)
+plainL :: String -> IO LValue
+plainL !str    = return $! PlainL (s2b str)
+
+plainLL :: String -> String -> IO LValue
+plainLL !val !dtype = return $! PlainLL (s2b val) (s2b dtype)
 
 -- |A convenience function for creating a TypedL LValue for the given
 -- string value and datatype URI, respectively.

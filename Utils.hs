@@ -28,7 +28,7 @@ instance Eq FastString where
 
 {-# INLINE equalFS #-}
 equalFS :: FastString -> FastString -> Bool
-equalFS !fs1 ! fs2 = uniq fs1 == uniq fs2
+equalFS !fs1 !fs2 = uniq fs1 == uniq fs2
 
 instance Ord FastString where
   compare !fs1 !fs2 = compareFS fs1 fs2

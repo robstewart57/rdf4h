@@ -225,8 +225,8 @@ str_literal =
     str <- try (t_quotedString <?> "quotedString")
     rt <-  rest
     case rt of
-      !Nothing                    -> return $! (lnode $! (PlainL str Nothing))
-      !(Just (Left !lng))         -> return $! (lnode $! (PlainL str (Just $! lng)))
+      !Nothing                    -> return $! (lnode $! (PlainL str))
+      !(Just (Left !lng))         -> return $! (lnode $! (PlainLL str lng))
       !(Just (Right !urires))     -> return $! (urires >>= \(R_URIRef uri) -> mkFastString uri >>= \fs -> return (LNode (TypedL str fs)))
   where
     rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
