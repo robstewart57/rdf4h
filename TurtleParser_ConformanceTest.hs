@@ -51,11 +51,14 @@ checkBadConformanceTest i =
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 equivalent :: Graph gr => Either ParseFailure gr -> Either ParseFailure gr -> Maybe String
-equivalent (Left _) _        = Nothing
-equivalent _        (Left _) = Nothing
-equivalent (Right gr1) (Right gr2) = 
-  test $ zip (ordered $! triplesOf $! gr1) (ordered $! triplesOf $! gr2)
+equivalent (Left _) _                = Nothing
+equivalent _        (Left _)         = Nothing
+equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
   where
+    gr1ts = ordered $! map force $! triplesOf $! gr1
+    gr2ts = ordered $! triplesOf $! gr2
+    force :: Triple -> Triple
+    force !t = t
     test []           = Nothing
     test ((t1,t2):ts) = 
       case compare t1 t2 of

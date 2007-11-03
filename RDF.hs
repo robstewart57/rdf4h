@@ -21,10 +21,12 @@ import Data.List
 import Text.Printf
 
 -- |A convenience function for converting from a string to a bytestring.
+{-# INLINE b2s #-}
 b2s :: ByteString -> String
 b2s !s = B.unpack $! s
 
 -- |A convenience function for converting from a bytestring to a string.
+{-# INLINE s2b #-}
 s2b :: String -> ByteString
 s2b !s = B.pack $! s
 
@@ -103,45 +105,91 @@ data Node =
   | BNode {-# UNPACK #-} !FastString
   -- |An RDF blank node with an auto-generated identifier, as used in 
   -- Turtle.
-  | BNodeGen {-# UNPACK #-} !Int
+  | BNodeGen  {-# UNPACK #-} !Int
   -- |An RDF literal. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
   | LNode {-# UNPACK #-} !LValue
 
-instance Eq Node where
-  (==) !n1 !n2 = equalNode n1 n2
+{-
+I'm trying to fix a space leak and have a question about GHC and the UNPACK pragma and strict constructor fields. What are the conditions that would cause this not to be an optimization? If I read the GHC doc correctly, pattern matching on the constructor is okay and will not cause reboxing, but being passed to a function that takes the value as a non-strict function WILL cause reboxing. Is this correct? Are there other ways that reboxing can be forced?
 
+Cale: passing to a polymorphic function will cause reboxing.
+-}
+instance Eq Node where
+  (==) n1 n2 = equalNode n1 n2
+
+{-# INLINE equalNode #-}
 equalNode :: Node -> Node -> Bool
-equalNode !(UNode !u1)     !(UNode !u2)    = u1 == u2
-equalNode !(UNode !_)      !_              = False
-equalNode !(BNode !s1)     !(BNode !s2)    = s1 == s2
-equalNode !(BNode !_)      !_              = False
-equalNode !(BNodeGen !i1)  !(BNodeGen !i2) = i1 == i2
-equalNode !(BNodeGen !_)   !_              = False
-equalNode !(LNode !lv1)    !(LNode !lv2)   = lv1 == lv2
-equalNode !(LNode !_)      !_              = False
+equalNode (UNode fs1) (UNode fs2)     = uniq fs1 == uniq fs2
+equalNode (UNode _)  _                = False
+equalNode (BNode fs1) (BNode fs2)     = uniq fs1 == uniq fs2
+equalNode (BNode _) _                 = False
+equalNode (BNodeGen i1) (BNodeGen i2) = i1 == i2
+equalNode (BNodeGen _) _              = False
+equalNode (LNode l1) (LNode l2)       = equalLValue l1 l2
+equalNode (LNode _) _                 = False
+
+{-
+equalNode !n1 !n2 =
+  case (n1, n2) of
+    (UNode u1, UNode u2)        ->  uniq u1 == uniq u2
+    (UNode _, _)                ->  False
+    (BNode s1, BNode s2)        ->  equalFS s1 s2
+    (BNode _, _)                ->  False
+    (BNodeGen i1, BNodeGen i2)  ->  i1 == i2
+    (BNodeGen _, _)             ->  False
+    (LNode l1, LNode l2)        ->  equalLValue l1 l2
+    (LNode _, _)                ->  False
+-}
 
 instance Ord Node where
-  compare !n1 !n2 = compareNode n1 n2
+  compare n1 n2 = compareNode n1 n2
 
+{-# INLINE compareNode #-}
 compareNode :: Node -> Node -> Ordering
-compareNode !(UNode !u1) !(UNode !u2)       = 
-  case uniq u1 == uniq u2 of
-    True  -> EQ
-    False -> compare (value $! u1) (value $! u2)
-compareNode !(UNode !_)  !_                   = LT
-compareNode !(BNode !s1) !(BNode !s2)         = 
-  case uniq s1 == uniq s2 of
-    True  -> EQ
-    False -> compare (value $! s1) (value $! s2)
-compareNode !(BNode !_)  !(UNode !_)          = GT
-compareNode !(BNode !_)  !_                   = LT
-compareNode !(BNodeGen !i1) !(BNodeGen !i2)   = compare i1 i2
-compareNode !(BNodeGen !_)  !(LNode !_)       = GT
-compareNode !(BNodeGen !_)  !_                = LT
-compareNode !(LNode !l1) !(LNode !l2)         = compareLValue l1 l2
-compareNode !(LNode !_) !_                    = GT
+compareNode (UNode fs1)                      (UNode fs2)                      = compareFS fs1 fs2
+compareNode (UNode _)                        _                                = LT
+compareNode (BNode fs1)                      (BNode fs2)                      = compareFS fs1 fs2
+compareNode (BNode _)                        (UNode _)                        = GT
+compareNode (BNode _)                        _                                = LT
+compareNode (BNodeGen i1)                    (BNodeGen i2)                    = compare i1 i2
+compareNode (BNodeGen _)                     (LNode _)                        = LT
+compareNode (BNodeGen _)                     _                                = GT
+compareNode (LNode (PlainL _ _))             (LNode (TypedL _ _))             = LT
+compareNode (LNode (TypedL _ _))             (LNode (PlainL _ _))             = GT
+compareNode (LNode (PlainL _ Nothing))       (LNode (PlainL _ (Just _)))      = LT
+compareNode (LNode (PlainL _ (Just _)))      (LNode (PlainL _ Nothing))       = GT
+compareNode (LNode (PlainL bs1 Nothing))     (LNode (PlainL bs2 Nothing))     = compare bs1 bs2
+compareNode (LNode (PlainL bs1 (Just bs1'))) (LNode (PlainL bs2 (Just bs2'))) = 
+  case compare bs1' bs2' of
+    LT -> LT
+    GT -> GT
+    EQ -> compare bs1 bs2
+compareNode (LNode (TypedL bs1 fs1)) (LNode (TypedL bs2 fs2)) =
+  case compareFS fs1 fs2 of
+    LT -> LT
+    GT -> GT
+    EQ -> compare bs1 bs2
+compareNode (LNode _)                        _                                = GT
+{-
+compareNode !u1 !u2 =
+  case (u1, u2) of
+    (UNode u1', UNode u2')     ->
+      compareFS u1' u2'
+    (UNode _, _)               -> LT
+    (BNode s1, BNode s2)       ->
+      case uniq s1 == uniq s2 of
+        True  -> EQ
+        False -> compare (value s1) (value s2)
+    (BNode _, UNode _)         -> GT
+    (BNode _, _)               -> LT
+    (BNodeGen i1, BNodeGen i2) -> compare i1 i2
+    (BNodeGen _, LNode _)      -> LT
+    (BNodeGen _, _)            -> GT
+    (LNode l1, LNode l2)       -> compareLValue l1 l2
+    (LNode _, _)               -> GT
+-}
 
 
 -- |An RDF triple is a statement consisting of a subject, predicate,
@@ -149,41 +197,56 @@ compareNode !(LNode !_) !_                    = GT
 --
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for 
 -- more information.
-newtype Triple = Triple (Node, Node, Node)
+data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
+{-# INLINE subjectOf #-}
 subjectOf :: Triple -> Node
-subjectOf !(Triple (!s, !_, !_)) = s
+subjectOf (Triple s _ _) = s
 
+{-# INLINE predicateOf #-}
 predicateOf :: Triple -> Node
-predicateOf !(Triple (!_,!p, !_)) = p
+predicateOf (Triple _ p _) = p
 
+{-# INLINE objectOf #-}
 objectOf :: Triple -> Node
-objectOf !(Triple (!_, !_, !o))   = o
+objectOf (Triple _ _ o)   = o
 
 instance Eq Triple where
-  (==) !t1 !t2 = equalTriple t1 t2
+  (==) t1 t2 = equalTriple t1 t2
 
+{-# INLINE equalTriple #-}
 equalTriple :: Triple -> Triple -> Bool
-equalTriple !t1 !t2 = 
-  (objectOf $! t1)     `equalNode`  (objectOf $! t2)    &&
-  (predicateOf $! t1)  `equalNode`  (predicateOf $! t2) &&
-  (subjectOf $! t1)    `equalNode`  (subjectOf $! t2)
+equalTriple (Triple s1 p1 o1) (Triple s2 p2 o2) = 
+  equalNode s1 s2 && equalNode p1 p2 && equalNode o1 o2
 
 instance Ord Triple where
-  compare !t1 !t2 = compareTriple t1 t2
+  compare t1 t2 = compareTriple t1 t2
 
+{-# INLINE compareTriple #-}
 compareTriple :: Triple -> Triple -> Ordering
-compareTriple !t1 !t2 = 
-  case compS of
-    EQ -> case compP of
-            EQ -> compO
-            sp -> sp
+compareTriple t1 t2 = 
+  case compareSubj t1 t2 of
+    EQ -> case comparePred t1 t2 of
+            EQ -> compareObj t1 t2
+            LT -> LT
+            GT -> GT
     GT -> GT
     LT -> LT
-  where
-    compS = compareNode (subjectOf $! t1) (subjectOf $! t2)
-    compP = compareNode (predicateOf t1) (predicateOf t2)
-    compO = compareNode (objectOf t1) (objectOf t2)
+
+{-# INLINE compareSubj #-}
+compareSubj :: Triple -> Triple -> Ordering
+compareSubj (Triple s1 _ _) (Triple s2 _ _) = compareNode s1 s2
+
+{-# INLINE comparePred #-}
+comparePred :: Triple -> Triple -> Ordering
+comparePred (Triple _ p1 _) (Triple _ p2 _) = compareNode p1 p2
+
+{-# INLINE compareObj #-}
+compareObj :: Triple -> Triple -> Ordering
+compareObj (Triple _ _ o1) (Triple _ _ o2) = compareNode o1 o2
+
+sortTriples :: Triples -> Triples
+sortTriples !ts = sortBy compareTriple ts
 
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
@@ -196,37 +259,39 @@ data LValue =
   PlainL {-# UNPACK #-} !ByteString {-# UNPACK #-} !(Maybe ByteString)
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
-  | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
+  | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !FastString
 
 instance Eq LValue where
-  l1 == l2 = l1 `equalLValue` l2
+  (==) l1 l2 = equalLValue l1 l2
 
+{-# INLINE equalLValue #-}
 equalLValue :: LValue -> LValue -> Bool
-equalLValue  !(PlainL !_ !_) !(TypedL !_ !_) = False
-equalLValue  !(TypedL !_ !_) !(PlainL !_ !_) = False
-equalLValue  !(PlainL !_ !Nothing) !(PlainL !_ !(Just !_)) = False
-equalLValue  !(PlainL !_ !(Just !_)) !(PlainL !_ !Nothing) = False
-equalLValue  !(PlainL !l1 !(Just !l1')) !(PlainL !l2 !(Just !l2')) = l1' == l2' && l1 == l2
-equalLValue  !(PlainL !l1 !Nothing) !(PlainL !l2 !Nothing) = l1 == l2
-equalLValue  !(TypedL !l1 !t1) !(TypedL !l2 !t2) = l1 == l2 && t1 == t2
+equalLValue  (PlainL _ _) (TypedL _ _) = False
+equalLValue  (TypedL _ _) (PlainL _ _) = False
+equalLValue  (PlainL _ Nothing) (PlainL _ (Just _)) = False
+equalLValue  (PlainL _ (Just _)) (PlainL _ Nothing) = False
+equalLValue  (PlainL l1 (Just l1')) (PlainL l2 (Just l2')) = l1' == l2' && l1 == l2
+equalLValue  (PlainL l1 Nothing) (PlainL l2 Nothing) = l1 == l2
+equalLValue  (TypedL l1 t1) (TypedL l2 t2) = t1 == t2 && l1 == l2
 
 instance Ord LValue where
-  compare !l1 !l2 = compareLValue l1 l2
+  compare l1 l2 = compareLValue l1 l2
 
+{-# INLINE compareLValue #-}
 compareLValue :: LValue -> LValue -> Ordering
-compareLValue !(PlainL !_ !_) !(TypedL !_ !_) = LT
-compareLValue !(TypedL !_ !_) !(PlainL !_ !_) = GT
-compareLValue !(PlainL !_ !Nothing) !(PlainL !_ !(Just !_)) = LT
-compareLValue !(PlainL !_ !(Just !_)) !(PlainL !_ !Nothing) = GT
-compareLValue !(PlainL !l1 !Nothing) !(PlainL !l2 !Nothing) = compare l1 l2
-compareLValue !(PlainL !l1 !(Just !l1')) !(PlainL !l2 !(Just !l2')) =
-  case compare l1' l2' of
+compareLValue (PlainL _ _) (TypedL _ _) = LT
+compareLValue (TypedL _ _) (PlainL _ _) = GT
+compareLValue (PlainL _ Nothing) (PlainL _ (Just _)) = LT
+compareLValue (PlainL _ (Just _)) (PlainL _ Nothing) = GT
+compareLValue (PlainL l1 Nothing) (PlainL l2 Nothing) = compare l1 l2
+compareLValue (PlainL l1 (Just lang1)) (PlainL l2 (Just lang2)) =
+  case compare lang1 lang2 of
     EQ -> compare l1 l2
     GT -> GT
     LT -> LT
-compareLValue !(TypedL !l1 !t1) !(TypedL !l2 !t2) =
-  case compare l1 l2 of
-    EQ -> compare t1 t2
+compareLValue (TypedL l1 t1) (TypedL l2 t2) =
+  case compareFS t1 t2 of
+    EQ -> compare l1 l2
     GT -> GT
     LT -> LT
 
@@ -240,20 +305,20 @@ newtype ParseFailure = ParseFailure String
 
 
 -- |Create a 'Triple' with the given subject, predicate, and object.
+{-# INLINE triple #-}
 triple :: Subject -> Predicate -> Object -> Triple
 -- subject must be U or B
-triple !(LNode !_) !_         !_    = error "subject cannot be LNode"
+triple (LNode _) _         _    = error "subject cannot be LNode"
 -- predicate must be U
-triple !_         !(LNode !_) !_    = error "predicate cannot be LNode"
-triple !_         !(BNode !_) !_    = error "predicate cannot be BNode"
+triple _         (LNode _) _    = error "predicate cannot be LNode"
+triple _         (BNode _) _    = error "predicate cannot be BNode"
 -- no other constraints
-triple !subj      !pred       !obj  = Triple $! (subj, pred, obj)
-
+triple subj      pred      obj  = Triple subj pred obj
 
 -- String representations
 
 instance Show Triple where
-  show (Triple (subj, pred, obj)) = 
+  show (Triple subj pred obj) = 
     printf "%s %s %s ." (show subj) (show pred) (show obj)
 
 instance Show Node where
@@ -269,24 +334,24 @@ instance Show LValue where
   show (PlainL lit (Just lang)) = printf "\"%s\"@%s" (show lit) (show lang)
   show (TypedL lit dtype)       = printf "\"%s\"^^%s" (show lit) (show dtype)
 
-sortTriples :: Triples -> Triples
-sortTriples !ts = sort $! ts
-
 -- Functions for testing type of a node --
 
 -- |Answer if given node is a URI Ref node.
+{-# INLINE isUNode #-}
 isUNode :: Node -> Bool
-isUNode !(UNode !_) = True
-isUNode !_         = False
+isUNode (UNode _) = True
+isUNode _         = False
 -- |Answer if given node is a blank node.
+{-# INLINE isBNode #-}
 isBNode :: Node -> Bool
-isBNode !(BNode !_)    = True
-isBNode !(BNodeGen !_) = True
-isBNode !_            = False
+isBNode (BNode _)    = True
+isBNode (BNodeGen _) = True
+isBNode _            = False
 -- |Answer if given node is a literal node.
+{-# INLINE isLNode #-}
 isLNode :: Node -> Bool
-isLNode !(LNode !_) = True
-isLNode !_         = False
+isLNode (LNode _) = True
+isLNode _         = False
 
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
@@ -300,27 +365,32 @@ isLNode !_         = False
 type NodeSelector = Maybe (Node -> Bool)
 
 -- |A convenience function for creating a UNode for the given String URI.
+{-# INLINE unode #-}
 unode :: ByteString -> IO Node
 unode !str = mkFastString str >>= \s -> return $! (UNode s)
 
--- |A convenience function for creating a BNode for the given string id. 
+-- |A convenience function for creating a BNode for the given string id.
+{-# INLINE bnode #-}
 bnode :: ByteString -> IO Node
 bnode !str = mkFastString str >>= \s -> return $! (BNode s)
 
 -- |A convenience function for creating an LNode for the given LValue.
+{-# INLINE lnode #-}
 lnode :: LValue -> IO Node
 lnode !str = return $! (LNode str)
 
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value, and optionally, language identifier.
-plainL :: String -> Maybe String -> LValue
-plainL !str Nothing    = PlainL (s2b $! str) Nothing
-plainL !str (Just !lng) = PlainL (s2b $! str) (Just $! s2b $! lng)
+{-# INLINE plainL #-}
+plainL :: String -> Maybe String -> IO LValue
+plainL !str Nothing     = return $! PlainL (s2b str) Nothing
+plainL !str (Just !lng) = return $! PlainL (s2b str) (Just $! s2b lng)
 
 -- |A convenience function for creating a TypedL LValue for the given
 -- string value and datatype URI, respectively.
-typedL :: String -> String -> LValue
-typedL !str !uri        = TypedL (s2b $! str) (s2b $! uri)
+{-# INLINE typedL #-}
+typedL :: String -> String -> IO LValue
+typedL !str !uri        = mkFastString (s2b uri) >>= \u -> return (TypedL (s2b str) u)
 -- TODO: these should be using FastSTring, especially for datatype URI
 
 -- Utility functions for interactive experimentation

@@ -108,9 +108,10 @@ nt_predicate = do uri <- nt_uriref; return (unode uri);
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
+nt_object :: GenParser Char st (IO Node)
 nt_object = do {uri    <- nt_uriref;  return (unode uri) } <|> 
             do {nodeId <- nt_nodeID;  return (bnode nodeId)} <|> 
-            do {lit    <- nt_literal; return (lnode lit)}
+            do {lit    <- nt_literal; return (lit >>= return . LNode)}
 
 -- A URI reference is an absolute URI inside angle brackets.
 nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return $ s2b uri
@@ -124,6 +125,7 @@ nt_nodeID = do string "_:"; n <- nt_name; return $ s2b ('_':':':n)
 -- quotes. A language literal may have '@' after the closing quote,
 -- followed by a language specifier. A datatype literal follows
 -- the closing quote with ^^ followed by the URI of the datatype.
+nt_literal :: GenParser Char st (IO LValue)
 nt_literal    = 
   do 
     char '"'
@@ -133,9 +135,9 @@ nt_literal    =
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
     case rt of
-      Nothing              -> return (PlainL str Nothing)
-      (Just (Left lng))    -> return (PlainL str (Just $ s2b lng))
-      (Just (Right uri))   -> return (TypedL str uri)
+      Nothing              -> return (return $ PlainL str Nothing)
+      (Just (Left lng))    -> return (return $ PlainL str (Just $ s2b lng))
+      (Just (Right uri))   -> return (mkFastString uri >>= \u -> return (TypedL str u))
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed

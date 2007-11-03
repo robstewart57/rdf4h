@@ -1,4 +1,4 @@
-module Utils(FastString(uniq,value), mkFastString, equalFS) where
+module Utils(FastString(uniq,value), mkFastString, equalFS, compareFS) where
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -21,68 +21,77 @@ data FastString = FS {
 }
 
 instance Show FastString where
-  show fs = B.unpack $! B.reverse $! value fs
-
+  show !fs = B.unpack $! B.reverse $! value fs
 
 instance Eq FastString where
   (==) !fs1 !fs2 = equalFS fs1 fs2
 
+{-# INLINE equalFS #-}
 equalFS :: FastString -> FastString -> Bool
 equalFS !fs1 ! fs2 = uniq fs1 == uniq fs2
 
 instance Ord FastString where
-  compare !fs1 !fs2 = compareFS (uniq fs1) (value fs1) (uniq fs2) (value fs2)
+  compare !fs1 !fs2 = compareFS fs1 fs2
 
-
-compareFS :: Int -> ByteString -> Int -> ByteString -> Ordering
-compareFS !u1 !v1 !u2 !v2 =
-  case u1 == u2 of
+{-# INLINE compareFS #-}
+compareFS :: FastString -> FastString -> Ordering
+compareFS fs1 fs2 =
+  case uniq fs1 == uniq fs2 of
     True    ->  EQ
-    False   ->  compareBS v1 v2
+    False   ->  compareBS (value fs1) (value fs2)
 
+{-# INLINE compareBS #-}
 compareBS :: ByteString -> ByteString -> Ordering
 compareBS !b1 !b2 = compare b1 b2
 
+{-# NOINLINE fsCounter #-}
 fsCounter :: IORef Int
 fsCounter = unsafePerformIO $ newIORef 0
 
 -- The hashfunction is adapted for bytestring but otherwise copied from Data.HashTable.
+{-# NOINLINE fsTable #-}
 fsTable :: HashTable ByteString FastString
 fsTable = unsafePerformIO $ HT.new (==) hashByteString 
 
+{-# INLINE hashByteString #-}
 hashByteString :: ByteString -> Int32
 hashByteString !str = B.foldl' f 0 str
 
+{-# INLINE f #-}
 f :: Int32 -> Char -> Int32
 f !m !c = fromIntegral (ord c + 1) * golden + mulHi m golden
 
+{-# INLINE golden #-}
 golden :: Int32
 golden =  -1640531527
 
+{-# INLINE mulHi #-}
 -- hi 32 bits of a x-bit * 32 bit -> 64-bit multiply
 mulHi :: Int32 -> Int32 -> Int32
-mulHi a b = fromIntegral (r `shiftR` 32)
+mulHi !a !b = fromIntegral (r `shiftR` 32)
   where r :: Int64
         r = fromIntegral a * fromIntegral b :: Int64
 
+{-# INLINE mkFastString #-}
 mkFastString :: ByteString -> IO FastString
 mkFastString !str = mkFastString' fsTable str
 
+{-# INLINE mkFastString' #-}
 mkFastString' :: HashTable ByteString FastString -> ByteString -> IO FastString
 mkFastString' !fst !str =
   do res <- HT.lookup fst str
      case res of
        Nothing   -> do fs <- newFastString str
                        HT.insert fst str fs
-                       return fs
-       (Just fs)  -> return fs
+                       return $! fs
+       (Just fs)  -> return $! fs
 
+{-# INLINE newFastString #-}
 newFastString ::  ByteString -> IO FastString
 newFastString !str = 
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
-     return (FS curr val)
-  where val = B.reverse str
+     return $! (FS curr (B.reverse str))
 
 _b1, _b2 :: ByteString
 _b1 = B.pack "asdf"
