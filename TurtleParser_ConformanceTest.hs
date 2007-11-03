@@ -7,17 +7,19 @@ import RDF
 import TurtleParser
 import qualified NTriplesParser as NT
 import TriplesGraph
-import Text.ParserCombinators.Parsec
 import System.IO
 import Control.Monad
 import GraphTestUtils
-import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
+main :: IO ()
 main = runAllCTests >>= putStrLn . show
 
 -- The Base URI to be used for all conformance tests:
+testBaseUri :: String
 testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
+
+mtestBaseUri :: Maybe BaseUrl
 mtestBaseUri = Just $ BaseUrl $ B.pack testBaseUri
 
 fpath :: String -> Int -> String -> String    

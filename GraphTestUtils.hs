@@ -1,16 +1,16 @@
 module GraphTestUtils where
 
 import RDF
-import Namespace
+--import Namespace
+--import System.Random
+--import Data.ByteString.Char8(ByteString)
+--import qualified Data.ByteString.Char8 as B
+--import Test.QuickCheck
 
 import Data.Char
 import Data.List
 import qualified Data.Set.AVL as S
 import Control.Monad
-import System.Random
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
-import Test.QuickCheck
 import System.IO.Unsafe(unsafePerformIO)
 
 {-
@@ -223,8 +223,13 @@ debug msg ts = unsafePerformIO $
 ldiff :: Triples -> Triples -> Triples
 ldiff l1 l2 = S.toList $(S.fromList l1) `S.difference` (S.fromList l2)
 
+sameSubj :: Triple -> Triple -> Bool
 sameSubj t1 t2 = subjectOf t1 == subjectOf t2
+
+samePred :: Triple -> Triple -> Bool
 samePred t1 t2 = predicateOf t1 == predicateOf t2
+
+sameObj :: Triple -> Triple -> Bool
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
 ordered :: Triples -> Triples
