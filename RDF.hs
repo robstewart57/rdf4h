@@ -23,12 +23,12 @@ import Text.Printf
 -- |A convenience function for converting from a string to a bytestring.
 {-# INLINE b2s #-}
 b2s :: ByteString -> String
-b2s !s = B.unpack $! s
+b2s = B.unpack
 
 -- |A convenience function for converting from a bytestring to a string.
 {-# INLINE s2b #-}
 s2b :: String -> ByteString
-s2b !s = B.pack $! s
+s2b = B.pack
 
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
@@ -212,7 +212,7 @@ objectOf :: Triple -> Node
 objectOf (Triple _ _ o)   = o
 
 instance Eq Triple where
-  (==) t1 t2 = equalTriple t1 t2
+  (==) = equalTriple
 
 {-# INLINE equalTriple #-}
 equalTriple :: Triple -> Triple -> Bool
@@ -220,7 +220,7 @@ equalTriple (Triple s1 p1 o1) (Triple s2 p2 o2) =
   equalNode s1 s2 && equalNode p1 p2 && equalNode o1 o2
 
 instance Ord Triple where
-  compare t1 t2 = compareTriple t1 t2
+  compare = compareTriple
 
 {-# INLINE compareTriple #-}
 compareTriple :: Triple -> Triple -> Ordering
@@ -246,7 +246,7 @@ compareObj :: Triple -> Triple -> Ordering
 compareObj (Triple _ _ o1) (Triple _ _ o2) = compareNode o1 o2
 
 sortTriples :: Triples -> Triples
-sortTriples !ts = sortBy compareTriple ts
+sortTriples = sortBy compareTriple
 
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
@@ -341,12 +341,14 @@ instance Show LValue where
 isUNode :: Node -> Bool
 isUNode (UNode _) = True
 isUNode _         = False
+
 -- |Answer if given node is a blank node.
 {-# INLINE isBNode #-}
 isBNode :: Node -> Bool
 isBNode (BNode _)    = True
 isBNode (BNodeGen _) = True
 isBNode _            = False
+
 -- |Answer if given node is a literal node.
 {-# INLINE isLNode #-}
 isLNode :: Node -> Bool
@@ -367,7 +369,7 @@ type NodeSelector = Maybe (Node -> Bool)
 -- |A convenience function for creating a UNode for the given String URI.
 {-# INLINE unode #-}
 unode :: ByteString -> IO Node
-unode !str = mkFastString str >>= \s -> return $! (UNode s)
+unode !str = mkFastString str >>= return . UNode
 
 -- |A convenience function for creating a BNode for the given string id.
 {-# INLINE bnode #-}
@@ -377,13 +379,13 @@ bnode !str = mkFastString str >>= \s -> return $! (BNode s)
 -- |A convenience function for creating an LNode for the given LValue.
 {-# INLINE lnode #-}
 lnode :: LValue -> IO Node
-lnode !str = return $! (LNode str)
+lnode = return . LNode
 
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value, and optionally, language identifier.
 {-# INLINE plainL #-}
 plainL :: String -> IO LValue
-plainL !str    = return $! PlainL (s2b str)
+plainL = return . PlainL . s2b
 
 plainLL :: String -> String -> IO LValue
 plainLL !val !dtype = return $! PlainLL (s2b val) (s2b dtype)
@@ -392,19 +394,22 @@ plainLL !val !dtype = return $! PlainLL (s2b val) (s2b dtype)
 -- string value and datatype URI, respectively.
 {-# INLINE typedL #-}
 typedL :: String -> String -> IO LValue
-typedL !str !uri        = mkFastString (s2b uri) >>= \u -> return (TypedL (s2b str) u)
+typedL !str !uri = mkFastString (s2b uri) >>= return . TypedL (s2b str)
 -- TODO: these should be using FastSTring, especially for datatype URI
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.
 printT :: Triple -> IO ()
 printT  = putStrLn . show
+
 -- |Utility function to print a list of triples to stdout.
 printTs :: [Triple] -> IO ()
 printTs = mapM_ printT
+
 -- |Utility function to print a node to stdout.
 printN :: Node -> IO ()
 printN  = putStrLn . show :: Node   -> IO ()
+
 -- |Utility function to print a list of nodes to stdout.
 printNs :: [Node] -> IO ()
 printNs = mapM_ printN

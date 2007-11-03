@@ -13,7 +13,8 @@ import GraphTestUtils
 import qualified Data.ByteString.Char8 as B
 
 main :: IO ()
-main = runAllCTests >>= putStrLn . show
+--main = runAllCTests >>= putStrLn . show
+main = test True 14
 
 -- The Base URI to be used for all conformance tests:
 testBaseUri :: String
@@ -96,5 +97,5 @@ test testGood testNum = readFile fpath >>= f
     f s = do result <- parseString mtestBaseUri (testBaseUri ++ fname) s
              case result of
                (Left err) -> putStrLn $ "ERROR:" ++ show err
-               --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::AvlGraph))) ++ " triples"
-               (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
+               (Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::TriplesGraph))) ++ " triples"
+               --(Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))

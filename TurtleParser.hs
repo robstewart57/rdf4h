@@ -107,7 +107,7 @@ type T_Triples     = (Resource, [(Resource, [Object])])
 type ParseState = (Maybe BaseUrl, Int)
 
 t_turtleDoc :: GenParser Char ParseState (IO [Maybe Statement])
-t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $ mapM id ts)
+t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $! mapM id ts)
 
      
 t_statement :: GenParser Char ParseState (IO (Maybe Statement))
@@ -437,28 +437,25 @@ non_ctrl_char_except !cs =
 
 --
 
-post_process :: Maybe BaseUrl -> ByteString -> [Maybe Statement]
+convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement]
                 -> IO (Triples, Maybe BaseUrl, PrefixMappings)
-post_process !_baseUrl !_docUrl !sts = 
-  (post_process' _baseUrl _docUrl $! map fromJust $! filter isJust sts) >>= return
+convertStatements !baseUrl !docUrl  = 
+     liftM extract  .  f ([], baseUrl, docUrl, Map.empty)  .  map fromJust  .  filter isJust
+  where 
+    extract (ts, _, _, pms)  =  (ts, baseUrl, pms)
 
-post_process' :: Maybe BaseUrl -> ByteString -> Statements -> IO (Triples, Maybe BaseUrl, PrefixMappings)
-post_process' !baseUrl !docUrl !stmts = post_process'' ([], baseUrl, docUrl, Map.empty) stmts >>= return . f
-  where f (!ts, _, _, !pms) = (ts, baseUrl, pms)
-
-
-post_process'' :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
+f :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
                   IO (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
-post_process'' !tup ![] = return tup
-post_process'' !(ts, currBaseUrl, docUrl, pms) !(stmt:stmts) =
+f !tup ![] = return tup
+f !(ts, currBaseUrl, docUrl, pms) !(stmt:stmts) =
   case stmt of
     S_Directive !sdir -> 
       case sdir of
-        D_PrefixId (!pre, !url) -> post_process''  (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
-        D_BaseUrl !url          -> post_process'' (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
+        D_PrefixId (!pre, !url) -> f (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
+        D_BaseUrl !url          -> f (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
     S_Triples !strp    ->
       do (new_ts, new_baseUrl, _, newPms) <- process_ts (ts, currBaseUrl, docUrl, pms) strp
-         post_process'' (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
+         f (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
 
 resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
 resolveUrl !Nothing               _       !url = url
@@ -666,7 +663,9 @@ handleResult !bUrl !docUrl !result =
   case result of
      (Left err)   -> return (Left (ParseFailure $ show err))
      (Right res)  -> do stmts <- res
-                        (ts, _, pms) <- post_process bUrl (s2b docUrl) stmts
+                        putStrLn (show (length stmts) ++ " statements")
+                        (ts, _, pms) <- convertStatements bUrl (s2b docUrl) stmts
+                        putStrLn (show (length ts) ++ " triples")
                         g <- mkGraph ts bUrl pms
                         return $! (Right g)
 

@@ -21,10 +21,10 @@ data FastString = FS {
 }
 
 instance Show FastString where
-  show !fs = B.unpack $! B.reverse $! value fs
+  show = B.unpack . B.reverse . value
 
 instance Eq FastString where
-  (==) !fs1 !fs2 = equalFS fs1 fs2
+  (==) = equalFS
 
 {-# INLINE equalFS #-}
 equalFS :: FastString -> FastString -> Bool
@@ -55,7 +55,7 @@ fsTable = unsafePerformIO $ HT.new (==) hashByteString
 
 {-# INLINE hashByteString #-}
 hashByteString :: ByteString -> Int32
-hashByteString !str = B.foldl' f 0 str
+hashByteString = B.foldl' f 0
 
 {-# INLINE f #-}
 f :: Int32 -> Char -> Int32
@@ -74,7 +74,7 @@ mulHi !a !b = fromIntegral (r `shiftR` 32)
 
 {-# INLINE mkFastString #-}
 mkFastString :: ByteString -> IO FastString
-mkFastString !str = mkFastString' fsTable str
+mkFastString = mkFastString' fsTable
 
 {-# INLINE mkFastString' #-}
 mkFastString' :: HashTable ByteString FastString -> ByteString -> IO FastString
@@ -91,7 +91,7 @@ newFastString ::  ByteString -> IO FastString
 newFastString !str = 
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
-     return $! (FS curr (B.reverse str))
+     return $! (FS curr ((1 :: Int) `seq` B.reverse str))
 
 _b1, _b2 :: ByteString
 _b1 = B.pack "asdf"
