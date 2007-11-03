@@ -440,42 +440,21 @@ non_ctrl_char_except !cs =
 convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement]
                 -> IO (Triples, Maybe BaseUrl, PrefixMappings)
 convertStatements !baseUrl !docUrl  = 
-     liftM extract  .  f ([], baseUrl, docUrl, Map.empty)  .  map fromJust  .  filter isJust
+     liftM extract  .  f ([], baseUrl, Map.empty)  .  map fromJust  .  filter isJust
   where 
-    extract (ts, _, _, pms)  =  (ts, baseUrl, pms)
-
-f :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> Statements ->
-                  IO (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
-f !tup ![] = return tup
-f !(ts, currBaseUrl, docUrl, pms) !(stmt:stmts) =
-  case stmt of
-    S_Directive !sdir -> 
-      case sdir of
-        D_PrefixId (!pre, !url) -> f (ts, currBaseUrl, docUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
-        D_BaseUrl !url          -> f (ts, Just (newBaseUrl currBaseUrl url), docUrl, pms) stmts
-    S_Triples !strp    ->
-      do (new_ts, new_baseUrl, _, newPms) <- process_ts (ts, currBaseUrl, docUrl, pms) strp
-         f (new_ts ++ ts, new_baseUrl, docUrl, newPms) stmts
-
-resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
-resolveUrl !Nothing               _       !url = url
-resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url = 
-  case isAbsoluteUri url of
-    True   ->  url
-    False  ->  
-      case (not $ B.null url) && (B.head url /= '#') of
-        True   -> docUrl `B.snoc` '#'
-        False  -> bUrl   `B.append` url
-
-newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
-newBaseUrl Nothing                !url = BaseUrl url
-newBaseUrl (Just (BaseUrl !bUrl)) !url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
-
-process_ts :: (Triples, Maybe BaseUrl, ByteString, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
-              IO (Triples, Maybe BaseUrl, ByteString, PrefixMappings)
-process_ts (!ts, !bUrl, !docUrl, !pms) (!subj, !poLists) = new_ts >>= \ts' -> return $! (ts' ++ ts, bUrl, docUrl, pms)
-  where
-    new_ts = convertPOLists bUrl docUrl pms (subj, poLists)
+    extract (ts, _, pms)  =  (ts, baseUrl, pms)
+    f :: (Triples, Maybe BaseUrl, PrefixMappings) -> Statements ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
+    f !tup [] = return tup
+    f (ts, currBaseUrl, pms) (stmt:stmts) =
+      case stmt of
+        (S_Directive (D_PrefixId (pre, url ))) -> f (ts, currBaseUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
+        (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
+        (S_Triples strips)    -> do (new_ts, new_baseUrl, newPms) <- process_ts (ts, currBaseUrl, pms) strips
+                                    (new_ts', new_baseUrl', newPms') <- f ([], new_baseUrl, newPms) stmts
+                                    return $! (new_ts ++ new_ts', new_baseUrl', newPms')
+    process_ts :: (Triples, Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
+              IO (Triples, Maybe BaseUrl, PrefixMappings)
+    process_ts (!ts, !bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts' -> return $! (ts' ++ ts, bUrl, pms)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
 convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
@@ -523,6 +502,21 @@ convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
     (O_Blank (B_BlankGen bGenId))         = obj
     (O_Blank ocoll@(B_Collection _))      = obj
     (O_Blank opol@(B_POList poObjId pol)) = obj
+
+resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
+resolveUrl !Nothing               _       !url = url
+resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url = 
+  case isAbsoluteUri url of
+    True   ->  url
+    False  ->  
+      case (not $ B.null url) && (B.head url /= '#') of
+        True   -> docUrl `B.snoc` '#'
+        False  -> bUrl   `B.append` url
+
+newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
+newBaseUrl Nothing                !url = BaseUrl url
+newBaseUrl (Just (BaseUrl !bUrl)) !url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
+
 
 {-
 Collections are interpreted as follows:

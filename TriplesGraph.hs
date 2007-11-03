@@ -48,10 +48,10 @@ empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
-mkGraph' ts baseUrl pms = return $ TriplesGraph (removeDupes ts, baseUrl, pms)
+mkGraph' ts baseUrl pms = return . TriplesGraph $ (removeDupes ts, baseUrl, pms)
 
 removeDupes :: Triples -> Triples
-removeDupes = id -- Set.toList . Set.fromList 
+removeDupes = nub . sort
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
