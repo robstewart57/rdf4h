@@ -17,6 +17,7 @@ import Utils
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List
+import Control.Monad
 
 import Text.Printf
 
@@ -117,31 +118,14 @@ I'm trying to fix a space leak and have a question about GHC and the UNPACK prag
 Cale: passing to a polymorphic function will cause reboxing.
 -}
 instance Eq Node where
-  (==) n1 n2 = equalNode n1 n2
-
-{-# INLINE equalNode #-}
-equalNode :: Node -> Node -> Bool
-equalNode (UNode fs1) (UNode fs2)     = uniq fs1 == uniq fs2
-equalNode (UNode _)  _                = False
-equalNode (BNode fs1) (BNode fs2)     = uniq fs1 == uniq fs2
-equalNode (BNode _) _                 = False
-equalNode (BNodeGen i1) (BNodeGen i2) = i1 == i2
-equalNode (BNodeGen _) _              = False
-equalNode (LNode l1) (LNode l2)       = equalLValue l1 l2
-equalNode (LNode _) _                 = False
-
-{-
-equalNode !n1 !n2 =
-  case (n1, n2) of
-    (UNode u1, UNode u2)        ->  uniq u1 == uniq u2
-    (UNode _, _)                ->  False
-    (BNode s1, BNode s2)        ->  equalFS s1 s2
-    (BNode _, _)                ->  False
-    (BNodeGen i1, BNodeGen i2)  ->  i1 == i2
-    (BNodeGen _, _)             ->  False
-    (LNode l1, LNode l2)        ->  equalLValue l1 l2
-    (LNode _, _)                ->  False
--}
+  (UNode fs1)    ==  (UNode fs2)     =  uniq fs1 == uniq fs2
+  (UNode _)      ==  _               =  False
+  (BNode fs1)    ==  (BNode fs2)     =  uniq fs1 == uniq fs2
+  (BNode _)      ==  _               =  False
+  (BNodeGen i1)  ==  (BNodeGen i2)   =  i1 == i2
+  (BNodeGen _)   ==  _               =  False
+  (LNode l1)     ==  (LNode l2)      =  l1 == l2
+  (LNode _)      ==  _               =  False
 
 instance Ord Node where
   compare n1 n2 = compareNode n1 n2
@@ -172,25 +156,6 @@ compareNode (LNode (TypedL bs1 fs1))         (LNode (TypedL bs2 fs2))         =
     GT -> GT
 compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
 compareNode (LNode _)                        _                                = GT
-{-
-compareNode !u1 !u2 =
-  case (u1, u2) of
-    (UNode u1', UNode u2')     ->
-      compareFS u1' u2'
-    (UNode _, _)               -> LT
-    (BNode s1, BNode s2)       ->
-      case uniq s1 == uniq s2 of
-        True  -> EQ
-        False -> compare (value s1) (value s2)
-    (BNode _, UNode _)         -> GT
-    (BNode _, _)               -> LT
-    (BNodeGen i1, BNodeGen i2) -> compare i1 i2
-    (BNodeGen _, LNode _)      -> LT
-    (BNodeGen _, _)            -> GT
-    (LNode l1, LNode l2)       -> compareLValue l1 l2
-    (LNode _, _)               -> GT
--}
-
 
 -- |An RDF triple is a statement consisting of a subject, predicate,
 -- and object, respectively.
@@ -199,54 +164,21 @@ compareNode !u1 !u2 =
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
-{-# INLINE subjectOf #-}
-subjectOf :: Triple -> Node
-subjectOf (Triple s _ _) = s
-
-{-# INLINE predicateOf #-}
-predicateOf :: Triple -> Node
-predicateOf (Triple _ p _) = p
-
-{-# INLINE objectOf #-}
-objectOf :: Triple -> Node
-objectOf (Triple _ _ o)   = o
-
 instance Eq Triple where
-  (==) = equalTriple
-
-{-# INLINE equalTriple #-}
-equalTriple :: Triple -> Triple -> Bool
-equalTriple (Triple s1 p1 o1) (Triple s2 p2 o2) = 
-  equalNode s1 s2 && equalNode p1 p2 && equalNode o1 o2
+  (Triple s1 p1 o1) == (Triple s2 p2 o2) = s1 == s2 && p1 == p2 && 01 == 02
 
 instance Ord Triple where
-  compare = compareTriple
-
-{-# INLINE compareTriple #-}
-compareTriple :: Triple -> Triple -> Ordering
-compareTriple t1 t2 = 
-  case compareSubj t1 t2 of
-    EQ -> case comparePred t1 t2 of
-            EQ -> compareObj t1 t2
-            LT -> LT
-            GT -> GT
-    GT -> GT
-    LT -> LT
-
-{-# INLINE compareSubj #-}
-compareSubj :: Triple -> Triple -> Ordering
-compareSubj (Triple s1 _ _) (Triple s2 _ _) = compareNode s1 s2
-
-{-# INLINE comparePred #-}
-comparePred :: Triple -> Triple -> Ordering
-comparePred (Triple _ p1 _) (Triple _ p2 _) = compareNode p1 p2
-
-{-# INLINE compareObj #-}
-compareObj :: Triple -> Triple -> Ordering
-compareObj (Triple _ _ o1) (Triple _ _ o2) = compareNode o1 o2
+  (Triple s1 p1 o1) `compare` (Triple s2 p2 o2) =
+    case compareNode s1 s2 of
+      EQ -> case compareNode p1 p2 of
+              EQ -> compareNode o1 o2
+              LT -> LT
+              GT -> GT
+      GT -> GT
+      LT -> LT
 
 sortTriples :: Triples -> Triples
-sortTriples = sortBy compareTriple
+sortTriples = sort
 
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
@@ -264,14 +196,10 @@ data LValue =
   | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !FastString
 
 instance Eq LValue where
-  (==) l1 l2 = equalLValue l1 l2
-
-{-# INLINE equalLValue #-}
-equalLValue :: LValue -> LValue -> Bool
-equalLValue (PlainL bs1)        (PlainL bs2)        = bs1 == bs2
-equalLValue (PlainLL bs1 bs1')  (PlainLL bs2 bs2')  = bs1' == bs2'    &&  bs1 == bs2
-equalLValue (TypedL bs1 fs1)    (TypedL bs2 fs2)    = equalFS fs1 fs2 &&  bs1 == bs2
-equalLValue _                   _                   = False
+  (PlainL bs1)        ==  (PlainL bs2)        =  bs1 == bs2
+  (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  bs1' == bs2'    &&  bs1 == bs2
+  (TypedL bs1 fs1)    ==  (TypedL bs2 fs2)    =  equalFS fs1 fs2 &&  bs1 == bs2
+  _                   ==  _                   =  False
 
 instance Ord LValue where
   compare l1 l2 = compareLValue l1 l2
@@ -294,6 +222,17 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
     GT -> GT
     LT -> LT
 
+{-# INLINE subjectOf #-}
+subjectOf :: Triple -> Node
+subjectOf (Triple s _ _) = s
+
+{-# INLINE predicateOf #-}
+predicateOf :: Triple -> Node
+predicateOf (Triple _ p _) = p
+
+{-# INLINE objectOf #-}
+objectOf :: Triple -> Node
+objectOf (Triple _ _ o)   = o
 
 -- |The base URL of a graph.
 newtype BaseUrl = BaseUrl ByteString
@@ -369,12 +308,12 @@ type NodeSelector = Maybe (Node -> Bool)
 -- |A convenience function for creating a UNode for the given String URI.
 {-# INLINE unode #-}
 unode :: ByteString -> IO Node
-unode !str = mkFastString str >>= return . UNode
+unode = liftM UNode . mkFastString
 
 -- |A convenience function for creating a BNode for the given string id.
 {-# INLINE bnode #-}
 bnode :: ByteString -> IO Node
-bnode !str = mkFastString str >>= \s -> return $! (BNode s)
+bnode = liftM BNode . mkFastString
 
 -- |A convenience function for creating an LNode for the given LValue.
 {-# INLINE lnode #-}
@@ -388,14 +327,13 @@ plainL :: String -> IO LValue
 plainL = return . PlainL . s2b
 
 plainLL :: String -> String -> IO LValue
-plainLL !val !dtype = return $! PlainLL (s2b val) (s2b dtype)
+plainLL val lang = return $ PlainLL (s2b val) (s2b lang)
 
 -- |A convenience function for creating a TypedL LValue for the given
 -- string value and datatype URI, respectively.
 {-# INLINE typedL #-}
 typedL :: String -> String -> IO LValue
-typedL !str !uri = mkFastString (s2b uri) >>= return . TypedL (s2b str)
--- TODO: these should be using FastSTring, especially for datatype URI
+typedL val dtype = liftM (TypedL $ s2b val) . mkFastString . s2b $ dtype
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.
@@ -408,7 +346,7 @@ printTs = mapM_ printT
 
 -- |Utility function to print a node to stdout.
 printN :: Node -> IO ()
-printN  = putStrLn . show :: Node   -> IO ()
+printN  = putStrLn . show
 
 -- |Utility function to print a list of nodes to stdout.
 printNs :: [Node] -> IO ()

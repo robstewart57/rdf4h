@@ -44,14 +44,13 @@ instance Graph TriplesGraph where
 baseUrl' :: TriplesGraph -> Maybe BaseUrl
 baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 
+{-# NOINLINE empty' #-}
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
-mkGraph' ts baseUrl pms = return . TriplesGraph $ (removeDupes ts, baseUrl, pms)
-
-removeDupes :: Triples -> Triples
-removeDupes = nub . sort
+mkGraph' ts baseUrl pms = return . TriplesGraph $! (dupeFreeTs, baseUrl, pms)
+  where dupeFreeTs = nub . sort $! ts
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
@@ -69,8 +68,7 @@ matchSelect s p o t =
     match Nothing   _ = True
     match (Just fn) n = fn n
 
-matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object 
-                              -> Triple -> Bool
+matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object -> Triple -> Bool
 matchPattern subj pred obj t = smatch t && pmatch t && omatch t
   where
     smatch trp = matchNode subj (subjectOf trp)
