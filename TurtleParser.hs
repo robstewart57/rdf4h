@@ -580,7 +580,7 @@ rdfFirstNode = mkRdfNode "first"
 rdfRestNode  = mkRdfNode "rest"
 
 mkRdfNode :: String -> IO Node
-mkRdfNode !localName = mkFastString (makeUri rdf (s2b localName)) >>= \s -> return $! (UNode $! s)
+mkRdfNode !localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
 
 
 {-
@@ -590,44 +590,52 @@ scheme        = alpha *( alpha | digit | "+" | "-" | "." )
 
 alpha is lowercase letters, but rfc says best to normalize uppercase to lower.
 -}
+{-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: ByteString -> Bool
 isAbsoluteUri !b = B.elem ':' b
 
+{-# INLINE isBNodeListSubject #-}
 isBNodeListSubject :: Resource -> Bool
-isBNodeListSubject (R_Blank (B_POList _ _))  = True
+isBNodeListSubject (R_Blank (B_POList _ _))   = True
 isBNodeListSubject _                          = False
 
+{-# INLINE isOResource #-}
 isOResource :: Object -> Bool
 isOResource (O_Resource _)                    = True
 isOResource _                                 = False
 
+{-# INLINE isOLiteral #-}
 isOLiteral :: Object -> Bool
 isOLiteral  (O_Literal _)                     = True
 isOLiteral  _                                 = False
 
+{-# INLINE isOBlankBNode #-}
 isOBlankBNode :: Object -> Bool
-isOBlankBNode    (O_Blank   (B_BlankId _))   = True
+isOBlankBNode    (O_Blank   (B_BlankId _))    = True
 isOBlankBNode    _                            = False
 
+{-# INLINE isOBlankBNodeGen #-}
 isOBlankBNodeGen :: Object -> Bool
-isOBlankBNodeGen (O_Blank (B_BlankGen _))    = True
+isOBlankBNodeGen (O_Blank (B_BlankGen _))     = True
 isOBlankBNodeGen _                            = False
 
+{-# INLINE isOBlankBNodeColl #-}
 isOBlankBNodeColl :: Object -> Bool
-isOBlankBNodeColl (O_Blank (B_Collection _)) = True
+isOBlankBNodeColl (O_Blank (B_Collection _))  = True
 isOBlankBNodeColl _                           = False
 
+{-# INLINE isOBlankPOList #-}
 isOBlankPOList :: Object -> Bool
-isOBlankPOList (O_Blank (B_POList _ _))      = True
+isOBlankPOList (O_Blank (B_POList _ _))       = True
 isOBlankPOList _                              = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefQNameOrBlank  Nothing  _     (R_URIRef !url)                = mkFastString url >>= return . UNode
-uriRefQNameOrBlank (Just (BaseUrl !u)) _ (R_URIRef !url)           = 
+uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = mkFastString url >>= return . UNode
+uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = 
   if isAbsoluteUri url 
-     then mkFastString url >>= \s -> return $! (UNode $! s)
-     else mkFastString (u `B.append` url) >>= \s -> return $! (UNode $! s)
-uriRefQNameOrBlank  !bUrl     !pms   (R_QName !pre !local)          = (return $! ((resolveQName bUrl pre pms) `B.append` local)) >>= mkFastString >>= \fs -> return $! (UNode $! fs)
+     then mkFastString url >>= return . UNode
+     else mkFastString (u `B.append` url) >>= return . UNode
+uriRefQNameOrBlank  !bUrl     !pms   (R_QName !pre !local)          = (return $! ((resolveQName bUrl pre pms) `B.append` local)) >>= mkFastString >>= return . UNode
 uriRefQNameOrBlank  !_        !_     (R_Blank (B_BlankId !bId))     = mkFastString bId >>= \fs -> return $! (BNode $! fs)
 uriRefQNameOrBlank  !_        !_     (R_Blank (B_BlankGen !genId))  = return $! (BNodeGen $! genId)
 uriRefQNameOrBlank  !_        !_     !res                           = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
@@ -641,13 +649,14 @@ uriRefOrQName !bUrl    !pms   (R_QName !pre !local)   = let u = (resolveQName bU
 uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
-resolveQName (Just (BaseUrl !u)) !pre   !pms 
+resolveQName (Just (BaseUrl u)) pre   pms 
   | pre == B.empty = ($!) Map.findWithDefault u B.empty pms
-resolveQName Nothing              !pre   _ 
+resolveQName Nothing              pre   _ 
   | pre == B.empty =  error "Cannot resolve empty QName prefix to a base URL."
-resolveQName _                    !pre   !pms = ($!)
+resolveQName _                    pre   pms = ($!)
   Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ B.unpack pre) pre pms
 
+--
 
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) "" ttlStr)

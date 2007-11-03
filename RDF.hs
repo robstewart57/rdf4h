@@ -119,13 +119,10 @@ Cale: passing to a polymorphic function will cause reboxing.
 -}
 instance Eq Node where
   (UNode fs1)    ==  (UNode fs2)     =  uniq fs1 == uniq fs2
-  (UNode _)      ==  _               =  False
   (BNode fs1)    ==  (BNode fs2)     =  uniq fs1 == uniq fs2
-  (BNode _)      ==  _               =  False
   (BNodeGen i1)  ==  (BNodeGen i2)   =  i1 == i2
-  (BNodeGen _)   ==  _               =  False
   (LNode l1)     ==  (LNode l2)      =  l1 == l2
-  (LNode _)      ==  _               =  False
+  _              ==  _               =  False
 
 instance Ord Node where
   compare n1 n2 = compareNode n1 n2
@@ -165,7 +162,7 @@ compareNode (LNode _)                        _                                = 
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
 instance Eq Triple where
-  (Triple s1 p1 o1) == (Triple s2 p2 o2) = s1 == s2 && p1 == p2 && 01 == 02
+  (Triple s1 p1 o1) == (Triple s2 p2 o2) = s1 == s2 && p1 == p2 && o1 == o2
 
 instance Ord Triple where
   (Triple s1 p1 o1) `compare` (Triple s2 p2 o2) =
