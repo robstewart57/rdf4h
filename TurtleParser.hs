@@ -448,12 +448,11 @@ convertStatements !baseUrl !docUrl  =
       case stmt of
         (S_Directive (D_PrefixId (pre, url ))) -> f (ts, currBaseUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
         (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
-        (S_Triples strips)    -> do (new_ts, new_baseUrl, newPms) <- process_ts (ts, currBaseUrl, pms) strips
+        (S_Triples strips)    -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
                                     (new_ts', new_baseUrl', newPms') <- f ([], new_baseUrl, newPms) stmts
                                     return $! (new_ts ++ new_ts', new_baseUrl', newPms')
-    process_ts :: (Triples, Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])]) ->
-              IO (Triples, Maybe BaseUrl, PrefixMappings)
-    process_ts (!ts, !bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts' -> return $! (ts' ++ ts, bUrl, pms)
+    process_ts :: (Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])])  ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
+    process_ts (!bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
 convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
