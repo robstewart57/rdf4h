@@ -453,9 +453,10 @@ convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
 convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
-convertPOLists !bUrl !docUrl !pms !(!subj, !poLists) = mapM (convertPOListItem bUrl docUrl pms subj) poLists >>= \ts -> return $! concat $! ts
+convertPOLists !bUrl !docUrl !pms !(!subj, !poLists) = mapM (convertPOListItem bUrl docUrl pms subj) poLists >>=  return . concat 
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
+
 convertPOListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> IO Triples
 convertPOListItem !bUrl !docUrl !pms !subj !(!pred, !objs) = mapM (convertObjectListItem bUrl docUrl pms subj pred) objs >>= \ts -> return $! concat $! ts
 
@@ -625,23 +626,26 @@ isOBlankPOList (O_Blank (B_POList _ _))       = True
 isOBlankPOList _                              = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefQNameOrBlank  Nothing  _     (R_URIRef url)                = mkFastString url >>= return . UNode
-uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = 
-  if isAbsoluteUri url 
-     then mkFastString url >>= return . UNode
-     else mkFastString (u `B.append` url) >>= return . UNode
-uriRefQNameOrBlank  !bUrl     !pms   (R_QName !pre !local)          = (return $! ((resolveQName bUrl pre pms) `B.append` local)) >>= mkFastString >>= return . UNode
-uriRefQNameOrBlank  !_        !_     (R_Blank (B_BlankId !bId))     = mkFastString bId >>= \fs -> return $! (BNode $! fs)
-uriRefQNameOrBlank  !_        !_     (R_Blank (B_BlankGen !genId))  = return $! (BNodeGen $! genId)
-uriRefQNameOrBlank  !_        !_     !res                           = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
+uriRefQNameOrBlank  Nothing           _ (R_URIRef url)           = mkFastString url >>= return . UNode
+uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = mkFastString (if isAbsoluteUri url then url else u `B.append` url) >>= return . UNode
+uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = mkFastString ((resolveQName bUrl pre pms) `B.append` local) >>= return . UNode
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = mkFastString bId >>= return . BNode
+uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = return $! (BNodeGen genId)
+uriRefQNameOrBlank  _        _     !res                          = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefOrQName Nothing _     (R_URIRef !url)           = mkFastString url >>= \s -> return $! (UNode $! s)
-uriRefOrQName (Just (BaseUrl !u)) _ (R_URIRef !url)   = let url' = if isAbsoluteUri url then url else u `B.append` url
-                                                        in mkFastString url' >>= \s -> return $! (UNode $! s)
-uriRefOrQName !bUrl    !pms   (R_QName !pre !local)   = let u = (resolveQName bUrl pre pms) `B.append` local
-                                                        in mkFastString u >>= \s -> return $! (UNode $! s)
-uriRefOrQName _       _     _                         = error "TurtleParser.predicate"
+uriRefOrQName Nothing _     (R_URIRef !url)            = mkFastString url >>= return . UNode
+uriRefOrQName (Just (BaseUrl !base)) _ (R_URIRef !url) = mkFastString (mkAbsoluteUrl base url) >>= return . UNode
+uriRefOrQName !bUrl    !pms   (R_QName !pre !local)    = mkFastString url >>= return . UNode
+  where  url = (resolveQName bUrl pre pms) `B.append` local
+uriRefOrQName _       _     _                          = error "TurtleParser.predicate"
+
+{-# INLINE mkAbsoluteUrl #-}
+mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
+mkAbsoluteUrl base url = 
+  case isAbsoluteUri url of
+    True  ->  url 
+    False ->  base `B.append` url
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
 resolveQName (Just (BaseUrl u)) pre   pms 
