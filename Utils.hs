@@ -13,8 +13,12 @@ import Data.Bits(shiftR)
 import Data.IORef
 
 -- |A wrapper around a bytestring that contains a uniq int associated with the bytestring,
--- together with the value of the bytestring. ByteString has O(1) length, so we no longer
--- include the length explicitly.
+-- together with the value of the bytestring. 
+-- 
+-- FastString values are created using 'mkFastString', which will reuse values
+-- wherever possible. The 'uniq' value is an identifier for a given ByteString,
+-- and provides fast equality testing due to the invariant that two equal
+-- bytestrings have equal uniq values.
 data FastString = FS {
       uniq   :: {-# UNPACK #-} !Int,
       value  :: {-# UNPACK #-} !ByteString
@@ -38,37 +42,39 @@ compareFS :: FastString -> FastString -> Ordering
 compareFS fs1 fs2 =
   case uniq fs1 == uniq fs2 of
     True    ->  EQ
-    False   ->  compareBS (value fs1) (value fs2)
-
-{-# INLINE compareBS #-}
-compareBS :: ByteString -> ByteString -> Ordering
-compareBS !b1 !b2 = compare b1 b2
+    False   ->  compare (value fs1) (value fs2)
 
 {-# NOINLINE fsCounter #-}
 fsCounter :: IORef Int
 fsCounter = unsafePerformIO $ newIORef 0
 
--- The hashfunction is adapted for bytestring but otherwise copied from Data.HashTable.
 {-# NOINLINE fsTable #-}
 fsTable :: HashTable ByteString FastString
-fsTable = unsafePerformIO $ HT.new (==) hashByteString 
+fsTable = unsafePerformIO $ HT.new (==) _hashByteString1
 
-{-# INLINE hashByteString #-}
-hashByteString :: ByteString -> Int32
-hashByteString = B.foldl' f 0
+-- This hashfunction is the djb2 hashFunction.
+{-# INLINE _hashByteString1 #-}
+_hashByteString1 :: ByteString -> Int32
+_hashByteString1 = fromIntegral . B.foldl' djb2 (5381 :: Int)
+  where djb2     ::  Int -> Char -> Int
+        djb2 h c  =  (h * 33) + ord c
 
-{-# INLINE f #-}
-f :: Int32 -> Char -> Int32
-f !m !c = fromIntegral (ord c + 1) * golden + mulHi m golden
+-- This hashfunction is adapted for bytestring but otherwise copied from Data.HashTable.
+-- The above much simpler function is faster and doesn't seem to have problems 
+-- with too many collisions, so we're using that one for now.
+{-# INLINE _hashByteString2 #-}
+_hashByteString2 :: ByteString -> Int32
+_hashByteString2 = B.foldl' f 0
+  where f m c = fromIntegral (ord c) + _mulHi m _golden
 
-{-# INLINE golden #-}
-golden :: Int32
-golden =  -1640531527
+{-# INLINE _golden #-}
+_golden :: Int32
+_golden =  -1640531527
 
-{-# INLINE mulHi #-}
+{-# INLINE _mulHi #-}
 -- hi 32 bits of a x-bit * 32 bit -> 64-bit multiply
-mulHi :: Int32 -> Int32 -> Int32
-mulHi !a !b = fromIntegral (r `shiftR` 32)
+_mulHi :: Int32 -> Int32 -> Int32
+_mulHi a b = fromIntegral (r `shiftR` 32)
   where r :: Int64
         r = fromIntegral a * fromIntegral b :: Int64
 
