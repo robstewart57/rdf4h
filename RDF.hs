@@ -233,13 +233,10 @@ newtype ParseFailure = ParseFailure String
 -- |Create a 'Triple' with the given subject, predicate, and object.
 {-# INLINE triple #-}
 triple :: Subject -> Predicate -> Object -> Triple
--- subject must be U or B
-triple (LNode _) _         _    = error "subject cannot be LNode"
--- predicate must be U
-triple _         (LNode _) _    = error "predicate cannot be LNode"
-triple _         (BNode _) _    = error "predicate cannot be BNode"
--- no other constraints
-triple subj      pred      obj  = Triple subj pred obj
+triple subj pred obj 
+  | isLNode subj                   =  error "subject must be UNode or BNode"
+  | isBNode pred || isLNode pred   =  error "predicate must be UNode"
+  | otherwise                      =  Triple subj pred obj
 
 -- String representations
 
