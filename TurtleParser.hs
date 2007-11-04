@@ -626,8 +626,8 @@ isOBlankPOList (O_Blank (B_POList _ _))       = True
 isOBlankPOList _                              = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefQNameOrBlank  Nothing           _ (R_URIRef url)           = mkFastString url >>= return . UNode
 uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = mkFastString (if isAbsoluteUri url then url else u `B.append` url) >>= return . UNode
+uriRefQNameOrBlank  Nothing           _ (R_URIRef url)           = mkFastString url >>= return . UNode
 uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = mkFastString ((resolveQName bUrl pre pms) `B.append` local) >>= return . UNode
 uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = mkFastString bId >>= return . BNode
 uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = return $! (BNodeGen genId)
