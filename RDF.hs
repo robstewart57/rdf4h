@@ -21,16 +21,6 @@ import Control.Monad
 
 import Text.Printf
 
--- |A convenience function for converting from a string to a bytestring.
-{-# INLINE b2s #-}
-b2s :: ByteString -> String
-b2s = B.unpack
-
--- |A convenience function for converting from a bytestring to a string.
-{-# INLINE s2b #-}
-s2b :: String -> ByteString
-s2b = B.pack
-
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
 

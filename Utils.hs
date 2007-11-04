@@ -1,4 +1,6 @@
-module Utils(FastString(uniq,value), mkFastString, equalFS, compareFS) where
+module Utils(FastString(uniq,value), 
+             mkFastString, equalFS, compareFS,s2b,b2s
+) where
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -43,6 +45,16 @@ compareFS fs1 fs2 =
   case uniq fs1 == uniq fs2 of
     True    ->  EQ
     False   ->  compare (value fs1) (value fs2)
+
+-- |A convenience function for converting from a bytestring to a string.
+{-# INLINE b2s #-}
+b2s :: ByteString -> String
+b2s = B.unpack
+
+-- |A convenience function for converting from a string to a bytestring.
+{-# INLINE s2b #-}
+s2b :: String -> ByteString
+s2b = B.pack
 
 {-# NOINLINE fsCounter #-}
 fsCounter :: IORef Int
