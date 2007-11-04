@@ -217,8 +217,9 @@ curry3 :: ((a, b, c) -> d)    ->     (a -> b -> c -> d)
 curry3 fn = \x -> \y -> \z -> fn (x,y,z)
 
 debug :: String -> Triples -> Bool
-debug msg ts = unsafePerformIO $ 
-                 putStrLn msg >> mapM (putStrLn . show) ts >> return True
+debug msg ts = 
+  unsafePerformIO $ 
+    putStrLn msg >> mapM (putStrLn . show) ts >> return True
 
 ldiff :: Triples -> Triples -> Triples
 ldiff l1 l2 = S.toList $(S.fromList l1) `S.difference` (S.fromList l2)
@@ -233,10 +234,10 @@ sameObj :: Triple -> Triple -> Bool
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
 ordered :: Triples -> Triples
-ordered !ts = sortTriples ts
+ordered  =  sortTriples
 
 uordered :: Triples -> Triples
-uordered !ts  = (map head . group . sortTriples) $! ts
+uordered  =  map head . group . sortTriples
 
 {-
 

@@ -1,3 +1,13 @@
+{-
+
+This module defines a parser for RDF in Turtle format.
+
+The version of the Turtle specification to which this parser conforms (with 
+the exception noted below) is that of September 11, 2004, retrieved from
+<http://www.dajobe.org/2004/01/turtle/>.
+
+-}
+
 module TurtleParser where
 
 import RDF hiding (Object)

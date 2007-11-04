@@ -1,9 +1,11 @@
 {-
+
 This module defines a parser for RDF in N-Triples format.
 
 The most current description of N-Triples (as of Sept. 07) -- that is, the 
 one used for creating this module -- is in the 'RDF Test Cases' candidate 
 recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
+
 -}
 
 module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
@@ -18,6 +20,7 @@ import qualified Data.ByteString.Char8 as B
 import Control.Monad
 
 {-
+
 URIs are not validated syntactically, nor are datatype URIs checked in 
 any way. All URIs are treated as opaque strings at present.
 
@@ -48,6 +51,7 @@ string 	        ::= 	character* with escapes as defined in section Strings
 name 	        ::= 	[A-Za-z][A-Za-z0-9]* 	
 absoluteURI 	::= 	character+ with escapes as defined in section URI References 	
 character 	::= 	[#x20-#x7E] /* US-ASCII space to decimal 126 */
+
 -}
 
 
