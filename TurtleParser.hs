@@ -79,42 +79,62 @@ EBNF from <http://www.dajobe.org/2004/01/turtle/>
 [42]	scharacter 	::= 	( echaracter - #x22 ) | '\"'
 [43]	lcharacter 	::= 	echaracter | '\"' | #x9 | #xA | #xD
 -}
-data Statement = S_Directive {-# UNPACK #-} !Directive
-               | S_Triples   {-# UNPACK #-} !T_Triples
-  deriving Show
+
+-- Declarations of datatypes that are used only within this module for parsing.
+
 type Statements = [Statement]
-data Directive = D_BaseUrl  {-# UNPACK #-} !ByteString
-               | D_PrefixId {-# UNPACK #-} !(ByteString, ByteString)
+
+data Statement = 
+    S_Directive  {-# UNPACK #-} !Directive
+  | S_Triples    {-# UNPACK #-} !T_Triples
   deriving Show
-data Blank = B_BlankId    {-# UNPACK #-} !ByteString
-           | B_BlankGen   {-# UNPACK #-} !Int            -- int is genid used for []
-           | B_POList Int {-# UNPACK #-} !POList         -- int is genid used for [ :p1 :o1; :p2 :o2 ]
-           | B_Collection {-# UNPACK #-} ![(Int,Object)] -- int is genid used for ( :obj1 :obj2 )
+
+data Directive = 
+    D_BaseUrl    {-# UNPACK #-} !ByteString
+  | D_PrefixId   {-# UNPACK #-} !(ByteString, ByteString)
   deriving Show
+
+data Blank = 
+    B_BlankId    {-# UNPACK #-} !ByteString
+  | B_BlankGen   {-# UNPACK #-} !Int            -- int is genid used for []
+  | B_POList Int {-# UNPACK #-} !POList         -- int is genid used for [ :p1 :o1; :p2 :o2 ]
+  | B_Collection {-# UNPACK #-} ![(Int,Object)] -- int is genid used for ( :obj1 :obj2 )
+  deriving Show
+
 type POList = [(Resource, [Object])]
+
 type Collection = [Object]
-data Object = O_Resource {-# UNPACK #-} !Resource
-            | O_Blank    {-# UNPACK #-} !Blank
-            | O_Literal  {-# UNPACK #-} !Node
+
+data Object = 
+    O_Resource {-# UNPACK #-} !Resource
+  | O_Blank    {-# UNPACK #-} !Blank
+  | O_Literal  {-# UNPACK #-} !Node
   deriving Show
-data Resource = R_URIRef {-# UNPACK #-} !ByteString
-              | R_QName  {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
-              | R_Blank  {-# UNPACK #-} !Blank
+
+data Resource = 
+    R_URIRef {-# UNPACK #-} !ByteString
+  | R_QName  {-# UNPACK #-} !ByteString  {-# UNPACK #-}  !ByteString
+  | R_Blank  {-# UNPACK #-} !Blank
   deriving Show
-type T_Triples     = (Resource, [(Resource, [Object])])
+
+type T_Triples  = (Resource, [(Resource, [Object])])
 
 type ParseState = (Maybe BaseUrl, Int)
 
+-- Parsing functions begin here, and are generally in the order that the respective
+-- EBNF rules are defined -- with a couple of deviations from the EBNF grammar for
+-- performance reasons.
+
 t_turtleDoc :: GenParser Char ParseState (IO [Maybe Statement])
 t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $! mapM id ts)
-
      
 t_statement :: GenParser Char ParseState (IO (Maybe Statement))
 t_statement = (d >>= \d' -> return $! liftM Just d') <|> 
               (t >>= \t' -> return $! liftM Just t') <|> 
               (many1 t_ws >> (return $! return $! Nothing))
-  where d = do { dir <- t_directive; many t_ws >> (char '.' <?> "end-of-directive") >> many t_ws >> return dir}
-        t = do { trp <- t_triples; many t_ws >> (char '.' <?> "end-of-triple") >> many t_ws >> return trp}
+  where 
+    d = do { dir <- t_directive; many t_ws >> (char '.' <?> "end-of-directive") >> many t_ws >> return dir}
+    t = do { trp <- t_triples; many t_ws >> (char '.' <?> "end-of-triple") >> many t_ws >> return trp}
 
 t_directive :: GenParser Char ParseState (IO Statement)
 t_directive = 
@@ -150,16 +170,14 @@ t_objectList =
   do obj1 <- t_object <?> "object"
      obj_rest <- many (try obj <?> "object")
      return $! (mapM id (obj1:obj_rest))
-  where obj = many t_ws >> char ',' >> many t_ws >> t_object
+  where 
+    obj = many t_ws >> char ',' >> many t_ws >> t_object
 
 t_verb :: GenParser Char ParseState (IO Resource)
 t_verb = 
   try t_predicate <|>
   (char 'a' >> return (return $! (R_URIRef $! rdfTypeBs)))
   <?> "verb"
-
-rdfTypeBs :: ByteString
-rdfTypeBs = s2b $! "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 t_predicateObjectList :: GenParser Char ParseState (IO [(Resource, [Object])])
 t_predicateObjectList = 
@@ -209,14 +227,6 @@ t_literal =
     mkLNode :: ByteString -> FastString -> IO Node
     mkLNode !bs !fs = return $! (LNode $! (TypedL bs fs))
 
-xsdIntUri :: IO FastString
-xsdIntUri     =  mkFastString $! makeUri xsd $! s2b "integer"
-xsdDoubleUri :: IO FastString
-xsdDoubleUri  =  mkFastString $! makeUri xsd $! s2b "double"
-xsdDecimalUri :: IO FastString
-xsdDecimalUri =  mkFastString $! makeUri xsd $! s2b "decimal"
-xsdBooleanUri :: IO FastString
-xsdBooleanUri =  mkFastString $! makeUri xsd $! s2b "boolean"
 
 str_literal :: GenParser Char ParseState (IO Node)
 str_literal =
@@ -228,8 +238,8 @@ str_literal =
       !(Just (Left !lng))         -> return $! (lnode $! (PlainLL str lng))
       !(Just (Right !urires))     -> return $! (urires >>= \(R_URIRef uri) -> mkFastString uri >>= \fs -> return (LNode (TypedL str fs)))
   where
-    rest = do { try (string "^^"); t_uriref >>= return . Just . Right} <|>
-           do { try (char '@'); t_language >>= return . Just . Left} <|>
+    rest = (try (string "^^") >> t_uriref >>= return . Just . Right) <|>
+           (try (char '@') >> t_language >>= return . Just . Left) <|>
            return Nothing
 t_integer :: GenParser Char ParseState ByteString
 t_integer = 
@@ -258,7 +268,7 @@ t_decimal =
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
              <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
-     return $!(s2b sign `B.append` s2b rest)
+     return $! s2b sign `B.append` s2b rest
      
 t_exponent :: GenParser Char ParseState ByteString
 t_exponent = do e <- oneOf "eE"
@@ -268,10 +278,6 @@ t_exponent = do e <- oneOf "eE"
 
 t_boolean :: GenParser Char ParseState ByteString
 t_boolean = try ((string "true" >> return trueBs) <|> (string "false" >> return falseBs))
-
-trueBs, falseBs :: ByteString
-trueBs = s2b $! "true"
-falseBs = s2b $! "false"
 
 t_blank :: GenParser Char ParseState (IO Blank)
 t_blank = 
@@ -299,7 +305,7 @@ t_itemList =
 t_collection :: GenParser Char ParseState ([IO Object])
 t_collection = try $! between (char '(') (char ')') g
   where
-    g = do { many t_ws; l <- option [] t_itemList; many t_ws; return l }
+    g =  many t_ws >> option [] t_itemList >>= \l -> many t_ws >> return l
 
 t_ws  :: GenParser Char ParseState Char
 t_ws = char '\x000A' <|> char '\x000D' <|> char '\x0020' <|> t_comment <?> "whitespace"
@@ -342,7 +348,8 @@ t_nameStartCharMinusUnderscore =
 
 t_nameChar :: GenParser Char ParseState Char
 t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
-  where f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
+  where
+    f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
             
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range !c = any $! (\(c1, c2) -> c >= c1 && c <= c2)
@@ -399,11 +406,8 @@ t_hex = (satisfy $! (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) <?
 t_ucharacter  :: GenParser Char ParseState ByteString
 t_ucharacter = 
   do try unicode_escape <|> 
-       try (string "\\>" >> return escapedGt) <|> 
+       try (string "\\>" >> return escapedGtBs) <|> 
          try (non_ctrl_char_except ['>'] >>= \s -> return $! s)
-
-escapedGt :: ByteString
-escapedGt = s2b $! "\\>"
 
 t_scharacter  :: GenParser Char ParseState ByteString
 t_scharacter =
@@ -431,11 +435,44 @@ unicode_escape =
        
 non_ctrl_char_except  :: String -> GenParser Char ParseState ByteString
 non_ctrl_char_except !cs = 
-  satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>= 
-    \c -> return $! (B.singleton c)
+  satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>=  return . B.singleton
 
---
+-----------------------------------------------------------
+-- Some standard values that are used in various places. --
+-----------------------------------------------------------
 
+-- TODO: move some of these elsewhere if they're useful elsewhere.
+
+trueBs, falseBs, escapedGtBs :: ByteString
+trueBs      = s2b "true"
+falseBs     = s2b "false"
+escapedGtBs = s2b "\\>"
+
+rdfTypeBs :: ByteString
+rdfTypeBs = s2b $! "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+
+xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: IO FastString
+xsdIntUri     =  mkFastString $! makeUri xsd $! s2b "integer"
+xsdDoubleUri  =  mkFastString $! makeUri xsd $! s2b "double"
+xsdDecimalUri =  mkFastString $! makeUri xsd $! s2b "decimal"
+xsdBooleanUri =  mkFastString $! makeUri xsd $! s2b "boolean"
+
+rdfNilNode, rdfFirstNode, rdfRestNode :: IO Node
+rdfNilNode   = mkRdfNode $! "nil"
+rdfFirstNode = mkRdfNode $! "first"
+rdfRestNode  = mkRdfNode $! "rest"
+
+mkRdfNode :: String -> IO Node
+mkRdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
+
+-- End of parsing and related functions.
+
+-- Beginning of functions devoted to converting from the temporary data structures that
+-- exist for use within this module to the internal triple format required for a 'Graph'.
+
+-- Converts a list of 'Maybe Statement' values into equivalent triples, along with the prefix
+-- mappings encountered while converting and the last given BaseUrl, or the original or Nothing
+-- if none were present in the parsed document.
 convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement] -> IO (Triples, Maybe BaseUrl, PrefixMappings)
 convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
   where 
@@ -499,19 +536,6 @@ convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
     (O_Blank ocoll@(B_Collection _))      = obj
     (O_Blank opol@(B_POList poObjId pol)) = obj
 
-resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
-resolveUrl !Nothing               _       !url = url
-resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url = 
-  case isAbsoluteUri url of
-    True   ->  url
-    False  ->  
-      case (not $ B.null url) && (B.head url /= '#') of
-        True   -> docUrl `B.snoc` '#'
-        False  -> bUrl   `B.append` url
-
-newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
-newBaseUrl Nothing                url = BaseUrl url
-newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
 
 {-
 Collections are interpreted as follows:
@@ -525,7 +549,7 @@ Which expands to the following triples:
 :genid0 rdf:rest :genid1 .
 :genid1 rdf:first object2 .
 :genid1 rdf:rest rdf:nil .
-# plus the initial:
+-- plus the initial:
 :subj :pred :genid0
 
 ( ) is short for the resource:
@@ -568,14 +592,45 @@ convertColl !bUrl !pms !subj !pred (B_Collection !objs) =
     bObjToNode errObj            = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
 convertColl _ _ _ _ coll = error $ "TurtleParser.convertColl. Unexpected blank: " ++ show coll
  
+---------------------------------------------------------
+--  Supporting functions for conversion process below  --
+---------------------------------------------------------
 
-rdfNilNode, rdfFirstNode, rdfRestNode :: IO Node
-rdfNilNode   = mkRdfNode $! "nil"
-rdfFirstNode = mkRdfNode $! "first"
-rdfRestNode  = mkRdfNode $! "rest"
+-- Make an absolute URL by returning as is if already an absolute URL and otherwise
+-- appending the URL to the given base URL.
+{-# INLINE mkAbsoluteUrl #-}
+mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
+mkAbsoluteUrl base url = 
+  case isAbsoluteUri url of
+    True  ->  url 
+    False ->  base `B.append` url
 
-mkRdfNode :: String -> IO Node
-mkRdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
+-- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
+-- empty, then the base URL will be used if there is a base URL and if the map
+-- does not contain an entry for the empty prefix.
+resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
+resolveQName mbaseUrl prefix mappings =
+  case (mbaseUrl, B.null prefix) of
+    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty mappings
+    (Nothing,             True)  ->  err1
+    (_,                   _   )  ->  Map.findWithDefault err2 prefix mappings
+  where 
+    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
+    err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
+
+resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
+resolveUrl  Nothing               _       !url = url
+resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url = 
+  case isAbsoluteUri url of
+    True   ->  url
+    False  ->  
+      case (not $ B.null url) && (B.head url /= '#') of
+        True   -> docUrl `B.snoc` '#'
+        False  -> bUrl   `B.append` url
+
+newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
+newBaseUrl Nothing                url = BaseUrl url
+newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: ByteString -> Bool
@@ -630,43 +685,41 @@ uriRefOrQName (Just (BaseUrl base))  _    (R_URIRef url)      = mkFastString (mk
 uriRefOrQName bUrl                   pms  (R_QName pre local) = mkFastString (resolveQName bUrl pre pms `B.append` local) >>= return . UNode
 uriRefOrQName _                      _    _                   = error "TurtleParser.predicate"
 
-{-# INLINE mkAbsoluteUrl #-}
-mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
-mkAbsoluteUrl base url = 
-  case isAbsoluteUri url of
-    True  ->  url 
-    False ->  base `B.append` url
+------------------------------------------------------------------
+-- The various parse method that the module exposes externally. --
+------------------------------------------------------------------
 
-resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
-resolveQName mbaseUrl prefix mappings =
-  case (mbaseUrl, B.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty mappings
-    (Nothing,             True)  ->  err1
-    (_,                   _   )  ->  Map.findWithDefault err2 prefix mappings
-  where 
-    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
-    err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
-
---
-
+-- |Parse the given string as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
+-- if present, and using the given document URL as the URL of the Turtle document.
+-- 
+-- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) "" ttlStr)
 
-handleResult :: Graph gr => Maybe BaseUrl -> String -> Either ParseError (IO [Maybe Statement]) -> IO (Either ParseFailure gr)
-handleResult !bUrl !docUrl !result =
-  case result of
-     (Left err)   -> return (Left (ParseFailure $ show err))
-     (Right res)  -> do stmts <- res
-                        putStrLn (show (length stmts) ++ " statements")
-                        (ts, _, pms) <- convertStatements bUrl (s2b docUrl) stmts
-                        putStrLn (show (length ts) ++ " triples")
-                        g <- mkGraph ts bUrl pms
-                        return $! (Right g)
-
+-- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
+-- if present, and using the given document URL as the URL of the Turtle document. 
+-- 
+-- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath = 
   readFile fpath >>= \str -> handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) docUrl str)
 
-
+-- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
+-- as the base URL, if present, and using the given document URL as the URL of the Turtle document. The
+-- document URL is for the purpose of resolving references to 'this document' within the document, and
+-- may be different than the actual location URL from which the document is retrieved.
+-- 
+-- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
+
+handleResult :: Graph gr => Maybe BaseUrl -> String -> Either ParseError (IO [Maybe Statement]) -> IO (Either ParseFailure gr)
+handleResult !bUrl !docUrl !result =
+  case result of
+    (Left err)   -> return (Left (ParseFailure $ show err))
+    (Right res)  -> 
+      do stmts <- res
+         (ts, _, pms) <- convertStatements bUrl (s2b docUrl) stmts
+         putStrLn (show (length ts) ++ " triples")
+         mkGraph ts bUrl pms >>= return . Right
+
