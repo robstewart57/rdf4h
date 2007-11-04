@@ -117,7 +117,6 @@ instance Eq Node where
 instance Ord Node where
   compare n1 n2 = compareNode n1 n2
 
-{-# INLINE compareNode #-}
 compareNode :: Node -> Node -> Ordering
 compareNode (UNode fs1)                      (UNode fs2)                      = compareFS fs1 fs2
 compareNode (UNode _)                        _                                = LT
