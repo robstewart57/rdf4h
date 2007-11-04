@@ -449,8 +449,9 @@ convertStatements !baseUrl !docUrl  =
         (S_Directive (D_PrefixId (pre, url ))) -> f (ts, currBaseUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
         (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
         (S_Triples strips)    -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
-                                    (new_ts', new_baseUrl', newPms') <- f ([], new_baseUrl, newPms) stmts
-                                    return $! (new_ts ++ new_ts', new_baseUrl', newPms')
+                                    --(new_ts', new_baseUrl', newPms') <- f ([], new_baseUrl, newPms) stmts
+                                    --return $! (new_ts ++ new_ts', new_baseUrl', newPms')
+                                    f (new_ts ++ ts, new_baseUrl, newPms) stmts
     process_ts :: (Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])])  ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
     process_ts (!bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
 
