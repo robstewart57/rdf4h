@@ -80,26 +80,26 @@ EBNF from <http://www.dajobe.org/2004/01/turtle/>
 [43]	lcharacter 	::= 	echaracter | '\"' | #x9 | #xA | #xD
 -}
 data Statement = S_Directive {-# UNPACK #-} !Directive
-               | S_Triples {-# UNPACK #-} !T_Triples
+               | S_Triples   {-# UNPACK #-} !T_Triples
   deriving Show
 type Statements = [Statement]
-data Directive = D_BaseUrl {-# UNPACK #-} !ByteString
+data Directive = D_BaseUrl  {-# UNPACK #-} !ByteString
                | D_PrefixId {-# UNPACK #-} !(ByteString, ByteString)
   deriving Show
-data Blank = B_BlankId {-# UNPACK #-} !ByteString
-           | B_BlankGen {-# UNPACK #-} !Int              -- int is genid used for []
+data Blank = B_BlankId    {-# UNPACK #-} !ByteString
+           | B_BlankGen   {-# UNPACK #-} !Int            -- int is genid used for []
            | B_POList Int {-# UNPACK #-} !POList         -- int is genid used for [ :p1 :o1; :p2 :o2 ]
            | B_Collection {-# UNPACK #-} ![(Int,Object)] -- int is genid used for ( :obj1 :obj2 )
   deriving Show
 type POList = [(Resource, [Object])]
 type Collection = [Object]
 data Object = O_Resource {-# UNPACK #-} !Resource
-            | O_Blank {-# UNPACK #-} !Blank
-            | O_Literal {-# UNPACK #-} !Node
+            | O_Blank    {-# UNPACK #-} !Blank
+            | O_Literal  {-# UNPACK #-} !Node
   deriving Show
 data Resource = R_URIRef {-# UNPACK #-} !ByteString
-              | R_QName {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
-              | R_Blank {-# UNPACK #-} !Blank
+              | R_QName  {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
+              | R_Blank  {-# UNPACK #-} !Blank
   deriving Show
 type T_Triples     = (Resource, [(Resource, [Object])])
 
@@ -571,21 +571,13 @@ convertColl _ _ _ _ coll = error $ "TurtleParser.convertColl. Unexpected blank: 
  
 
 rdfNilNode, rdfFirstNode, rdfRestNode :: IO Node
-rdfNilNode   = mkRdfNode "nil"
-rdfFirstNode = mkRdfNode "first"
-rdfRestNode  = mkRdfNode "rest"
+rdfNilNode   = mkRdfNode $! "nil"
+rdfFirstNode = mkRdfNode $! "first"
+rdfRestNode  = mkRdfNode $! "rest"
 
 mkRdfNode :: String -> IO Node
-mkRdfNode !localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
+mkRdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UNode
 
-
-{-
-Need to determine if the uriref is really an absolute uri by checking to
-see if it begins with a scheme, which would satisfy the regex:
-scheme        = alpha *( alpha | digit | "+" | "-" | "." )
-
-alpha is lowercase letters, but rfc says best to normalize uppercase to lower.
--}
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: ByteString -> Bool
 isAbsoluteUri !b = B.elem ':' b
@@ -626,7 +618,7 @@ isOBlankPOList (O_Blank (B_POList _ _))       = True
 isOBlankPOList _                              = False
 
 uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = mkFastString (if isAbsoluteUri url then url else u `B.append` url) >>= return . UNode
+uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = mkFastString (mkAbsoluteUrl u url) >>= return . UNode
 uriRefQNameOrBlank  Nothing           _ (R_URIRef url)           = mkFastString url >>= return . UNode
 uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = mkFastString ((resolveQName bUrl pre pms) `B.append` local) >>= return . UNode
 uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = mkFastString bId >>= return . BNode
@@ -634,11 +626,10 @@ uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = return $! (BN
 uriRefQNameOrBlank  _        _     !res                          = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
 
 uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> IO Node
-uriRefOrQName Nothing _     (R_URIRef !url)            = mkFastString url >>= return . UNode
-uriRefOrQName (Just (BaseUrl !base)) _ (R_URIRef !url) = mkFastString (mkAbsoluteUrl base url) >>= return . UNode
-uriRefOrQName !bUrl    !pms   (R_QName !pre !local)    = mkFastString url >>= return . UNode
-  where  url = (resolveQName bUrl pre pms) `B.append` local
-uriRefOrQName _       _     _                          = error "TurtleParser.predicate"
+uriRefOrQName Nothing                _    (R_URIRef !url)     = mkFastString url >>= return . UNode
+uriRefOrQName (Just (BaseUrl base))  _    (R_URIRef url)      = mkFastString (mkAbsoluteUrl base url) >>= return . UNode
+uriRefOrQName bUrl                   pms  (R_QName pre local) = mkFastString (resolveQName bUrl pre pms `B.append` local) >>= return . UNode
+uriRefOrQName _                      _    _                   = error "TurtleParser.predicate"
 
 {-# INLINE mkAbsoluteUrl #-}
 mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
@@ -648,12 +639,14 @@ mkAbsoluteUrl base url =
     False ->  base `B.append` url
 
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
-resolveQName (Just (BaseUrl u)) pre   pms 
-  | pre == B.empty = ($!) Map.findWithDefault u B.empty pms
-resolveQName Nothing              pre   _ 
-  | pre == B.empty =  error "Cannot resolve empty QName prefix to a base URL."
-resolveQName _                    pre   pms = ($!)
-  Map.findWithDefault (error $ "Cannot resolve QName Prefix: " ++ B.unpack pre) pre pms
+resolveQName mbaseUrl prefix mappings =
+  case (mbaseUrl, B.null prefix) of
+    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty mappings
+    (Nothing,             True)  ->  err1
+    (_,                   _   )  ->  Map.findWithDefault err2 prefix mappings
+  where 
+    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
+    err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
 
 --
 
