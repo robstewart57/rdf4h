@@ -440,14 +440,14 @@ convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement] -> IO (Tri
 convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
   where 
     f :: (Triples, Maybe BaseUrl, PrefixMappings) -> [Maybe Statement] ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
-    f !tup [] = return tup
+    f !tup                   []                  = return tup
     f !tup                   (Nothing:stmts)     = f tup stmts
     f (ts, currBaseUrl, pms) ((Just stmt):stmts) =
       case stmt of
         (S_Directive (D_PrefixId (pre, url ))) -> f (ts, currBaseUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
         (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
-        (S_Triples strips)    -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
-                                    f (new_ts ++ ts, new_baseUrl, newPms) stmts
+        (S_Triples strips)                     -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
+                                                     f (new_ts ++ ts, new_baseUrl, newPms) stmts
     process_ts :: (Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])])  ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
     process_ts (!bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
 
@@ -513,7 +513,6 @@ newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
 newBaseUrl Nothing                url = BaseUrl url
 newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
 
-
 {-
 Collections are interpreted as follows:
 
@@ -548,10 +547,10 @@ The Notation3 spec has the following to say on lists:
 -}
 convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> IO Triples
 convertColl !bUrl !pms !subj !pred (B_Collection !objs) =  
-  do ts <- convertColl' objs
-     if null objs
-        then return $! ts
-        else initialTriple (head objs) >>= \t -> return $! (t:ts)
+  do convertColl' objs >>= \ts ->
+       case null objs of
+         True   ->  return $! ts
+         False  ->  initialTriple (head objs) >>= return . (:ts)
   where
     initialTriple :: (Int, Object) -> IO Triple
     initialTriple (initId, _) = subjNode >>= \s -> predNode >>= \p -> return (triple s p (BNodeGen initId))
