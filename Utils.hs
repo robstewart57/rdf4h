@@ -5,6 +5,7 @@ module Utils(FastString(uniq,value),
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
+import Text.Printf(printf)
 import System.IO.Unsafe(unsafePerformIO)
 import Control.Monad
 import Data.HashTable(HashTable)
@@ -14,21 +15,27 @@ import Data.Char(ord)
 import Data.Bits(shiftR)
 import Data.IORef
 
--- |A wrapper around a bytestring that contains a uniq int associated with the bytestring,
--- together with the value of the bytestring. 
--- 
--- FastString values are created using 'mkFastString', which will reuse values
--- wherever possible. The 'uniq' value is an identifier for a given ByteString,
--- and provides fast equality testing due to the invariant that two equal
--- bytestrings have equal uniq values.
+-- |'FastString' is a bytestring-based string type that provides constant-time equality
+-- testing.
+--
+-- A 'FastString' value consists of a unique identifier and a (strict) 'ByteString' value.
+-- The unique identifier is used for constant-time equality testing, and all other operations
+-- are provided by the 'ByteString' value itself.
+--
+-- 'FastString' values are created by the 'mkFastString' function, which maintains a table
+-- of all created values, and reuses old values whenever possible. The 'ByteString' is
+-- maintained internally in reverse order of the string passed to 'mkFastString'; this
+-- is to provide faster comparison testing for unequal values, since it is very common in
+-- RDF to have URIs that are equal apart from the last few characters (localname).
 data FastString = FS {
       uniq   :: {-# UNPACK #-} !Int,
       value  :: {-# UNPACK #-} !ByteString
 }
 
 instance Show FastString where
-  show = B.unpack . B.reverse . value
+  show fs = printf "(%d, %s)" (uniq fs) (B.unpack $ B.reverse $ value fs)
 
+-- |Two 'FastString' values are equal iff they have the same unique identifer.
 instance Eq FastString where
   (==) = equalFS
 
@@ -36,6 +43,9 @@ instance Eq FastString where
 equalFS :: FastString -> FastString -> Bool
 equalFS !fs1 !fs2 = uniq fs1 == uniq fs2
 
+-- |Two 'FastString' values are equal if they have the same unique identifier, 
+-- and are otherwise ordered using the natural ordering of 'ByteString' in the 
+-- internal (reversed) representation.
 instance Ord FastString where
   compare !fs1 !fs2 = compareFS fs1 fs2
 
@@ -90,6 +100,15 @@ _mulHi a b = fromIntegral (r `shiftR` 32)
   where r :: Int64
         r = fromIntegral a * fromIntegral b :: Int64
 
+-- |Return a 'FastString' value for the given 'ByteString', reusing a 'FastString'
+-- if one has been created for equal bytestrings, or creating a new one if necessary.
+-- The 'FastString' values created maintain the invariant that two values have the
+-- same unique identifier (accessible via 'uniq') iff their respective bytestring
+-- values are equal. 
+--
+-- The unique identifier is only for the given session, and equal 'ByteString' values
+-- will generally not be assigned the same identifier under different processes and
+-- different executions.
 {-# INLINE mkFastString #-}
 mkFastString :: ByteString -> IO FastString
 mkFastString = mkFastString' fsTable
@@ -111,6 +130,3 @@ newFastString !str =
      modifyIORef fsCounter (+1)
      return $! (FS curr ((1 :: Int) `seq` B.reverse str))
 
-_b1, _b2 :: ByteString
-_b1 = B.pack "asdf"
-_b2 = B.pack "zxcv"
