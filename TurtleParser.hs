@@ -437,8 +437,7 @@ non_ctrl_char_except !cs =
 
 --
 
-convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement]
-                -> IO (Triples, Maybe BaseUrl, PrefixMappings)
+convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement] -> IO (Triples, Maybe BaseUrl, PrefixMappings)
 convertStatements !baseUrl !docUrl  = 
      liftM extract  .  f ([], baseUrl, Map.empty)  .  map fromJust  .  filter isJust
   where 
@@ -485,11 +484,11 @@ convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
   -- that triple onto the triples that represent the POList, each of which has the same bnode
   -- as the subject.
   | isOBlankPOList    obj   = convertPOLists bUrl docUrl pms (R_Blank opol, pol) >>= \ts ->  (bObjPolGenNode >>= makeTriple' >>= \ts' -> return $! (ts' ++ ts))
-  | otherwise               = error $ "Unexpected case: " ++ show obj
+  | otherwise                = error $ "Unexpected case: " ++ show obj
   where 
     makeTriple :: Node -> IO Triple
-    makeTriple  !o                        = subjNode >>= \s -> predNode >>= \p -> return $! (triple s p o)
-    makeTriple' !t                        = makeTriple t >>= \t' -> return $! (t':[])
+    makeTriple   o                        = subjNode >>= \s -> predNode >>= \p -> return $! (triple s p o)
+    makeTriple'  t                        = makeTriple t >>= \t' -> return $! (t':[])
     subjNode                              = uriRefQNameOrBlank bUrl pms subj
     predNode                              = uriRefQNameOrBlank bUrl pms pred
     objNode                               = uriRefQNameOrBlank bUrl pms res
@@ -514,8 +513,8 @@ resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url =
         False  -> bUrl   `B.append` url
 
 newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
-newBaseUrl Nothing                !url = BaseUrl url
-newBaseUrl (Just (BaseUrl !bUrl)) !url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
+newBaseUrl Nothing                url = BaseUrl url
+newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! if isAbsoluteUri url then url else bUrl `B.append` url
 
 
 {-
