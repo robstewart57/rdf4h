@@ -174,7 +174,7 @@ t_statement = (d >>= \d' -> return $! liftM Just d') <|>
 -- Converts a list of 'Maybe Statement' values into equivalent triples, along with the prefix
 -- mappings encountered while converting and the last given BaseUrl, or the original or Nothing
 -- if none were present in the parsed document.
-convertStatements :: Maybe BaseUrl -> ByteString -> [Maybe Statement] -> IO (Triples, Maybe BaseUrl, PrefixMappings)
+convertStatements :: Maybe BaseUrl -> Maybe ByteString -> [Maybe Statement] -> IO (Triples, Maybe BaseUrl, PrefixMappings)
 convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
   where 
     f :: (Triples, Maybe BaseUrl, PrefixMappings) -> [Maybe Statement] ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
@@ -182,13 +182,28 @@ convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
     f !tup                   (Nothing:stmts)     = f tup stmts
     f (ts, currBaseUrl, pms) ((Just stmt):stmts) =
       case stmt of
-        (S_Directive (D_PrefixId (pre, url ))) -> f (ts, currBaseUrl, Map.insert pre (resolveUrl currBaseUrl docUrl url) pms) stmts
+        (S_Directive (D_PrefixId (pre, frag))) -> f (ts, currBaseUrl, Map.insert pre (absolutizeUrl currBaseUrl docUrl frag) pms) stmts
         (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
         (S_Triples strips)                     -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
                                                      f (new_ts ++ ts, new_baseUrl, newPms) stmts
     process_ts :: (Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])])  ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
     process_ts (!bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
 
+-- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
+absolutizeUrl :: Maybe BaseUrl -> Maybe ByteString -> ByteString -> ByteString
+absolutizeUrl mbUrl mdUrl urlFrag =
+  case isAbsoluteUri urlFrag of
+    True   ->  urlFrag
+    False  ->  
+      case (mbUrl, mdUrl) of
+        (Nothing,             Nothing    )  -> urlFrag
+        (Just (BaseUrl bUrl), Nothing    )  -> bUrl `B.append` urlFrag
+        (Nothing,             (Just dUrl))  -> if hasInitialHash then dUrl `B.append` urlFrag else urlFrag
+        (Just (BaseUrl bUrl), (Just dUrl))  -> if hasInitialHash then dUrl `B.append` urlFrag else bUrl `B.append` urlFrag
+  where
+    hasInitialHash = not (B.null urlFrag) && B.head urlFrag == '#'
+
+    
 
 t_directive :: GenParser Char ParseState (IO Statement)
 t_directive = 
@@ -234,17 +249,17 @@ t_verb =
   <?> "verb"
 
 -- When first encountering a POList, we convert each of the lists within the list and concatenate the result.
-convertPOLists :: Maybe BaseUrl -> ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
+convertPOLists :: Maybe BaseUrl -> Maybe ByteString -> PrefixMappings -> (Resource, [(Resource, [Object])]) -> IO Triples
 convertPOLists !bUrl !docUrl !pms !(!subj, !poLists) = mapM (convertPOListItem bUrl docUrl pms subj) poLists >>=  return . concat 
 
 -- For a POList item within a POList, we convert the individual item to a list of triples.
 
-convertPOListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> IO Triples
+convertPOListItem :: Maybe BaseUrl -> Maybe ByteString -> PrefixMappings -> Resource -> (Resource, [Object]) -> IO Triples
 convertPOListItem !bUrl !docUrl !pms !subj !(!pred, !objs) = mapM (convertObjectListItem bUrl docUrl pms subj pred) objs >>= \ts -> return $! concat $! ts
 
 -- For a given object list item that is the object of supplied subject and predicate, convert it into a list
 -- of triples.
-convertObjectListItem :: Maybe BaseUrl -> ByteString -> PrefixMappings -> Resource -> Resource -> Object -> IO Triples
+convertObjectListItem :: Maybe BaseUrl -> Maybe ByteString -> PrefixMappings -> Resource -> Resource -> Object -> IO Triples
 convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
   -- if we have a bnode po list as the subject, we create a set of triples with a bnode as subject
   -- and all the pred-obj pairs as pred and obj; and additionally create a set of triples representing
@@ -496,7 +511,10 @@ t_qname =
      return $! return $! (R_QName pre name)
 
 t_uriref :: GenParser Char ParseState (IO Resource)
-t_uriref = between (char '<') (char '>') t_relativeURI >>= \uri -> return $! return $! (R_URIRef $! uri)
+t_uriref = 
+  between (char '<') (char '>') t_relativeURI >>= \uri -> return $! return $! (R_URIRef $! uri)
+  --do (bUrl,dUrl,i,pms,_s,_p) <- getState
+  --   between (char '<') (char '>') t_relativeURI >>= \uri -> return $! return $! (R_URIRef $! uri)
 
 t_language  :: GenParser Char ParseState ByteString
 t_language = 
@@ -669,16 +687,6 @@ resolveQName mbaseUrl prefix mappings =
     err1 = error  "Cannot resolve empty QName prefix to a Base URL."
     err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
 
-resolveUrl :: Maybe BaseUrl -> ByteString -> ByteString -> ByteString
-resolveUrl  Nothing               _       !url = url
-resolveUrl (Just (BaseUrl !bUrl)) !docUrl !url = 
-  case isAbsoluteUri url of
-    True   ->  url
-    False  ->  
-      case (not $ B.null url) && (B.head url /= '#') of
-        True   -> docUrl `B.snoc` '#'
-        False  -> bUrl   `B.append` url
-
 newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
 newBaseUrl Nothing                url = BaseUrl url
 newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
@@ -758,7 +766,7 @@ handleResult !bUrl !docUrl !result =
     (Left err)   -> return (Left (ParseFailure $ show err))
     (Right res)  -> 
       do stmts <- res
-         (ts, _, pms) <- convertStatements bUrl (s2b docUrl) stmts
+         (ts, _, pms) <- convertStatements bUrl (Just $ s2b docUrl) stmts
          putStrLn (show (length ts) ++ " triples")
          mkGraph ts bUrl pms >>= return . Right
 
