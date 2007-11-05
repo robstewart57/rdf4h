@@ -131,9 +131,14 @@ type T_Triples  = (Resource, [(Resource, [Object])])
 
 type ParseState = (Maybe BaseUrl, Int)
 
--- Parsing functions begin here, and are generally in the order that the respective
--- EBNF rules are defined -- with a couple of deviations from the EBNF grammar for
--- performance reasons.
+----------------------------------
+-- Parsing functions begin here --
+----------------------------------
+
+
+-- The combinators generally appear in the order that the corresponding EBNF rules are defined
+-- in the spec, and apart from a couple of deviations for performance reasons, a combinator
+-- generally implements one rule.
 
 t_turtleDoc :: GenParser Char ParseState (IO [Maybe Statement])
 t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $! mapM id ts)
