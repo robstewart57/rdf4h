@@ -169,8 +169,12 @@ type ParseState = (Maybe BaseUrl, Maybe ByteString, Int, PrefixMappings, Maybe N
 -- in the spec, and apart from a couple of deviations for performance reasons, a combinator
 -- generally implements one rule.
 
-t_turtleDoc :: GenParser Char ParseState (IO [Maybe Statement])
-t_turtleDoc =  many t_statement >>= \ts -> eof >> (return $! mapM id ts)
+t_turtleDoc :: GenParser Char ParseState (IO (Triples, PrefixMappings))
+t_turtleDoc =  
+  do ioStmts <- many t_statement >>= \ts -> eof >> (return $! mapM id ts) :: GenParser Char ParseState (IO ([Maybe Statement]))
+     (_bUrl,_dUrl,_i,_pms,_s,_p,_ts) <- getState
+     ioTup <- return (ioStmts >>= \stmts -> convertStatements _bUrl _dUrl stmts) :: GenParser Char ParseState (IO (Triples, Maybe BaseUrl, PrefixMappings))
+     return (ioTup >>= (\(ts,_,pms) -> return (ts, pms)))
      
 t_statement :: GenParser Char ParseState (IO (Maybe Statement))
 t_statement = (d >>= \d' -> return $! liftM Just d') <|> 
@@ -743,7 +747,7 @@ isOBlankPOList _                              = False
 -- 
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
-parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc initialState "" ttlStr)
+parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing, [])
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
@@ -752,7 +756,7 @@ parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtle
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath = 
-  readFile fpath >>= \str -> handleResult bUrl docUrl (runParser t_turtleDoc initialState docUrl str)
+  readFile fpath >>= \str -> handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
   where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing, [])
 
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
@@ -764,13 +768,12 @@ parseFile bUrl docUrl fpath =
 parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
 
-handleResult :: Graph gr => Maybe BaseUrl -> String -> Either ParseError (IO [Maybe Statement]) -> IO (Either ParseFailure gr)
-handleResult !bUrl !docUrl !result =
+handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (IO (Triples, PrefixMappings)) -> IO (Either ParseFailure gr)
+handleResult !bUrl !result =
   case result of
     (Left err)   -> return (Left (ParseFailure $ show err))
     (Right res)  -> 
-      do stmts <- res
-         (ts, _, pms) <- convertStatements bUrl (Just $ s2b docUrl) stmts
+      do (ts, pms) <- res
          putStrLn (show (length ts) ++ " triples")
          mkGraph ts bUrl pms >>= return . Right
 
