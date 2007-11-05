@@ -13,8 +13,8 @@ import GraphTestUtils
 import qualified Data.ByteString.Char8 as B
 
 main :: IO ()
---main = runAllCTests >>= putStrLn . show
-main = test True 14
+main = runAllCTests >>= putStrLn . show
+--main = test True 14
 
 -- The Base URI to be used for all conformance tests:
 testBaseUri :: String
@@ -26,12 +26,12 @@ mtestBaseUri = Just $ BaseUrl $ B.pack testBaseUri
 fpath :: String -> Int -> String -> String    
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 
---runAllCTests :: IO T.Counts
+runAllCTests :: IO (T.Counts, Int)
 runAllCTests = allTests >>= return . T.TestList >>= runTest
   where runTest  = T.runTestText (T.putTextToHandle stdout True)
-        allGoodTests = mapM checkGoodConformanceTest [14..14] -- 0..30
+        allGoodTests = mapM checkGoodConformanceTest [0..30] -- 0..30
         allBadTests  = mapM checkBadConformanceTest [0..14]
-        allTests = allGoodTests >>= \ts -> allBadTests >>= \ts' -> return (ts ++ [])
+        allTests = allGoodTests >>= \ts -> allBadTests >>= \ts' -> return (ts ++ ts')
 
 checkGoodConformanceTest :: Int -> IO T.Test
 checkGoodConformanceTest i = 
@@ -42,9 +42,6 @@ checkGoodConformanceTest i =
     t2 <-  return (return inGr  >>= assertLoadSuccess (printf "   input%02d:" i :: String))
     t3 <-  return $ assertEquivalent i expGr inGr
     return $ T.TestList $ map T.TestCase [t1, t2, t3]
-  --assertEqual errMsg (ordered $ triplesOf
-  where 
-    errMsg = printf "Triples mismatch for test %02d." i :: String
 
 checkBadConformanceTest :: Int -> IO T.Test
 checkBadConformanceTest i =
@@ -78,7 +75,7 @@ expected name n = readFile (fpath name n "out") >>= NT.parseString
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left err) = T.assertFailure $ idStr  ++ show err
 assertLoadSuccess _      (Right _) = return ()
-assertLoadFailure idStr (Left err) = return ()
+assertLoadFailure _       (Left _)   = return ()
 assertLoadFailure idStr _          = T.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
 
 assertEquivalent :: Graph gr => Int -> Either ParseFailure gr -> Either ParseFailure gr -> T.Assertion
@@ -88,8 +85,8 @@ assertEquivalent i r1 r2 =
     (Just msg) -> fail $ "Graph " ++ show i ++ " not equivalent to expected:\n" ++ msg
   where equiv = equivalent r1 r2
 
-test :: Bool -> Int -> IO ()
-test testGood testNum = readFile fpath >>= f
+_test :: Bool -> Int -> IO ()
+_test testGood testNum = readFile fpath >>= f
   where
     fname = printf "%s-%02d.ttl" name testNum :: String
     fpath = "data/ttl/conformance/" ++ fname
