@@ -768,8 +768,5 @@ handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (IO (Triples, Pre
 handleResult !bUrl !result =
   case result of
     (Left err)   -> return (Left (ParseFailure $ show err))
-    (Right res)  -> 
-      do (ts, pms) <- res
-         putStrLn (show (length ts) ++ " triples")
-         mkGraph ts bUrl pms >>= return . Right
+    (Right res)  -> res >>= \(ts, pms) -> mkGraph ts bUrl pms >>= return . Right
 
