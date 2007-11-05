@@ -160,9 +160,9 @@ type T_Triples  = (Resource, [(Resource, [Object])])
 --                   it is convenient to do so.
 type ParseState = (Maybe BaseUrl, Maybe ByteString, Int, PrefixMappings, Maybe Node, Maybe Node, Triples)
 
-----------------------------------
--- Parsing functions begin here --
-----------------------------------
+----------------------------------------------
+-- Parsing functions and helpers begin here --
+----------------------------------------------
 
 
 -- The combinators generally appear in the order that the corresponding EBNF rules are defined
@@ -665,10 +665,6 @@ mkRdfNode localName = mkFastString (makeUri rdf (s2b localName)) >>= return . UN
 
 -- End of parsing and related functions.
 
--- Beginning of functions devoted to converting from the temporary data structures that
--- exist for use within this module to the internal triple format required for a 'Graph'.
-
- 
 ---------------------------------------------------------
 --  Supporting functions for conversion process below  --
 ---------------------------------------------------------
