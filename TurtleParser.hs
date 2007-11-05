@@ -129,7 +129,27 @@ data Resource =
 
 type T_Triples  = (Resource, [(Resource, [Object])])
 
-type ParseState = (Maybe BaseUrl, Int)
+-- The state that we maintain while parsing consists of the following:
+--
+-- Maybe BaseUrl:    the base URL of the graph, which may or may not be
+--                   set initially, and may or may not be updated in the 
+--                   course of parsing the document.
+--
+-- Maybe ByteString: an optional document URL that is used for resolving
+--                   references to 'this document'. Not updated while parsing.
+-- 
+-- Int:              the value of the next identifier to be used for
+--                   creating generated bnode identifiers. Starts at 0,
+--                   and is incremented by 1 after it is assigned.
+--
+-- PrefixMappings:   an initially empty map of prefix-URI associations
+--                   that is updated as no prefixes are encountered and
+--                   used for resolving qnames while parsing.
+--
+-- Maybe Node:       the most recently encountered subject node.
+--
+-- Maybe Node:       the most recently encountered predicate node.
+type ParseState = (Maybe BaseUrl, Maybe ByteString, Int, PrefixMappings, Maybe Node, Maybe Node)
 
 ----------------------------------
 -- Parsing functions begin here --
@@ -225,8 +245,8 @@ t_predicate = t_resource <?> "resource"
 t_object :: GenParser Char ParseState (IO Object)
 t_object = (((try t_resource) <?> "resource") >>= \r -> return $! (liftM O_Resource $! r)) <|>
            (((try t_blank) <?> "blank") >>= \r ->
-               do (b,i) <- getState; 
-                  setState (b,i+1); 
+               do (bUrl,dUrl,i,pms,_s,_p) <- getState; 
+                  setState (bUrl,dUrl,i+1,pms,_s,_p); 
                   return (r >>= \r' -> return $! (O_Blank $! r')))
            <|> (((try t_literal) <?> "literal") >>= \l -> return (l >>= \l' -> return $! (O_Literal $! l')))
 
@@ -297,8 +317,8 @@ t_boolean = try ((string "true" >> return trueBs) <|> (string "false" >> return 
 t_blank :: GenParser Char ParseState (IO Blank)
 t_blank = 
   (try t_nodeID >>= \n -> return $! return $! (B_BlankId $! n)) <|>
-  try (do string "[]"; (b,n) <- getState; setState (b,n+1); return $ return $! (B_BlankGen $! n)) <|>
-  try (do char '['; poList <- predObjList; (b,n) <- getState; setState (b,n+1); char ']'; return (poList >>= \pol -> return $! (B_POList n pol))) <|>
+  try (do string "[]"; (bUrl,dUrl,n,pms,_s,_p) <- getState; setState (bUrl,dUrl,n+1,pms,_s,_p); return $ return $! (B_BlankGen $! n)) <|>
+  try (do char '['; poList <- predObjList; (bUrl,dUrl,n,pms,_s,_p) <- getState; setState (bUrl,dUrl,n+1,pms,_s,_p); char ']'; return (poList >>= \pol -> return $! (B_POList n pol))) <|>
   do objs <- t_collection
      let len = length objs
      ids <- getIds len
@@ -309,7 +329,7 @@ t_blank =
     f !obj !id' = obj >>= \o -> return (id', o)
     predObjList = do { many t_ws; l <- t_predicateObjectList; many t_ws; return l}
     getIds :: Int -> GenParser Char ParseState [Int]
-    getIds !n = mapM (\_ -> do (b,i) <- getState; setState (b,i+1); return i) (replicate n False)
+    getIds !n = mapM (\_ -> do (bUrl,dUrl,i,pms,_s,_p) <- getState; setState (bUrl,dUrl,i+1,pms,_s,_p); return i) (replicate n False)
 
 t_itemList :: GenParser Char ParseState [IO Object]
 t_itemList = 
@@ -709,7 +729,8 @@ uriRefOrQName _                      _    _                   = error "TurtlePar
 -- 
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
-parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) "" ttlStr)
+parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtleDoc initialState "" ttlStr)
+  where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing)
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
 -- if present, and using the given document URL as the URL of the Turtle document. 
@@ -717,7 +738,8 @@ parseString !bUrl !docUrl !ttlStr = handleResult bUrl docUrl (runParser t_turtle
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath = 
-  readFile fpath >>= \str -> handleResult bUrl docUrl (runParser t_turtleDoc (bUrl, 0) docUrl str)
+  readFile fpath >>= \str -> handleResult bUrl docUrl (runParser t_turtleDoc initialState docUrl str)
+  where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing)
 
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
 -- as the base URL, if present, and using the given document URL as the URL of the Turtle document. The
