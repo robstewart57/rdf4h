@@ -1,3 +1,4 @@
+{-#  GHC_OPTIONS -fno-cse  #-}
 module Utils(FastString(uniq,value), 
              mkFastString, equalFS, compareFS,s2b,b2s
 ) where
@@ -10,6 +11,8 @@ import System.IO.Unsafe(unsafePerformIO)
 import Control.Monad
 import Data.HashTable(HashTable)
 import qualified Data.HashTable as HT
+import Data.Map.AVL(Map)
+import qualified Data.Map.AVL as M
 import Data.Int(Int32, Int64)
 import Data.Char(ord)
 import Data.Bits(shiftR)
@@ -130,3 +133,21 @@ newFastString !str =
      modifyIORef fsCounter (+1)
      return $! (FS curr ((1 :: Int) `seq` B.reverse str))
 
+{-
+registerCanonicalizer :: ByteString -> (ByteString -> ByteString) -> (FastString, ByteString -> ByteString)
+registerCanonicalizer typeUri canonicalizer =
+    do typeUriFs <- mkFastString typeUri
+       HT.insert canonicalizersT typeUriFs canonicalizer
+       return $! (typeUriFs, canonicalizer)
+-}     
+
+{-
+canonicalize :: ByteString -> ByteString -> ByteString
+canonicalize typeUri value = 
+  unsafePerformIO $
+    do typeUriFs <- mkFastString typeUri
+       mCanonFn <- HT.lookup canonicalizersT typeUriFs
+       case mCanonFn of
+         Nothing   -> return value
+         (Just fn) -> return $ fn value
+-}
