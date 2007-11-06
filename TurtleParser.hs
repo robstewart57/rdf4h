@@ -139,7 +139,7 @@ type T_Triples  = (Resource, [(Resource, [Object])])
 --                   references to 'this document'. Not updated while parsing.
 -- 
 -- Int:              the value of the next identifier to be used for
---                   creating generated bnode identifiers. Starts at 0,
+--                   creating generated bnode identifiers. Starts at 1,
 --                   and is incremented by 1 after it is assigned.
 --
 -- PrefixMappings:   an initially empty map of prefix-URI associations
@@ -211,10 +211,10 @@ absolutizeUrl mbUrl mdUrl urlFrag =
       case (mbUrl, mdUrl) of
         (Nothing,             Nothing    )  -> urlFrag
         (Just (BaseUrl bUrl), Nothing    )  -> bUrl `B.append` urlFrag
-        (Nothing,             (Just dUrl))  -> if hasInitialHash then dUrl `B.append` urlFrag else urlFrag
-        (Just (BaseUrl bUrl), (Just dUrl))  -> if hasInitialHash then dUrl `B.append` urlFrag else bUrl `B.append` urlFrag
+        (Nothing,             (Just dUrl))  -> if fragIsHash then dUrl `B.append` urlFrag else urlFrag
+        (Just (BaseUrl bUrl), (Just dUrl))  -> if fragIsHash then dUrl `B.append` urlFrag else bUrl `B.append` urlFrag
   where
-    hasInitialHash = not (B.null urlFrag) && B.head urlFrag == '#'
+    fragIsHash     = B.length urlFrag == 1 && B.head urlFrag == '#'
 
 t_directive :: GenParser Char ParseState (IO Statement)
 t_directive = 
@@ -418,8 +418,8 @@ t_blank =
      return $ z objs ids >>= \coll -> return $! (B_Collection $! coll)
   where
     z :: [IO Object] -> [Int] -> IO [(Int, Object)]
-    z !cs !ids = mapM id (zipWith f cs ids)
-    f !obj !id' = obj >>= \o -> return (id', o)
+    z cs ids  = zipWithM f cs ids
+    f obj id' = obj >>= \o -> return (id', o)
     predObjList = do { many t_ws; l <- t_predicateObjectList; many t_ws; return l}
     getIds :: Int -> GenParser Char ParseState [Int]
     getIds !n = mapM (\_ -> do (bUrl,dUrl,i,pms,_s,_p,_ts) <- getState; setState (bUrl,dUrl,i+1,pms,_s,_p,_ts); return i) (replicate n False)
@@ -744,7 +744,7 @@ isOBlankPOList _                              = False
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
-  where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing, [])
+  where initialState = (bUrl, Just (s2b docUrl), 1, Map.empty, Nothing, Nothing, [])
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
 -- if present, and using the given document URL as the URL of the Turtle document. 
@@ -753,7 +753,7 @@ parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc ini
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath = 
   readFile fpath >>= \str -> handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
-  where initialState = (bUrl, Just (s2b docUrl), 0, Map.empty, Nothing, Nothing, [])
+  where initialState = (bUrl, Just (s2b docUrl), 1, Map.empty, Nothing, Nothing, [])
 
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
 -- as the base URL, if present, and using the given document URL as the URL of the Turtle document. The
