@@ -32,12 +32,13 @@ import Data.List
 newtype AvlGraph = AvlGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
 
 instance Graph AvlGraph where
-  baseUrl                 = baseUrl'
-  empty                   = empty'
-  mkGraph                 = mkGraph'
-  triplesOf               = triplesOf'
-  select                  = select'
-  query                   = query'
+  baseUrl         = baseUrl'
+  prefixMappings  = prefixMappings'
+  empty           = empty'
+  mkGraph         = mkGraph'
+  triplesOf       = triplesOf'
+  select          = select'
+  query           = query'
 
 -- some convenience type alias for readability
 
@@ -51,6 +52,9 @@ type SPOMap    = Map Subject AdjacencyMap
 
 baseUrl' :: AvlGraph -> Maybe BaseUrl
 baseUrl' (AvlGraph (_, baseUrl, _)) = baseUrl
+
+prefixMappings' :: AvlGraph -> PrefixMappings
+prefixMappings' (AvlGraph (_, _, pms)) = pms
 
 empty' :: AvlGraph 
 empty' = AvlGraph (Map.empty, Nothing, Map.empty)
