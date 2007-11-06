@@ -383,7 +383,7 @@ t_double =
      rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.snoc` '.' `B.append` s2b ds' `B.append` e) }) <|>
              try (do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.' `B.cons` s2b ds `B.append` e) }) <|>
              try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.append` e) })
-     return $! (s2b sign `B.append` rest)
+     return $! B.pack $ show (read (B.unpack $ s2b sign `B.append` rest) :: Double)
 
 sign_parser :: GenParser Char ParseState String
 sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[]))) 
