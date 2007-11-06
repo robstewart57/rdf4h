@@ -1,4 +1,4 @@
-module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl),
+module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
             BaseUrl(BaseUrl),
             Triple, triple, Triples,sortTriples,
             Node(UNode, BNode, BNodeGen, LNode),
@@ -40,21 +40,24 @@ type Object = Node
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class Graph gr where
 
-  -- |Answer the base URL of this graph, if any.
+  -- |Return the base URL of this graph, if any.
   baseUrl :: gr -> Maybe BaseUrl
 
-  -- |Answer an empty graph.
+  -- |Return the prefix mappings defined for this graph, if any.
+  prefixMappings :: gr -> PrefixMappings
+
+  -- |Return an empty graph.
   empty  :: gr
 
-  -- |Answer a graph containing all the given triples. Duplicate triples
+  -- |Return a graph containing all the given triples. Duplicate triples
   -- are permitted in the input, but the resultant graph will contains only 
   -- unique triples.
   mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO gr
 
-  -- |Answer a list of all triples in the graph.
+  -- |Return all triples in the graph, as a list.
   triplesOf :: gr -> Triples
 
-  -- |Answer the triples in the graph that match the given selectors.
+  -- |Select the triples in the graph that match the given selectors.
   -- 
   -- The three NodeSelector parameters are optional functions that match
   -- the respective subject, predicate, and object of a triple. The triples
@@ -76,7 +79,7 @@ class Graph gr where
   -- particular graph implementation for more information.
   select    :: gr -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 
-  -- |Answer the triples in the graph that match the given pattern, where
+  -- |Return the triples in the graph that match the given pattern, where
   -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
   -- 
   -- The @Maybe Node@ params are interpreted as the subject, predicate, and
