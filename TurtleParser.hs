@@ -397,7 +397,7 @@ t_decimal =
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
              <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
-     return $! s2b sign `B.append` s2b rest
+     return $ s2b $ show (read (B.unpack $ s2b sign `B.append` s2b rest) :: Double)
      
 t_exponent :: GenParser Char ParseState ByteString
 t_exponent = do e <- oneOf "eE"
