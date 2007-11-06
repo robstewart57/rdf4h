@@ -34,12 +34,16 @@ import Namespace
 newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
 
 instance Graph TriplesGraph where
-  baseUrl      = baseUrl'
-  empty        = empty'
-  mkGraph      = mkGraph'
-  triplesOf    = triplesOf'
-  select       = select'
-  query        = query'
+  baseUrl         = baseUrl'
+  prefixMappings  = prefixMappings'
+  empty           = empty'
+  mkGraph         = mkGraph'
+  triplesOf       = triplesOf'
+  select          = select'
+  query           = query'
+
+prefixMappings' :: TriplesGraph -> PrefixMappings
+prefixMappings' (TriplesGraph (_, _, pms)) = pms
 
 baseUrl' :: TriplesGraph -> Maybe BaseUrl
 baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
