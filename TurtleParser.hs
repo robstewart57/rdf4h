@@ -735,8 +735,9 @@ isOBlankPOList :: Object -> Bool
 isOBlankPOList (O_Blank (B_POList _ _))       = True
 isOBlankPOList _                              = False
 
+
 ------------------------------------------------------------------
--- The various parse method that the module exposes externally. --
+-- The various parse methods that the module exposes externally. --
 ------------------------------------------------------------------
 
 -- |Parse the given string as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
