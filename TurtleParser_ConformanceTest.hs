@@ -14,7 +14,6 @@ import qualified Data.ByteString.Char8 as B
 
 main :: IO ()
 main = runAllCTests >>= putStrLn . show
---main = test True 14
 
 -- The Base URI to be used for all conformance tests:
 testBaseUri :: String
@@ -50,24 +49,53 @@ checkBadConformanceTest i =
     return $ T.TestCase t
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
+-- First graph is expected graph, second graph is actual.
 equivalent :: Graph gr => Either ParseFailure gr -> Either ParseFailure gr -> Maybe String
 equivalent (Left _) _                = Nothing
 equivalent _        (Left _)         = Nothing
 equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
   where
-    gr1ts = ordered $! map force $! triplesOf $! gr1
-    gr2ts = ordered $! triplesOf $! gr2
-    force :: Triple -> Triple
-    force !t = t
+    gr1ts = ordered $ triplesOf $ gr1
+    gr2ts = ordered $ triplesOf $ gr2
     test []           = Nothing
     test ((t1,t2):ts) = 
-      case compare t1 t2 of
+      case compareTriple t1 t2 of
         Nothing -> test ts
         err     -> err
-    compare t1 t2 = if t1 == t2 then Nothing else Just ("[" ++ show t1 ++ "]\n[" ++ show t2 ++ "]")
+    compareTriple t1 t2 = 
+      if equalNodes s1 s2 && equalNodes p1 p2 && equalNodes o1 o2
+        then Nothing 
+        else Just ("Expected:\n  " ++ show t1 ++ "\nFound:\n  " ++ show t2 ++ "\n")
+      where
+        (s1, p1, o1) = f t1
+        (s2, p2, o2) = f t2
+        f t = (subjectOf t, predicateOf t, objectOf t)
+    equalNodes (BNode fs1) (BNodeGen i) = B.reverse (value fs1) == s2b ("_:genid" ++ show i)
+    equalNodes n1          n2           = n1 == n2
     
+-- Returns a graph for a good ttl test that is intended to pass, and normalizes
+-- triples into a format so that they can be compared with the expected output triples.
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-input name n = readFile (fpath name n "ttl") >>=   parseString mtestBaseUri (testBaseUri ++ name)
+input name n = 
+  readFile (fpath name n "ttl") >>=  
+    parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>=
+    \res -> case res of
+              l@(Left _)  -> return l
+              (Right gr)  -> mapM normalize (triplesOf gr) >>= \ts ->
+                               (mkGraph ts (baseUrl gr) (prefixMappings gr)) >>=
+                               return . Right
+  where 
+    normalize :: Triple -> IO Triple
+    normalize t =
+      do s' <- normalizeN s
+         p' <- normalizeN p
+         o' <- normalizeN o
+         return (triple s' p' o')
+      where
+        (s, p, o) = (subjectOf t, predicateOf t, objectOf t)
+    normalizeN :: Node -> IO Node
+    normalizeN (BNodeGen i) = mkFastString (s2b $ "_:genid" ++ show i) >>= return . BNode
+    normalizeN n            = return n
 
 expected :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 expected name n = readFile (fpath name n "out") >>= NT.parseString
@@ -91,8 +119,16 @@ _test testGood testNum = readFile fpath >>= f
     fname = printf "%s-%02d.ttl" name testNum :: String
     fpath = "data/ttl/conformance/" ++ fname
     name = if testGood then "test" else "bad" :: String
-    f s = do result <- parseString mtestBaseUri (testBaseUri ++ fname) s
+    docUrl = mkDocUrl testBaseUri name testNum
+    f s = do result <- parseString mtestBaseUri docUrl s
              case result of
                (Left err) -> putStrLn $ "ERROR:" ++ show err
-               (Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::TriplesGraph))) ++ " triples"
-               --(Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
+               --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::TriplesGraph))) ++ " triples"
+               (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
+
+mkDocUrl :: String -> String -> Int -> String
+mkDocUrl baseDocUrl fname testNum = printf "%s%s-%02d.ttl" baseDocUrl fname testNum
+
+doTest :: Bool -> Int -> IO (T.Counts, Int)
+doTest True  testNum = checkGoodConformanceTest testNum  >>= T.runTestText (T.putTextToHandle stdout True)
+doTest False testNum = checkBadConformanceTest  testNum  >>= T.runTestText (T.putTextToHandle stdout True)
