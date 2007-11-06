@@ -374,7 +374,8 @@ t_integer =
   do sign <- sign_parser <?> "+-"
      ds <- many1 digit   <?> "digit"
      notFollowedBy (char '.')
-     return $! (s2b sign `B.append` s2b ds)
+     -- integer must be in canonical format, with no leading plus sign or leading zero
+     return $! (s2b $ show $ (read (sign ++ ds) :: Integer))
 
 t_double :: GenParser Char ParseState ByteString
 t_double =
