@@ -1,5 +1,5 @@
 
-all: haddock
+all: build
 
 clean:
 	runhaskell Setup.hs clean
