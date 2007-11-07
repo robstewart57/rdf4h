@@ -23,7 +23,7 @@ flag small_base
   description: Choose the new smaller, split-up base package.
 
 library
-  exposed-modules: RDF, Namespace, AvlGraph, TriplesGraph, NTriplesParser, TurtleParser
+  exposed-modules: RDF, Namespace, MGraph, TriplesGraph, NTriplesParser, TurtleParser
   if flag(small_base)
     build-depends: base >= 3, bytestring, directory, containers
   else
@@ -51,5 +51,5 @@ executable ttlparse
   else
     build-depends: base < 3, parsec
   hs-source-dirs:  .
-  other-modules:   RDF, AvlGraph
+  other-modules:   RDF, MGraph
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures

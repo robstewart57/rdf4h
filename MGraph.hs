@@ -1,5 +1,5 @@
--- |"AvlGraph" contains a graph implementation backed by a 'Data.Map.AVL'.
-module AvlGraph(AvlGraph,
+-- |"MGraph" contains a graph implementation backed by a 'Data.Map'.
+module MGraph(MGraph,
                 empty, mkGraph, triplesOf, select, query)
 
 where
@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 
 import Data.List
 
--- |An AVL map-based graph implementation.
+-- |A map-based graph implementation.
 --
 -- Worst-case time complexity of the graph functions, with respect
 -- to the number of triples, are:
@@ -29,9 +29,9 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype AvlGraph = AvlGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
+newtype MGraph = MGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
 
-instance Graph AvlGraph where
+instance Graph MGraph where
   baseUrl         = baseUrl'
   prefixMappings  = prefixMappings'
   empty           = empty'
@@ -50,17 +50,17 @@ type AdjacencyMap = Map Predicate Adjacencies
 type Adjacencies = Set Object
 type SPOMap    = Map Subject AdjacencyMap
 
-baseUrl' :: AvlGraph -> Maybe BaseUrl
-baseUrl' (AvlGraph (_, baseUrl, _)) = baseUrl
+baseUrl' :: MGraph -> Maybe BaseUrl
+baseUrl' (MGraph (_, baseUrl, _)) = baseUrl
 
-prefixMappings' :: AvlGraph -> PrefixMappings
-prefixMappings' (AvlGraph (_, _, pms)) = pms
+prefixMappings' :: MGraph -> PrefixMappings
+prefixMappings' (MGraph (_, _, pms)) = pms
 
-empty' :: AvlGraph 
-empty' = AvlGraph (Map.empty, Nothing, Map.empty)
+empty' :: MGraph 
+empty' = MGraph (Map.empty, Nothing, Map.empty)
 
-mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO AvlGraph
-mkGraph' ts baseUrl pms = return $ AvlGraph ((mergeTs Map.empty ts), baseUrl, pms)
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO MGraph
+mkGraph' ts baseUrl pms = return $ MGraph ((mergeTs Map.empty ts), baseUrl, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT
@@ -89,8 +89,8 @@ mergeT' m s p o =
     get = Map.findWithDefault undefined
     
 -- 3 following functions support triplesOf
-triplesOf' :: AvlGraph -> Triples
-triplesOf' (AvlGraph (spoMap, _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' :: MGraph -> Triples
+triplesOf' (MGraph (spoMap, _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = Map.toList spoMap
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
@@ -101,8 +101,8 @@ tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
 tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
-select' :: AvlGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (AvlGraph (spoMap,_,_)) subjFn predFn objFn = 
+select' :: MGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' (MGraph (spoMap,_,_)) subjFn predFn objFn = 
   map (\(s,p,o) -> triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
@@ -131,8 +131,8 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 
 -- support query
-query' :: AvlGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
-query' (AvlGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
+query' :: MGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
+query' (MGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
   where f (s, p, o) = triple s p o
 {-
 subj1 -> pred1 -> obj1, obj2, obj3
