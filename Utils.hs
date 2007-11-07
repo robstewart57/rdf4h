@@ -9,11 +9,8 @@ import qualified Data.ByteString.Char8 as B
 import Text.Printf(printf)
 import System.IO.Unsafe(unsafePerformIO)
 import Control.Monad
-import Data.HashTable(HashTable)
-import qualified Data.HashTable as HT
-import Data.Int(Int32, Int64)
-import Data.Char(ord)
-import Data.Bits(shiftR)
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Data.IORef
 
 -- |'FastString' is a bytestring-based string type that provides constant-time equality
@@ -71,35 +68,9 @@ s2b = B.pack
 fsCounter :: IORef Int
 fsCounter = unsafePerformIO $ newIORef 0
 
-{-# NOINLINE fsTable #-}
-fsTable :: HashTable ByteString FastString
-fsTable = unsafePerformIO $ HT.new (==) _hashByteString1
-
--- This hashfunction is the djb2 hashFunction.
-{-# INLINE _hashByteString1 #-}
-_hashByteString1 :: ByteString -> Int32
-_hashByteString1 = fromIntegral . B.foldl' djb2 (5381 :: Int)
-  where djb2     ::  Int -> Char -> Int
-        djb2 h c  =  (h * 33) + ord c
-
--- This hashfunction is adapted for bytestring but otherwise copied from Data.HashTable.
--- The above much simpler function is faster and doesn't seem to have problems 
--- with too many collisions, so we're using that one for now.
-{-# INLINE _hashByteString2 #-}
-_hashByteString2 :: ByteString -> Int32
-_hashByteString2 = B.foldl' f 0
-  where f m c = fromIntegral (ord c) + _mulHi m _golden
-
-{-# INLINE _golden #-}
-_golden :: Int32
-_golden =  -1640531527
-
-{-# INLINE _mulHi #-}
--- hi 32 bits of a x-bit * 32 bit -> 64-bit multiply
-_mulHi :: Int32 -> Int32 -> Int32
-_mulHi a b = fromIntegral (r `shiftR` 32)
-  where r :: Int64
-        r = fromIntegral a * fromIntegral b :: Int64
+{-# NOINLINE fsMap #-}
+fsMap :: IORef (Map ByteString FastString)
+fsMap = unsafePerformIO $ newIORef Map.empty
 
 -- |Return a 'FastString' value for the given 'ByteString', reusing a 'FastString'
 -- if one has been created for equal bytestrings, or creating a new one if necessary.
@@ -112,17 +83,15 @@ _mulHi a b = fromIntegral (r `shiftR` 32)
 -- different executions.
 {-# NOINLINE mkFastString #-}
 mkFastString :: ByteString -> FastString
-mkFastString !bs = unsafePerformIO $ mkFastString' fsTable bs
-
-{-# INLINE mkFastString' #-}
-mkFastString' :: HashTable ByteString FastString -> ByteString -> IO FastString
-mkFastString' fst str =
-  do res <- HT.lookup fst str
-     case res of
-       Nothing   -> do fs <- newFastString str
-                       HT.insert fst str fs
-                       return $! fs
-       (Just fs)  -> return $! fs
+mkFastString !bs = 
+  unsafePerformIO $ 
+  do m <- readIORef fsMap
+     let mFs = Map.lookup bs m
+     case mFs of
+       Just fs  -> return fs
+       Nothing  -> newFastString bs >>= \fs -> 
+                     writeIORef fsMap (Map.insert bs fs m) >> 
+                     return fs
 
 {-# INLINE newFastString #-}
 newFastString ::  ByteString -> IO FastString
