@@ -77,28 +77,23 @@ equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
 -- triples into a format so that they can be compared with the expected output triples.
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 input name n = 
-  readFile (fpath name n "ttl") >>=  
-    parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>=
-    \res -> case res of
-              l@(Left _)  -> return l
-              (Right gr)  -> mapM normalize (triplesOf gr) >>= \ts ->
-                               (mkGraph ts (baseUrl gr) (prefixMappings gr)) >>=
-                               return . Right
+  readFile (fpath name n "ttl") >>=
+    return .  parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>= \res ->
+    case res of
+      l@(Left _)  -> return l
+      (Right gr)  -> return . Right $ mkGraph (map normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
   where 
-    normalize :: Triple -> IO Triple
-    normalize t =
-      do s' <- normalizeN s
-         p' <- normalizeN p
-         o' <- normalizeN o
-         return (triple s' p' o')
-      where
-        (s, p, o) = (subjectOf t, predicateOf t, objectOf t)
-    normalizeN :: Node -> IO Node
-    normalizeN (BNodeGen i) = mkFastString (s2b $ "_:genid" ++ show i) >>= return . BNode
-    normalizeN n            = return n
+    normalize :: Triple -> Triple
+    normalize t = let s' = normalizeN $ subjectOf t
+                      p' = normalizeN $ predicateOf t
+                      o' = normalizeN $ objectOf t
+                  in  triple s' p' o'
+    normalizeN :: Node -> Node
+    normalizeN (BNodeGen i) = BNode $ mkFastString (s2b $ "_:genid" ++ show i)
+    normalizeN n            = n
 
 expected :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-expected name n = readFile (fpath name n "out") >>= NT.parseString
+expected name n = readFile (fpath name n "out") >>= return . NT.parseString
 
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left err) = T.assertFailure $ idStr  ++ show err
@@ -120,10 +115,9 @@ _test testGood testNum = readFile fpath >>= f
     fpath = "data/ttl/conformance/" ++ fname
     name = if testGood then "test" else "bad" :: String
     docUrl = mkDocUrl testBaseUri name testNum
-    f s = do result <- parseString mtestBaseUri docUrl s
-             case result of
+    f s = let result = parseString mtestBaseUri docUrl s
+          in case result of
                (Left err) -> putStrLn $ "ERROR:" ++ show err
-               --(Right gr) -> putStrLn $ "Loaded " ++ show (length (triplesOf (gr::TriplesGraph))) ++ " triples"
                (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
 
 mkDocUrl :: String -> String -> Int -> String
