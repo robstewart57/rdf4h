@@ -191,8 +191,8 @@ convertStatements :: Maybe BaseUrl -> Maybe ByteString -> [Maybe Statement] -> I
 convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
   where 
     f :: (Triples, Maybe BaseUrl, PrefixMappings) -> [Maybe Statement] ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
-    f !tup                   []                  = return tup
-    f !tup                   (Nothing:stmts)     = f tup stmts
+    f  tup                   []                  = return tup
+    f  tup                   (Nothing:stmts)     = f tup stmts
     f (ts, currBaseUrl, pms) ((Just stmt):stmts) =
       case stmt of
         (S_Directive (D_PrefixId (pre, frag))) -> f (ts, currBaseUrl, Map.insert pre (absolutizeUrl currBaseUrl docUrl frag) pms) stmts
@@ -200,7 +200,7 @@ convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
         (S_Triples strips)                     -> do (new_ts, new_baseUrl, newPms) <- process_ts (currBaseUrl, pms) strips
                                                      f (new_ts ++ ts, new_baseUrl, newPms) stmts
     process_ts :: (Maybe BaseUrl, PrefixMappings) -> (Resource, [(Resource, [Object])])  ->  IO (Triples, Maybe BaseUrl, PrefixMappings)
-    process_ts (!bUrl, !pms) (!subj, !poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
+    process_ts (bUrl, pms) (subj, poLists) = convertPOLists bUrl docUrl pms (subj, poLists) >>= \ts -> return $! (ts, bUrl, pms)
 
 -- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
 absolutizeUrl :: Maybe BaseUrl -> Maybe ByteString -> ByteString -> ByteString
