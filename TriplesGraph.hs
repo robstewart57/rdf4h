@@ -52,8 +52,8 @@ baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, Map.empty)
 
-mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO TriplesGraph
-mkGraph' ts baseUrl pms = return . TriplesGraph $! (dupeFreeTs, baseUrl, pms)
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
+mkGraph' ts baseUrl pms = TriplesGraph $! (dupeFreeTs, baseUrl, pms)
   where dupeFreeTs = nub . sort $! ts
 
 triplesOf' :: TriplesGraph -> Triples

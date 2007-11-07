@@ -59,8 +59,8 @@ prefixMappings' (MGraph (_, _, pms)) = pms
 empty' :: MGraph 
 empty' = MGraph (Map.empty, Nothing, Map.empty)
 
-mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO MGraph
-mkGraph' ts baseUrl pms = return $ MGraph ((mergeTs Map.empty ts), baseUrl, pms)
+mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
+mkGraph' ts baseUrl pms = MGraph ((mergeTs Map.empty ts), baseUrl, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT

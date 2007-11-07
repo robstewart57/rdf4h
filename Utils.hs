@@ -110,13 +110,13 @@ _mulHi a b = fromIntegral (r `shiftR` 32)
 -- The unique identifier is only for the given session, and equal 'ByteString' values
 -- will generally not be assigned the same identifier under different processes and
 -- different executions.
-{-# INLINE mkFastString #-}
-mkFastString :: ByteString -> IO FastString
-mkFastString = mkFastString' fsTable
+{-# NOINLINE mkFastString #-}
+mkFastString :: ByteString -> FastString
+mkFastString !bs = unsafePerformIO $ mkFastString' fsTable bs
 
 {-# INLINE mkFastString' #-}
 mkFastString' :: HashTable ByteString FastString -> ByteString -> IO FastString
-mkFastString' !fst !str =
+mkFastString' fst str =
   do res <- HT.lookup fst str
      case res of
        Nothing   -> do fs <- newFastString str

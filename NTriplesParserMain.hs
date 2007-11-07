@@ -4,6 +4,7 @@ import RDF
 import TriplesGraph
 
 -- |A simple main that just dumps the triples to stdout. Will add more later.
+main :: IO ()
 main = 
   getArgs >>= \t -> (parseFile $ head t) >>= \res ->
     case (res) of

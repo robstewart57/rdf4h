@@ -52,7 +52,7 @@ class Graph gr where
   -- |Return a graph containing all the given triples. Duplicate triples
   -- are permitted in the input, but the resultant graph will contains only 
   -- unique triples.
-  mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> IO gr
+  mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> gr
 
   -- |Return all triples in the graph, as a list.
   triplesOf :: gr -> Triples
@@ -323,36 +323,36 @@ isLNode _         = False
 
 -- |A convenience function for creating a UNode for the given String URI.
 {-# INLINE unode #-}
-unode :: ByteString -> IO Node
-unode = liftM UNode . mkFastString
+unode :: ByteString -> Node
+unode = UNode . mkFastString
 
 -- |A convenience function for creating a BNode for the given string id.
 {-# INLINE bnode #-}
-bnode :: ByteString -> IO Node
-bnode = liftM BNode . mkFastString
+bnode :: ByteString ->  Node
+bnode = BNode . mkFastString
 
 -- |A convenience function for creating an LNode for the given LValue.
 {-# INLINE lnode #-}
-lnode :: LValue -> IO Node
-lnode = return . LNode
+lnode :: LValue ->  Node
+lnode = LNode
 
 -- |A convenience function for creating a PlainL LValue for the given
 -- string value.
 {-# INLINE plainL #-}
-plainL :: String -> IO LValue
-plainL = return . PlainL . s2b
+plainL :: String -> LValue
+plainL =  PlainL . s2b
 
 -- |A convenience function for creating a PlainLL LValue for the given
 -- string value and language, respectively.
 {-# INLINE plainLL #-}
-plainLL :: String -> String -> IO LValue
-plainLL val lang = return $ PlainLL (s2b val) (s2b lang)
+plainLL :: String -> String -> LValue
+plainLL val lang = PlainLL (s2b val) (s2b lang)
 
 -- |A convenience function for creating a TypedL LValue for the given
 -- string value and datatype URI, respectively.
 {-# INLINE typedL #-}
-typedL :: String -> String -> IO LValue
-typedL val dtype = liftM (TypedL $ s2b val) . mkFastString . s2b $ dtype
+typedL :: String -> String -> LValue
+typedL val dtype =  (TypedL $ s2b val) . mkFastString . s2b $ dtype
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.
