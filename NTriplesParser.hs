@@ -8,12 +8,12 @@ recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 -}
 
-module NTriplesParser (parseFile, parseURL, parseString, ParseFailure) where
+module NTriplesParser (parseFile, {-parseURL,-} parseString, ParseFailure) where
 
 import RDF
 import Namespace
-import ParserUtils
-import qualified Data.Map.AVL as Map
+import ParserUtils()
+import qualified Data.Map as Map
 import Text.ParserCombinators.Parsec
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -244,10 +244,12 @@ inner_string   =
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
 parseFile path = parseFromFile nt_ntripleDoc path >>= handleParse mkGraph
 
+{- Broken until dev-haskell/http and dev-haskell/http-simple are updated.
 -- |Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL url = _parseURL parseString url
+-}
 
 -- |Parse the given string as an N-Triples document, 
 -- generating a graph containing the parsed triples.

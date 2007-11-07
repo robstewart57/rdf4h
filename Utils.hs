@@ -11,8 +11,6 @@ import System.IO.Unsafe(unsafePerformIO)
 import Control.Monad
 import Data.HashTable(HashTable)
 import qualified Data.HashTable as HT
-import Data.Map.AVL(Map)
-import qualified Data.Map.AVL as M
 import Data.Int(Int32, Int64)
 import Data.Char(ord)
 import Data.Bits(shiftR)

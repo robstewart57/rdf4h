@@ -4,7 +4,7 @@ module TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
 
-import qualified Data.Map.AVL as Map
+import qualified Data.Map as Map
 --import qualified Data.Set.AVL as Set
 
 import Data.List

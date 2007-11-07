@@ -13,9 +13,9 @@ module TurtleParser where
 import RDF hiding (Object)
 import Utils
 import Namespace
-import ParserUtils
+import ParserUtils()
 import Text.ParserCombinators.Parsec
-import qualified Data.Map.AVL as Map
+import qualified Data.Map as Map
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
@@ -757,6 +757,7 @@ parseFile bUrl docUrl fpath =
   readFile fpath >>= \str -> handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
   where initialState = (bUrl, Just (s2b docUrl), 1, Map.empty, Nothing, Nothing, [])
 
+{- Broken until dev-haskell/http and dev-haskell/http-simple are updated.
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
 -- as the base URL, if present, and using the given document URL as the URL of the Turtle document. The
 -- document URL is for the purpose of resolving references to 'this document' within the document, and
@@ -765,6 +766,7 @@ parseFile bUrl docUrl fpath =
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
+-}
 
 handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (IO (Triples, PrefixMappings)) -> IO (Either ParseFailure gr)
 handleResult !bUrl !result =

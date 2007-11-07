@@ -7,11 +7,11 @@ where
 import RDF
 import Namespace
 
-import Data.Map.AVL (Map)
-import qualified Data.Map.AVL as Map
+import Data.Map(Map)
+import qualified Data.Map as Map
 
-import Data.Set.AVL (Set)
-import qualified Data.Set.AVL as Set
+import Data.Set(Set)
+import qualified Data.Set as Set
 
 import Data.List
 

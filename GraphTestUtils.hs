@@ -9,7 +9,7 @@ import RDF
 
 import Data.Char
 import Data.List
-import qualified Data.Set.AVL as S
+import qualified Data.Set as S
 import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)
 
