@@ -135,13 +135,9 @@ data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !N
 triple :: Subject -> Predicate -> Object -> Triple
 triple subj pred obj 
   | isLNode subj     =  error $ "subject must be UNode or BNode: " ++ show subj
-  | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred ++ debug pred
   | isLNode pred     =  error $ "predicate must be UNode, not LNode: " ++ show pred
+  | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred
   | otherwise        =  Triple subj pred obj
-  where debug (UNode _)    = " [UNode]"
-        debug (BNode _)    = " [BNode]"
-        debug (BNodeGen _) = " [BNodeGen]"
-        debug (LNode _)    = " [LNode]"
 
 -- |The actual value of an RDF literal, represented as the 'LValue'
 -- parameter of an 'LNode'.
