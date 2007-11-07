@@ -278,28 +278,27 @@ convertObjectListItem !bUrl !docUrl !pms !subj !pred !obj
                                   i1s = convertObjectListItem bUrl docUrl pms (R_Blank (B_BlankGen i')) pred obj
                                   i2s = map (convertPOListItem bUrl docUrl pms (R_Blank (B_BlankGen i'))) polist'
                               in (i1s ++ concat i2s)
-  | isOLiteral        obj   = makeTriple' lnode
-  | isOResource       obj   = makeTriple' objNode
-  | isOBlankBNode     obj   = makeTriple' bIdNode
-  | isOBlankBNodeGen  obj   = makeTriple' bGenIdNode
+  | isOLiteral        obj   = [makeTriple lnode]
+  | isOResource       obj   = [makeTriple objNode]
+  | isOBlankBNode     obj   = [makeTriple bIdNode]
+  | isOBlankBNodeGen  obj   = [makeTriple bGenIdNode]
   | isOBlankBNodeColl obj   = convertColl bUrl pms subj pred ocoll
   -- if object is a POList, then we create a bnode to use as the object in a triple and cons
   -- that triple onto the triples that represent the POList, each of which has the same bnode
   -- as the subject.
   | isOBlankPOList    obj   = let ts = convertPOLists bUrl docUrl pms (R_Blank opol, pol)
-                                  ts' = makeTriple' bObjPolGenNode
-                              in (ts' ++ ts)
+                                  ts' = makeTriple bObjPolGenNode
+                              in (ts' : ts)
   | otherwise                = error $ "Unexpected case: " ++ show obj
   where 
     makeTriple :: Node -> Triple
     makeTriple   o                        = triple subjNode predNode o
-    makeTriple'  t                        = [makeTriple t]
     subjNode                              = uriRefQNameOrBlank bUrl pms subj
-    predNode                              = uriRefQNameOrBlank bUrl pms pred
+    predNode                              = uriRefOrQName bUrl pms pred
     objNode                               = uriRefQNameOrBlank bUrl pms res
-    bIdNode                               = BNode $ mkFastString bId
-    bGenIdNode                            = (BNodeGen $! bGenId)
-    bObjPolGenNode                        = (BNodeGen $! poObjId)
+    bIdNode                               = BNode (mkFastString bId)
+    bGenIdNode                            = BNodeGen bGenId
+    bObjPolGenNode                        = BNodeGen poObjId
     (O_Literal lnode)                     = obj
     (O_Resource res)                      = obj
     (O_Blank (B_BlankId bId))             = obj
@@ -318,7 +317,6 @@ t_predicateObjectList =
                ol' <- many1 t_ws >> t_objectList
                return (v', ol'))
      return ((v1,ol1):ol_rest) <?> "predicateObjectList"
-     --(mapM (\(res, objs) -> res >>= \r -> objs >>= \os -> return (r,os)) (((v1, ol1):ol_rest))) <?> "predicateObjectList"
 
 t_comment :: GenParser Char ParseState Char
 t_comment = 
@@ -330,9 +328,9 @@ t_subject =
   (t_blank >>=  return . conv) <?> "blank"
   where 
     conv :: Blank -> Resource
-    conv !(B_Collection !_)   = error "Blank Collection not permitted as Subject"
-    conv !(B_POList !i !pol)  = (R_Blank $! (B_POList i pol))
-    conv !blank               = (R_Blank $! blank)
+    conv (B_Collection _)  = error "Blank Collection not permitted as Subject"
+    conv (B_POList i pol)  = (R_Blank $! (B_POList i pol))
+    conv blank             = (R_Blank $! blank)
 
 t_predicate :: GenParser Char ParseState (Resource)
 t_predicate = t_resource <?> "resource"
@@ -413,7 +411,7 @@ t_boolean = try ((string "true" >> return trueBs) <|> (string "false" >> return 
 t_blank :: GenParser Char ParseState (Blank)
 t_blank = 
   (try t_nodeID >>= return . B_BlankId)  <|>
-  try (do string "[]"; (bUrl,dUrl,n,pms,_s,_p,_ts) <- getState; setState (bUrl,dUrl,n+1,pms,_s,_p,_ts); return (B_BlankGen $! n)) <|>
+  try (do string "[]"; (bUrl,dUrl,n,pms,_s,_p,_ts) <- getState; setState (bUrl,dUrl,n+1,pms,_s,_p,_ts); return (B_BlankGen n)) <|>
   try (do char '['; poList <- predObjList; (bUrl,dUrl,n,pms,_s,_p,_ts) <- getState; setState (bUrl,dUrl,n+1,pms,_s,_p,_ts); char ']'; return (B_POList n poList)) <|>
   do objs <- t_collection
      let len = length objs
@@ -525,7 +523,7 @@ t_qname =
      return (R_QName pre name)
 
 t_uriref :: GenParser Char ParseState (Resource)
-t_uriref = between (char '<') (char '>') t_relativeURI >>= \uri -> return $! (R_URIRef $! uri)
+t_uriref = between (char '<') (char '>') t_relativeURI >>= \uri -> return (R_URIRef uri)
 
 t_language  :: GenParser Char ParseState ByteString
 t_language = 
@@ -700,7 +698,7 @@ newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: ByteString -> Bool
-isAbsoluteUri !b = B.elem ':' b
+isAbsoluteUri b = B.elem ':' b
 
 {-# INLINE isBNodeListSubject #-}
 isBNodeListSubject :: Resource -> Bool
