@@ -133,12 +133,6 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 query' :: MGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
 query' (MGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
   where f (s, p, o) = triple s p o
-{-
-subj1 -> pred1 -> obj1, obj2, obj3
-         pred2 -> obj1, obj4
-subj2 -> pred1 -> obj3, obj5
-         pred3 -> obj6, obj7
--}
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> SPOMap -> Set (Node, Node, Node)
 q1 (Just s) p o spoMap = q2 p o (s, Map.findWithDefault Map.empty s spoMap)
