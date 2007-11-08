@@ -64,7 +64,7 @@ character 	::= 	[#x20-#x7E] /* US-ASCII space to decimal 126 */
 nt_ntripleDoc :: GenParser Char st ([Maybe Triple], Maybe BaseUrl, PrefixMappings)
 nt_ntripleDoc = 
   many nt_line >>= \lines ->
-  return (lines, Nothing, Map.empty)
+  return (lines, Nothing, PrefixMappings Map.empty)
 
 -- |nt_line is optional whitespace followed by either a comment, a triple, or 
 -- empty. The 'empty' option is a simple deviation from the EBNF grammar

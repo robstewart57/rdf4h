@@ -1,5 +1,5 @@
 module Namespace(Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
-                 PrefixMapping, PrefixMappings,
+                 PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings),
                  makeUri,
                  prefixOf, uriOf,
                  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
@@ -16,40 +16,50 @@ p = B.pack
 -- |The RDF namespace.
 rdf  :: Namespace
 rdf   =   makePrefixedNS' "rdf" "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+
 -- |The RDF Schema namespace.
 rdfs :: Namespace
 rdfs  =   makePrefixedNS'  "rdfs"  "http://www.w3.org/2000/01/rdf-schema#"
+
 -- |The Dublic Core namespace.
 dc   :: Namespace
 dc    =   makePrefixedNS'  "dc"    "http://purl.org/dc/elements/1.1/"
+
 -- |The Dublin Core terms namespace.
 dct  :: Namespace
 dct   =   makePrefixedNS'  "dct"    "http://purl.org/dc/terms/"
+
 -- |The OWL namespace.
 owl  :: Namespace
 owl   =   makePrefixedNS'  "owl"   "http://www.w3.org/2002/07/owl#"
+
 -- |The XML Schema namespace.
 xsd  :: Namespace
 xsd   =   makePrefixedNS'  "xsd"   "http://www.w3.org/2001/XMLSchema#"
+
 -- |The SKOS namespace.
 skos :: Namespace
 skos  =   makePrefixedNS'  "skos"  "http://www.w3.org/2004/02/skos/core#"
+
 -- |The friend of a friend namespace.
 foaf :: Namespace
 foaf  =   makePrefixedNS'  "foaf"  "http://xmlns.com/foaf/0.1/"
+
 -- |Example namespace #1.
 ex   :: Namespace
 ex    =   makePrefixedNS'  "ex"    "http://www.example.org/"
+
 -- |Example namespace #2.
 ex2  :: Namespace
 ex2   =   makePrefixedNS'  "ex2"   "http://www2.example.org/"
 
 -- |An alias for a set of prefix mappings.
-type PrefixMappings   = Map ByteString ByteString
+newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
+  deriving (Eq, Ord, Show)
 
 -- |A mapping of a prefix to the URI for that prefix.
-type PrefixMapping = (ByteString, ByteString)
-
+newtype PrefixMapping = PrefixMapping (ByteString, ByteString)
+  deriving (Eq, Ord, Show)
 
 -- |Make a URI consisting of the given namespace and the given localname.
 makeUri :: Namespace -> ByteString -> ByteString
@@ -75,8 +85,6 @@ makePrefixedNS    =  PrefixedNS
 makePrefixedNS' :: String -> String -> Namespace
 makePrefixedNS' s1 s2 = makePrefixedNS (p s1) (p s2)
 
-
-
 instance Eq Namespace where
   (PrefixedNS _ u1) == (PrefixedNS _ u2)  = u1 == u2
   (PlainNS      u1) == (PlainNS      u2)  = u1 == u2
@@ -91,6 +99,7 @@ instance Show Namespace where
 uriOf     ::  Namespace -> ByteString
 uriOf    (PlainNS      uri)  = uri
 uriOf    (PrefixedNS _ uri)  = uri
+
 -- |Determine the prefix of the given namespace, if it has one.
 prefixOf  ::  Namespace -> Maybe ByteString
 prefixOf (PlainNS      _)    = Nothing

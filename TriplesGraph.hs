@@ -50,7 +50,7 @@ baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 
 {-# NOINLINE empty' #-}
 empty' :: TriplesGraph
-empty' = TriplesGraph ([], Nothing, Map.empty)
+empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
 mkGraph' ts baseUrl pms = TriplesGraph $! (dupeFreeTs, baseUrl, pms)

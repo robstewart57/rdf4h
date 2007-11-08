@@ -1,19 +1,29 @@
 module GraphTestUtils where
 
 import RDF
---import Namespace
---import System.Random
---import Data.ByteString.Char8(ByteString)
---import qualified Data.ByteString.Char8 as B
---import Test.QuickCheck
+import Namespace
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
+import Test.QuickCheck
 
 import Data.Char
 import Data.List
-import qualified Data.Set as S
+import qualified Data.Set as Set
+--import Data.Map(Map)
+import qualified Data.Map as Map
 import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)
 
-{-
+
+instance Arbitrary BaseUrl where
+  arbitrary = oneof $ map (return . BaseUrl . s2b) ["http://example.com/a", "http://asdf.org/b"]
+  coarbitrary = undefined
+
+instance Arbitrary PrefixMappings where
+  arbitrary = oneof $ [return $ PrefixMappings Map.empty, return $ PrefixMappings $
+                          Map.fromAscList [(s2b "eg1", s2b "http://example.com/1"),
+                                        (s2b "eg2", s2b "http://example.com/2")]]
+  coarbitrary = undefined
 
 -- Test stubs, which just require the appropriate graph impl function
 -- passed in to determine the graph implementation to be tested.
@@ -22,27 +32,26 @@ import System.IO.Unsafe(unsafePerformIO)
 p_empty :: Graph g => (g -> Triples) -> g -> Bool
 p_empty _triplesOf _empty = _triplesOf _empty == []
 
-
 -- triplesOf any graph should return unique triples used to create it
-p_mkGraph_triplesOf :: Graph g => (g -> Triples) -> (Triples -> g) -> Triples -> Bool
-p_mkGraph_triplesOf _triplesOf _mkGraph ts = 
-  ordered (_triplesOf (_mkGraph ts)) == uordered ts
+p_mkGraph_triplesOf :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_mkGraph_triplesOf _triplesOf _mkGraph ts bUrl pms = 
+  ordered (_triplesOf (_mkGraph ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned
-p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> g) -> Triples -> Bool
-p_mkGraph_no_dupes _triplesOf _mkGraph ts = 
+p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_mkGraph_no_dupes _triplesOf _mkGraph ts bUrl pms = 
   case null ts of
     True  -> True
     False -> ordered result == uordered ts
   where 
     tsWithDupe = head ts : ts
-    result = _triplesOf $ _mkGraph tsWithDupe
+    result = _triplesOf $ _mkGraph tsWithDupe bUrl pms
 
 -- query with all 3 wildcards should yield all triples in graph
-p_query_match_none :: Graph g => (Triples -> g) -> Triples -> Bool
-p_query_match_none  _mkGraph ts = uordered ts == ordered result
+p_query_match_none :: Graph g => (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_query_match_none  _mkGraph ts bUrl pms = uordered ts == ordered result
   where 
-    result = query (_mkGraph ts) Nothing Nothing Nothing
+    result = query (_mkGraph ts bUrl pms) Nothing Nothing Nothing
 
 -- query with no wildcard and a triple in the graph should yield
 -- a singleton list with just the triple.
@@ -135,8 +144,10 @@ p_select_match_p =
   where 
     same = equivNode equiv predicateOf
     equiv (UNode u1) (UNode u2) = B.last (value u1) == B.last (value u2)
+    equiv _          _          = error $ "GraphTestUtils.p_select_match_p.equiv"
     mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
     lastChar (UNode uri) = B.last $ value uri
+    lastChar _           = error "GraphTestUtils.p_select_match_p.lastChar"
     
 
 p_select_match_o :: Graph g => (g -> Triples) -> g -> Property
@@ -200,8 +211,6 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
 
 -- Utility functions and test data ... --
 
--}
-
 -- a curried version of query that delegates to the actual query after unpacking
 -- curried maybe node pattern.
 queryC :: Graph g => g -> (Maybe Node, Maybe Node, Maybe Node) -> Triples
@@ -222,7 +231,7 @@ debug msg ts =
     putStrLn msg >> mapM (putStrLn . show) ts >> return True
 
 ldiff :: Triples -> Triples -> Triples
-ldiff l1 l2 = S.toList $(S.fromList l1) `S.difference` (S.fromList l2)
+ldiff l1 l2 = Set.toList $(Set.fromList l1) `Set.difference` (Set.fromList l2)
 
 sameSubj :: Triple -> Triple -> Bool
 sameSubj t1 t2 = subjectOf t1 == subjectOf t2
@@ -239,8 +248,6 @@ ordered  =  sortTriples
 uordered :: Triples -> Triples
 uordered  =  map head . group . sortTriples
 
-{-
-
 tripleFromGen :: Graph g => (g -> Triples) -> g -> Gen (Maybe Triple)
 tripleFromGen _triplesOf gr = 
   case null ts of
@@ -251,27 +258,37 @@ tripleFromGen _triplesOf gr =
 queryT :: Graph g => g -> Triple -> Triples
 queryT gr t = query gr (Just $ subjectOf t) (Just $ predicateOf t) (Just $ objectOf t)
 
+languages :: [ByteString]
+languages = [s2b "fr", s2b "en"]
 
-languages = [Nothing, Just $ s2b "fr", Just $ s2b "en"]
-datatypes = [makeUri xsd (s2b "string"), makeUri xsd (s2b "int"), makeUri xsd (s2b "token")]
-uris = map (makeUri ex) [s2b n `B.append` (s2b $ show i) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
-plainliterals = [PlainL lit lang | lit <- litvalues, lang <- languages]
+datatypes :: [FastString]
+datatypes = map (mkFastString . makeUri xsd . s2b) ["string", "int", "token"]
+
+uris :: [ByteString]
+uris = map (makeUri ex) [s2b n `B.append` (s2b $ show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
+
+plainliterals :: [LValue]
+plainliterals = [PlainLL lit lang | lit <- litvalues, lang <- languages]
+
+typedliterals :: [LValue]
 typedliterals = [TypedL lit dtype | lit <- litvalues, dtype <- datatypes]
+
+litvalues :: [ByteString]
 litvalues = map B.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
-unodes :: [IO Node]
-unodes = map (\u -> do fs <- mkFastString u; return (UNode fs)) uris
-bnodes :: [IO Node]
---bnodes = mapM (\s -> mkFastString (s2b ":_genid" `B.append` (s2b $ show s))) [1..5] >>= mapM (return . BNode)
-bnodes = map (\i -> do fs <- mkFastString (s2b ":_genid" `B.append` (s2b $ show i)); return (BNode fs)) [1..5]
-lnodes :: [IO Node]
-lnodes = [return (LNode lit) | lit <- plainliterals ++ typedliterals]
+unodes :: [Node]
+unodes = map (UNode . mkFastString) uris
 
-test_triples :: [IO Triple]
-test_triples = [triple' s p o | s <- (unodes ++ bnodes), p <- unodes, o <- (unodes ++ bnodes ++ lnodes)]
-triple' :: IO Node -> IO Node -> IO Node -> IO Triple
-triple' = liftM3 triple
+bnodes :: [ Node]
+bnodes = map (BNode . mkFastString . \i -> s2b ":_genid" `B.append` (s2b $ show (i::Int))) [1..5]
 
+lnodes :: [Node]
+lnodes = [(LNode lit) | lit <- plainliterals ++ typedliterals]
+
+test_triples :: [Triple]
+test_triples = [triple s p o | s <- (unodes ++ bnodes), p <- unodes, o <- (unodes ++ bnodes ++ lnodes)]
+
+maxN :: Int
 maxN = min 100 (length test_triples - 1)
 
 instance Arbitrary Triple where
@@ -287,20 +304,19 @@ arbitraryTNum = choose (0, maxN - 1)
 
 arbitraryTs :: Gen Triples
 arbitraryTs = do
-  n <- sized (\n -> choose (0, maxN))
-  xs <- sequence [arbitrary | i <- [1..n]]
+  n <- sized (\_ -> choose (0, maxN))
+  xs <- sequence [arbitrary | _ <- [1..n]]
   return xs
 
 arbitraryT :: Gen Triple
 arbitraryT = elements test_triples
 
+arbitraryN :: Gen Int
 arbitraryN = choose (0, maxN - 1)
 
-
-arbitraryS, arbitraryP, arbitraryO :: Gen (IO Node)
+arbitraryS, arbitraryP, arbitraryO :: Gen (Node)
 arbitraryS = oneof $ map return $ unodes ++ bnodes
-arbitraryP = oneof $ map return unodes
+arbitraryP = oneof $ map return $ unodes
 arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
 
 
--}

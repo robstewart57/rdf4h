@@ -57,7 +57,7 @@ prefixMappings' :: MGraph -> PrefixMappings
 prefixMappings' (MGraph (_, _, pms)) = pms
 
 empty' :: MGraph 
-empty' = MGraph (Map.empty, Nothing, Map.empty)
+empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
 mkGraph' ts baseUrl pms = MGraph ((mergeTs Map.empty ts), baseUrl, pms)

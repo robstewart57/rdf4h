@@ -188,14 +188,14 @@ t_statement = (d >>= return .  Just) <|>
 -- mappings encountered while converting and the last given BaseUrl, or the original or Nothing
 -- if none were present in the parsed document.
 convertStatements :: Maybe BaseUrl -> Maybe ByteString -> [Maybe Statement] -> (Triples, Maybe BaseUrl, PrefixMappings)
-convertStatements !baseUrl !docUrl  =  f ([], baseUrl, Map.empty)
+convertStatements !baseUrl !docUrl  =  f ([], baseUrl, PrefixMappings Map.empty)
   where 
     f :: (Triples, Maybe BaseUrl, PrefixMappings) -> [Maybe Statement] ->  (Triples, Maybe BaseUrl, PrefixMappings)
     f  tup                   []                  = tup
     f  tup                   (Nothing:stmts)     = f tup stmts
-    f (ts, currBaseUrl, pms) ((Just stmt):stmts) =
+    f (ts, currBaseUrl, pms@(PrefixMappings pms')) ((Just stmt):stmts) =
       case stmt of
-        (S_Directive (D_PrefixId (pre, frag))) -> f (ts, currBaseUrl, Map.insert pre (absolutizeUrl currBaseUrl docUrl frag) pms) stmts
+        (S_Directive (D_PrefixId (pre, frag))) -> f (ts, currBaseUrl, PrefixMappings (Map.insert pre (absolutizeUrl currBaseUrl docUrl frag) pms')) stmts
         (S_Directive (D_BaseUrl url))          -> f (ts, Just (newBaseUrl currBaseUrl url),  pms) stmts
         (S_Triples strips)                     -> do let (new_ts, new_baseUrl, newPms) = process_ts (currBaseUrl, pms) strips
                                                      f (new_ts ++ ts, new_baseUrl, newPms) stmts
@@ -683,11 +683,11 @@ mkAbsoluteUrl base url =
 -- empty, then the base URL will be used if there is a base URL and if the map
 -- does not contain an entry for the empty prefix.
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
-resolveQName mbaseUrl prefix mappings =
+resolveQName mbaseUrl prefix (PrefixMappings pms') =
   case (mbaseUrl, B.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty mappings
+    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty pms'
     (Nothing,             True)  ->  err1
-    (_,                   _   )  ->  Map.findWithDefault err2 prefix mappings
+    (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
   where 
     err1 = error  "Cannot resolve empty QName prefix to a Base URL."
     err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
@@ -746,7 +746,7 @@ isOBlankPOList _                              = False
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> (Either ParseFailure gr)
 parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
-  where initialState = (bUrl, Just (s2b docUrl), 1, Map.empty, Nothing, Nothing, [])
+  where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, Nothing, Nothing, [])
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
 -- if present, and using the given document URL as the URL of the Turtle document. 
@@ -755,7 +755,7 @@ parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc ini
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath = 
   readFile fpath >>= \str -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
-  where initialState = (bUrl, Just (s2b docUrl), 1, Map.empty, Nothing, Nothing, [])
+  where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, Nothing, Nothing, [])
 
 {- Broken until dev-haskell/http and dev-haskell/http-simple are updated.
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 

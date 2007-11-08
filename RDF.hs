@@ -1,5 +1,6 @@
 module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
             BaseUrl(BaseUrl),
+            PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
             Triple, triple, Triples,sortTriples,
             Node(UNode, BNode, BNodeGen, LNode),
             LValue(PlainL, PlainLL, TypedL),
@@ -155,6 +156,7 @@ data LValue =
 
 -- |The base URL of a graph.
 newtype BaseUrl = BaseUrl ByteString
+  deriving (Eq, Ord, Show)
 
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
