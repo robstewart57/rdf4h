@@ -1,11 +1,10 @@
 -- |"MGraph" contains a graph implementation backed by a 'Data.Map'.
-module MGraph(MGraph,
-                empty, mkGraph, triplesOf, select, query)
+module Text.RDF.MGraph(MGraph, empty, mkGraph, triplesOf, select, query)
 
 where
 
-import RDF
-import Namespace
+import Text.RDF.Core
+import Text.RDF.Namespace
 
 import Data.Map(Map)
 import qualified Data.Map as Map

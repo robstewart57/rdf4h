@@ -8,15 +8,23 @@ recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 -}
 
-module NTriplesParser (parseFile, {-parseURL,-} parseString, ParseFailure) where
+module Text.RDF.NTriplesParser(
+  parseFile, {-parseURL,-} parseString, ParseFailure
+) 
 
-import RDF
-import Namespace
-import ParserUtils()
+where
+
+import Text.RDF.Core
+import Text.RDF.Namespace
+import Text.RDF.ParserUtils()
+
 import qualified Data.Map as Map
+
 import Text.ParserCombinators.Parsec
+
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
+
 import Control.Monad
 
 {-

@@ -1,15 +1,20 @@
 module Main where
 
-import qualified Test.HUnit as T
+
+import Text.RDF.Core
+import Text.RDF.TurtleParser
+import qualified Text.RDF.NTriplesParser as NT
+import Text.RDF.TriplesGraph
+import Text.RDF.GraphTestUtils
 
 import Text.Printf
-import RDF
-import TurtleParser
-import qualified NTriplesParser as NT
-import TriplesGraph
+
 import System.IO
+
 import Control.Monad
-import GraphTestUtils
+
+import qualified Test.HUnit as T
+
 import qualified Data.ByteString.Char8 as B
 
 main :: IO ()

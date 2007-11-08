@@ -1,7 +1,8 @@
+import Text.RDF.Core
+import Text.RDF.TriplesGraph
+import Text.RDF.NTriplesParser
+
 import System.Environment
-import NTriplesParser
-import RDF
-import TriplesGraph
 
 -- |A simple main that just dumps the triples to stdout. Will add more later.
 main :: IO ()

@@ -1,9 +1,9 @@
+import Text.RDF.Core
+import Text.RDF.MGraph
+import Text.RDF.TurtleParser
+
 import System.Environment
 import System.Exit
-import TurtleParser
-import RDF
-import MGraph
-
 
 main :: IO ()
 main = 

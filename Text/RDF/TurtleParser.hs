@@ -8,12 +8,12 @@ the exception noted below) is that of September 11, 2004, retrieved from
 
 -}
 
-module TurtleParser where
+module Text.RDF.TurtleParser where
 
-import RDF hiding (Object)
-import Utils
-import Namespace
-import ParserUtils()
+import Text.RDF.Core hiding (Object)
+import Text.RDF.Namespace
+import Text.RDF.ParserUtils()
+
 import Text.ParserCombinators.Parsec
 import qualified Data.Map as Map
 import Data.ByteString.Char8(ByteString)

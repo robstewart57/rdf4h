@@ -1,17 +1,21 @@
 {-#  GHC_OPTIONS -fno-cse  #-}
-module Utils(FastString(uniq,value), 
-             mkFastString, equalFS, compareFS,s2b,b2s
+module Text.RDF.Utils (
+  FastString(uniq,value), 
+  mkFastString, equalFS, compareFS, s2b, b2s
 ) where
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
 import Text.Printf(printf)
-import System.IO.Unsafe(unsafePerformIO)
-import Control.Monad
+
 import Data.Map(Map)
 import qualified Data.Map as Map
+
 import Data.IORef
+import System.IO.Unsafe(unsafePerformIO)
+
+import Control.Monad
 
 -- |'FastString' is a bytestring-based string type that provides constant-time equality
 -- testing.

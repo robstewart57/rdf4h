@@ -1,8 +1,10 @@
-module Namespace(Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
-                 PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings),
-                 makeUri,
-                 prefixOf, uriOf,
-                 rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2)
+module Text.RDF.Namespace(
+  Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
+  PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings),
+  makeUri,
+  prefixOf, uriOf,
+  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2
+)
 where
 
 import Data.Map(Map)

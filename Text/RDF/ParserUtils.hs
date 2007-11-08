@@ -1,6 +1,6 @@
-module ParserUtils where
+module Text.RDF.ParserUtils where
 
-import RDF
+import Text.RDF.Core
 --import Network.URI
 --import Network.HTTP.Simple
 

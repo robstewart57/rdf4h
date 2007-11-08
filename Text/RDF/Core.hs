@@ -1,20 +1,23 @@
-module RDF (Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
-            BaseUrl(BaseUrl),
-            PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
-            Triple, triple, Triples,sortTriples,
-            Node(UNode, BNode, BNodeGen, LNode),
-            LValue(PlainL, PlainLL, TypedL),
-            NodeSelector, isUNode, isBNode, isLNode,
-            subjectOf, predicateOf, objectOf,
-            Subject, Predicate, Object,
-            ParseFailure(ParseFailure),
-            FastString(uniq,value),mkFastString,
-            s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
-            printT, printTs, printN, printNs)
+module Text.RDF.Core (
+  Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
+  BaseUrl(BaseUrl),
+  PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
+  Triple, triple, Triples,sortTriples,
+  Node(UNode, BNode, BNodeGen, LNode),
+  LValue(PlainL, PlainLL, TypedL),
+  NodeSelector, isUNode, isBNode, isLNode,
+  subjectOf, predicateOf, objectOf,
+  Subject, Predicate, Object,
+  ParseFailure(ParseFailure),
+  FastString(uniq,value),mkFastString,
+  s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
+  printT, printTs, printN, printNs
+)
 where
 
-import Namespace
-import Utils
+import Text.RDF.Namespace
+import Text.RDF.Utils
+
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List

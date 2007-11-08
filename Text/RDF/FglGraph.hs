@@ -1,4 +1,4 @@
-module FglGraph
+module Text.RDF.FglGraph
 
 where
 

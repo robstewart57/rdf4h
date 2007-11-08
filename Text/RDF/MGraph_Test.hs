@@ -1,5 +1,5 @@
-import RDF
-import Namespace
+import Text.RDF.Core
+import Text.RDF.Namespace
 
 --import Data.Map(Map)
 import qualified Data.Map as Map

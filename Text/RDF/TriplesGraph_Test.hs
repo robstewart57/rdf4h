@@ -1,13 +1,14 @@
-import RDF
-import Namespace
+import Text.RDF.Core
+import Text.RDF.Namespace
+import Text.RDF.TriplesGraph
+import Text.RDF.GraphTestUtils
 
-import Control.Monad
 --import Data.Map(Map)
 import qualified Data.Map as Map
-import GraphTestUtils
+
 import Test.QuickCheck
 
-import TriplesGraph
+import Control.Monad
 
 ----------------------------------------------------
 -- instances and graph functions for TriplesGraph --

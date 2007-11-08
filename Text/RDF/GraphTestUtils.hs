@@ -1,7 +1,8 @@
-module GraphTestUtils where
+module Text.RDF.GraphTestUtils where
 
-import RDF
-import Namespace
+import Text.RDF.Core
+import Text.RDF.Namespace
+
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Test.QuickCheck

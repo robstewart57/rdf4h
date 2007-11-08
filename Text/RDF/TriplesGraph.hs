@@ -1,16 +1,16 @@
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
 -- for smallish graphs.
-module TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
+module Text.RDF.TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
+
+import Text.RDF.Core
+import Text.RDF.Namespace
 
 import qualified Data.Map as Map
 --import qualified Data.Set.AVL as Set
 
 import Data.List
-
-import RDF
-import Namespace
 
 -- |A simple implementation of the 'Graph' type class that represents
 -- the graph internally as a list of triples. 
