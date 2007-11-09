@@ -22,7 +22,7 @@ import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List
 import Control.Monad
-import System.IO.Unsafe(unsafePerformIO)
+--import System.IO.Unsafe(unsafePerformIO)
 
 import Text.Printf
 
@@ -218,8 +218,7 @@ plainLL = PlainLL
 -- respectively.
 {-# INLINE typedL #-}
 typedL :: ByteString -> FastString -> LValue
-typedL val dtype = TypedL (canonicalize dtype (f dtype val)) dtype
-  where f d v = unsafePerformIO (B.putStr val >> B.putStrLn (B.reverse $ value dtype) >> return val)
+typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 -- Constructor functions for LValue
 -- ================================

@@ -136,25 +136,9 @@ _integerStr !s = B.dropWhile (== '0') s
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
 _doubleStr !s = B.pack $ show $ (read $ B.unpack s :: Double)
 
-pointZeroBs, zeroPointZeroBs :: ByteString
-pointZeroBs = s2b ".0"
-zeroPointZeroBs = s2b "0.0"
-
 -- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
-_decimalStr !s = if B.elem '.' s' then s' else s' `B.append` pointZeroBs
-  where
-    s' =                -- if it's empty now, return 0.0
-      case B.null s'' of
-        True  -> zeroPointZeroBs
-        False -> s''
-    s'' =               -- if it starts with -+, drop following 0s
-      case B.head s''' of
-        '-' -> '-' `B.cons` (B.dropWhile (== '0') $! B.tail s''')
-        '+' -> '+' `B.cons` (B.dropWhile (== '0') $! B.tail s''')
-        _   -> B.dropWhile (== '0') s'''
-    s''' =              -- if it ends with ., append a 0
-      case B.last s of
-        '.'  -> s `B.snoc` '0'
-        _    -> s
---_decimalStr2 !s =
---  (int', frac') = B.break (== '.') s
+_decimalStr !s =     -- haskell double parser doesn't handle '1.'.., 
+  case B.last s of   -- so we add a zero if that's the case and then parse
+    '.' -> f (s `B.snoc` '0')
+    _   -> f s
+  where f s' = B.pack $ show (read $ B.unpack s' :: Double)
