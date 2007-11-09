@@ -12,6 +12,9 @@ import qualified Data.Map as Map
 
 import Data.List
 
+import Data.ByteString.Char8(ByteString)
+import qualified Data.ByteString.Char8 as B
+
 -- |A simple implementation of the 'Graph' type class that represents
 -- the graph internally as a list of triples. 
 --
@@ -54,8 +57,51 @@ empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
 mkGraph' ts baseUrl pms = TriplesGraph $! (dupeFreeTs, baseUrl, pms)
-  where dupeFreeTs = nub . sort $! ts
+  where 
+    dupeFreeTs = nub . sort . map normalizeTriple $ ts
+    normalizeTriple (Triple s p o) = triple s p (norm o)
+    norm :: Node -> Node
+    norm n 
+      | isLNode n  = 
+        case n of
+          (UNode fs)      -> UNode   fs
+          (BNode fs)      -> BNode   fs
+          (BNodeGen i)    -> BNodeGen i
+          (LNode litVal)  ->
+            case litVal of          -- TODO: this is very inefficiently implemented
+              (PlainL s)         -> LNode $ PlainL  (escapeQuotes $ B.concatMap replace s)
+              (PlainLL val lang) -> LNode $ PlainLL (escapeQuotes $ B.concatMap replace val) lang
+              (TypedL val dtype) -> LNode $ TypedL  (escapeQuotes $ B.concatMap replace val) dtype
+      | otherwise  = n
+    replace c = 
+      case c of
+        '\n' -> newLineBs
+        '\t' -> tabBs      -- not strictly necessary, but a conformance test converts tabs, so we do too
+        _    -> B.singleton c
 
+escapeQuotes :: ByteString -> ByteString
+escapeQuotes bs =
+  case null pieces of
+    True  -> bs
+    False ->
+      case null (tail pieces) of
+        True  -> bs
+        False -> f [] (head pieces) (tail pieces)
+  where 
+    pieces = B.split '"' bs :: [ByteString]
+    f acc prev []     = B.concat $ reverse (prev:acc)
+    f acc prev (x:xs) =
+      case B.last prev == '\\' of
+        True  ->  f (prev `B.snoc` '"' : acc) x xs
+        False ->  f (prev `B.append` backslashQuoteBs : acc) x xs
+
+tabBs, newLineBs, backslashQuoteBs :: ByteString
+tabBs            = B.pack "\\t"
+newLineBs        = B.pack "\\n"
+backslashQuoteBs = B.pack "\\\""
+
+-- mapAccumL :: (acc -> Char -> (acc, Char)) -> acc -> ByteString -> (acc, ByteString)
+-- scanl1 :: (Char -> Char -> Char) -> ByteString -> ByteString
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
 
