@@ -4,7 +4,7 @@ module Text.RDF.Core (
   PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
   Triple, triple, Triples,sortTriples,
   Node(UNode, BNode, BNodeGen, LNode),
-  LValue(PlainL, PlainLL, TypedL),
+  LValue, LValueV(PlainLV, PlainLLV, TypedLV),
   NodeSelector, isUNode, isBNode, isLNode,
   subjectOf, predicateOf, objectOf,
   Subject, Predicate, Object,
@@ -22,8 +22,13 @@ import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List
 import Control.Monad
+import System.IO.Unsafe(unsafePerformIO)
 
 import Text.Printf
+
+-- |A type class for ADTs that expose views to clients.
+class View a b where
+  view :: a -> b
 
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
@@ -119,6 +124,27 @@ data Node =
   -- information.
   | LNode {-# UNPACK #-} !LValue
 
+-- ==============================
+-- Constructor functions for Node
+
+-- |A convenience function for creating a UNode for the given String URI.
+{-# INLINE unode #-}
+unode :: ByteString -> Node
+unode = UNode . mkFastString
+
+-- |A convenience function for creating a BNode for the given string id.
+{-# INLINE bnode #-}
+bnode :: ByteString ->  Node
+bnode = BNode . mkFastString
+
+-- |A convenience function for creating an LNode for the given LValue.
+{-# INLINE lnode #-}
+lnode :: LValue ->  Node
+lnode = LNode
+
+-- Constructor functions for Node
+-- ==============================
+
 
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
@@ -126,16 +152,20 @@ type Triples = [Triple]
 -- |An RDF triple is a statement consisting of a subject, predicate,
 -- and object, respectively.
 --
+-- To create a 'Triple', use the 'triple' function.
+--
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for 
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
--- |Return a'Triple' with the given subject, predicate, and object.
+-- |A view of a 'Triple'.
+data TripleV = TripleV {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
+
+instance View Triple TripleV where
+  view (Triple s p o) = (TripleV s p o)
+
+-- |Return a'Triple' for the given subject, predicate, and object.
 {-# INLINE triple #-}
--- This must be not inlined. Not sure why, but when INLINE pragma was used, 
--- it was erroring out on the second branch (isBNode ...) even though an additional
--- debug message revealed that it actually was a UNode that was somehow triggering
--- the error.
 triple :: Subject -> Predicate -> Object -> Triple
 triple subj pred obj 
   | isLNode subj     =  error $ "subject must be UNode or BNode: " ++ show subj
@@ -146,6 +176,8 @@ triple subj pred obj
 -- |The actual value of an RDF literal, represented as the 'LValue'
 -- parameter of an 'LNode'.
 data LValue = 
+  -- Constructors are not exported, because we need to have more
+  -- control over the format of the literal bytestring that we store.
 
   -- |A plain (untyped) literal value in an unspecified language.
   PlainL {-# UNPACK #-} !ByteString
@@ -156,6 +188,42 @@ data LValue =
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
   | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !FastString
+
+-- |A view of an 'LValue'.
+data LValueV =
+    PlainLV  {-# UNPACK #-} !ByteString
+  | PlainLLV {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString 
+  | TypedLV  {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
+
+instance View LValue LValueV where
+  view (PlainL  val)        =  (PlainLV  val)
+  view (PlainLL val lang)   =  (PlainLLV val lang)
+  view (TypedL  val dtype)  =  (TypedLV  val (value dtype))
+
+-- ================================
+-- Constructor functions for LValue
+
+-- |Return a PlainL LValue for the given string value.
+{-# INLINE plainL #-}
+plainL :: ByteString -> LValue
+plainL =  PlainL
+
+-- |Return a PlainLL LValue for the given string value and language,
+-- respectively.
+{-# INLINE plainLL #-}
+plainLL :: ByteString -> ByteString -> LValue
+plainLL = PlainLL
+
+-- |Return a TypedL LValue for the given string value and datatype URI, 
+-- respectively.
+{-# INLINE typedL #-}
+typedL :: ByteString -> FastString -> LValue
+typedL val dtype = TypedL (canonicalize dtype (f dtype val)) dtype
+  where f d v = unsafePerformIO (B.putStr val >> B.putStrLn (B.reverse $ value dtype) >> return val)
+
+-- Constructor functions for LValue
+-- ================================
+
 
 -- |The base URL of a graph.
 newtype BaseUrl = BaseUrl ByteString
@@ -284,14 +352,14 @@ instance Show Node where
   show (UNode uri)                = printf "<%s>" (show uri)
   show (BNode  id)                = show id
   show (BNodeGen genId)           = "_:genid" ++ show genId
-  show (LNode (PlainL lit))       = printf "\"%s\"" (show lit)
-  show (LNode (PlainLL lit lang)) = printf "\"%s\"@\"%s\"" (show lit) (show lang)
-  show (LNode (TypedL lit uri))   = printf "\"%s\"^^<%s>" (show lit) (show uri)
+  show (LNode (PlainL lit))       = printf "%s" (show lit)
+  show (LNode (PlainLL lit lang)) = printf "%s@\"%s\"" (show lit) (show lang)
+  show (LNode (TypedL lit uri))   = printf "%s^^<%s>" (show lit) (show uri)
 
 instance Show LValue where
-  show (PlainL lit)               = printf "\"%s\"" (show lit)
-  show (PlainLL lit lang)         = printf "\"%s\"@%s" (show lit) (show lang)
-  show (TypedL lit dtype)         = printf "\"%s\"^^%s" (show lit) (show dtype)
+  show (PlainL lit)               = printf "%s" (show lit)
+  show (PlainLL lit lang)         = printf "%s@%s" (show lit) (show lang)
+  show (TypedL lit dtype)         = printf "%s^^%s" (show lit) (show dtype)
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples
@@ -330,39 +398,6 @@ isBNode _            = False
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
-
--- |A convenience function for creating a UNode for the given String URI.
-{-# INLINE unode #-}
-unode :: ByteString -> Node
-unode = UNode . mkFastString
-
--- |A convenience function for creating a BNode for the given string id.
-{-# INLINE bnode #-}
-bnode :: ByteString ->  Node
-bnode = BNode . mkFastString
-
--- |A convenience function for creating an LNode for the given LValue.
-{-# INLINE lnode #-}
-lnode :: LValue ->  Node
-lnode = LNode
-
--- |A convenience function for creating a PlainL LValue for the given
--- string value.
-{-# INLINE plainL #-}
-plainL :: String -> LValue
-plainL =  PlainL . s2b
-
--- |A convenience function for creating a PlainLL LValue for the given
--- string value and language, respectively.
-{-# INLINE plainLL #-}
-plainLL :: String -> String -> LValue
-plainLL val lang = PlainLL (s2b val) (s2b lang)
-
--- |A convenience function for creating a TypedL LValue for the given
--- string value and datatype URI, respectively.
-{-# INLINE typedL #-}
-typedL :: String -> String -> LValue
-typedL val dtype =  (TypedL $ s2b val) . mkFastString . s2b $ dtype
 
 -- Utility functions for interactive experimentation
 -- |Utility function to print a triple to stdout.

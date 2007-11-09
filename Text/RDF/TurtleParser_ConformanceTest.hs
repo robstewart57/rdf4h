@@ -34,8 +34,9 @@ runAllCTests :: IO (T.Counts, Int)
 runAllCTests = allTests >>= return . T.TestList >>= runTest
   where runTest  = T.runTestText (T.putTextToHandle stdout True)
         allGoodTests = mapM checkGoodConformanceTest [0..30] -- 0..30
-        allBadTests  = mapM checkBadConformanceTest [0..14]
-        allTests = allGoodTests >>= \ts -> allBadTests >>= \ts' -> return (ts ++ ts')
+        --allBadTests  = mapM checkBadConformanceTest [0..14]
+        --allTests = allGoodTests >>= \ts -> allBadTests >>= \ts' -> return (ts ++ ts')
+        allTests = allGoodTests
 
 checkGoodConformanceTest :: Int -> IO T.Test
 checkGoodConformanceTest i = 

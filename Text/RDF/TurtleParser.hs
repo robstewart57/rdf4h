@@ -352,7 +352,7 @@ t_literal =
   (do b <- try t_boolean; return $! (mkLNode b xsdBooleanUri))
   where
     mkLNode :: ByteString -> FastString -> Node
-    mkLNode bs fs =  LNode $ TypedL bs fs
+    mkLNode bs fs =  LNode $ typedL bs fs
 
 str_literal :: GenParser Char ParseState (Node)
 str_literal =
@@ -360,9 +360,9 @@ str_literal =
     str <- try (t_quotedString <?> "quotedString")
     rt <-  rest
     case rt of
-      Nothing                          -> return $! (lnode $! (PlainL str))
-      (Just (Left lng))                -> return $! (lnode $! (PlainLL str lng))
-      (Just (Right (R_URIRef urires))) -> return $! LNode (TypedL str (mkFastString urires))
+      Nothing                          -> return $! (lnode $! (plainL str))
+      (Just (Left lng))                -> return $! (lnode $! (plainLL str lng))
+      (Just (Right (R_URIRef urires))) -> return $! LNode (typedL str (mkFastString urires))
       (Just (Right _))                 -> error $! "TurtleParser.str_literal"
   where
     rest = (try (string "^^") >> t_uriref >>= return . Just . Right) <|>
@@ -375,7 +375,7 @@ t_integer =
      ds <- many1 digit   <?> "digit"
      notFollowedBy (char '.')
      -- integer must be in canonical format, with no leading plus sign or leading zero
-     return $! (s2b $ show $ (read (sign ++ ds) :: Integer))
+     return $! (s2b sign `B.append` s2b ds)
 
 t_double :: GenParser Char ParseState ByteString
 t_double =
@@ -383,7 +383,7 @@ t_double =
      rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.snoc` '.' `B.append` s2b ds' `B.append` e) }) <|>
              try (do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.' `B.cons` s2b ds `B.append` e) }) <|>
              try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return (s2b ds `B.append` e) })
-     return $! B.pack $ show (read (B.unpack $ s2b sign `B.append` rest) :: Double)
+     return $! s2b sign `B.append` rest
 
 sign_parser :: GenParser Char ParseState String
 sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[]))) 
@@ -397,7 +397,7 @@ t_decimal =
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
              <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
-     return $ s2b $ show (read (B.unpack $ s2b sign `B.append` s2b rest) :: Double)
+     return $ s2b sign `B.append` s2b rest
      
 t_exponent :: GenParser Char ParseState ByteString
 t_exponent = do e <- oneOf "eE"
@@ -583,9 +583,9 @@ t_longString =
 
 longString_char  :: GenParser Char ParseState ByteString
 longString_char  = 
-  (try $! string "\\\"" >> return (s2b "\"")) <|>
+  (try $! char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return $! s2b ('\\':'\\':c:[])) <|>
+  (try $! string "\\\"" >> return (s2b "\\\"")) <|>
   (try $! oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return $! B.singleton c)         <|>  -- \r|\n|\t as single char
-  (try $! char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return $! s2b ('\\':c:[])) <|>
   (try $! non_ctrl_char_except ['\\'] >>= \s -> return $! s) <|> 
   (try unicode_escape)
 

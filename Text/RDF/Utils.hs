@@ -1,7 +1,8 @@
 {-#  GHC_OPTIONS -fno-cse  #-}
 module Text.RDF.Utils (
-  FastString(uniq,value), 
-  mkFastString, equalFS, compareFS, s2b, b2s
+  FastString(uniq, value), 
+  mkFastString, equalFS, compareFS, s2b, b2s,
+  canonicalize
 ) where
 
 import Data.ByteString.Char8(ByteString)
@@ -68,14 +69,6 @@ b2s = B.unpack
 s2b :: String -> ByteString
 s2b = B.pack
 
-{-# NOINLINE fsCounter #-}
-fsCounter :: IORef Int
-fsCounter = unsafePerformIO $ newIORef 0
-
-{-# NOINLINE fsMap #-}
-fsMap :: IORef (Map ByteString FastString)
-fsMap = unsafePerformIO $ newIORef Map.empty
-
 -- |Return a 'FastString' value for the given 'ByteString', reusing a 'FastString'
 -- if one has been created for equal bytestrings, or creating a new one if necessary.
 -- The 'FastString' values created maintain the invariant that two values have the
@@ -97,6 +90,15 @@ mkFastString !bs =
                      writeIORef fsMap (Map.insert bs fs m) >> 
                      return fs
 
+-- |Canonicalize the given 'ByteString' value using the 'FastString'
+-- as the datatype URI. 
+{-# NOINLINE canonicalize #-}
+canonicalize :: FastString -> ByteString -> ByteString
+canonicalize typeFs litValue =
+  case Map.lookup typeFs canonicalizerTable of
+    Nothing   ->  litValue
+    Just fn   ->  fn litValue
+
 {-# INLINE newFastString #-}
 newFastString ::  ByteString -> IO FastString
 newFastString !str = 
@@ -104,21 +106,55 @@ newFastString !str =
      modifyIORef fsCounter (+1)
      return $! (FS curr ((1 :: Int) `seq` B.reverse str))
 
-{-
-registerCanonicalizer :: ByteString -> (ByteString -> ByteString) -> (FastString, ByteString -> ByteString)
-registerCanonicalizer typeUri canonicalizer =
-    do typeUriFs <- mkFastString typeUri
-       HT.insert canonicalizersT typeUriFs canonicalizer
-       return $! (typeUriFs, canonicalizer)
--}     
+{-# NOINLINE fsCounter #-}
+fsCounter :: IORef Int
+fsCounter = unsafePerformIO $ newIORef 0
 
-{-
-canonicalize :: ByteString -> ByteString -> ByteString
-canonicalize typeUri value = 
-  unsafePerformIO $
-    do typeUriFs <- mkFastString typeUri
-       mCanonFn <- HT.lookup canonicalizersT typeUriFs
-       case mCanonFn of
-         Nothing   -> return value
-         (Just fn) -> return $ fn value
--}
+{-# NOINLINE fsMap #-}
+fsMap :: IORef (Map ByteString FastString)
+fsMap = unsafePerformIO $ newIORef Map.empty
+
+-- A table of mappings from a FastString URI (reversed as
+-- they are) to a function that canonicalizes a ByteString
+-- assumed to be of that type.
+{-# NOINLINE canonicalizerTable #-}
+canonicalizerTable :: Map FastString (ByteString -> ByteString)
+canonicalizerTable = 
+  Map.fromList [(integerUri, _integerStr), (doubleUri, _doubleStr),
+                (decimalUri, _decimalStr)]
+  where 
+    integerUri = mkFsUri "http://www.w3.org/2001/XMLSchema#integer"
+    decimalUri = mkFsUri "http://www.w3.org/2001/XMLSchema#decimal"
+    doubleUri  = mkFsUri "http://www.w3.org/2001/XMLSchema#double"
+    mkFsUri :: String -> FastString
+    mkFsUri uri = mkFastString . s2b $! uri
+
+_integerStr, _decimalStr, _doubleStr :: ByteString -> ByteString
+_integerStr !s = B.dropWhile (== '0') s
+
+-- exponent: [eE] ('-' | '+')? [0-9]+
+-- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
+_doubleStr !s = B.pack $ show $ (read $ B.unpack s :: Double)
+
+pointZeroBs, zeroPointZeroBs :: ByteString
+pointZeroBs = s2b ".0"
+zeroPointZeroBs = s2b "0.0"
+
+-- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
+_decimalStr !s = if B.elem '.' s' then s' else s' `B.append` pointZeroBs
+  where
+    s' =                -- if it's empty now, return 0.0
+      case B.null s'' of
+        True  -> zeroPointZeroBs
+        False -> s''
+    s'' =               -- if it starts with -+, drop following 0s
+      case B.head s''' of
+        '-' -> '-' `B.cons` (B.dropWhile (== '0') $! B.tail s''')
+        '+' -> '+' `B.cons` (B.dropWhile (== '0') $! B.tail s''')
+        _   -> B.dropWhile (== '0') s'''
+    s''' =              -- if it ends with ., append a 0
+      case B.last s of
+        '.'  -> s `B.snoc` '0'
+        _    -> s
+--_decimalStr2 !s =
+--  (int', frac') = B.break (== '.') s

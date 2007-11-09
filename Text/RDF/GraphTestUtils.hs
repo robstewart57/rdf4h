@@ -262,17 +262,17 @@ queryT gr t = query gr (Just $ subjectOf t) (Just $ predicateOf t) (Just $ objec
 languages :: [ByteString]
 languages = [s2b "fr", s2b "en"]
 
-datatypes :: [FastString]
-datatypes = map (mkFastString . makeUri xsd . s2b) ["string", "int", "token"]
+datatypes :: [ByteString]
+datatypes = map (makeUri xsd . s2b) ["string", "int", "token"]
 
 uris :: [ByteString]
 uris = map (makeUri ex) [s2b n `B.append` (s2b $ show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
 
 plainliterals :: [LValue]
-plainliterals = [PlainLL lit lang | lit <- litvalues, lang <- languages]
+plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
 
 typedliterals :: [LValue]
-typedliterals = [TypedL lit dtype | lit <- litvalues, dtype <- datatypes]
+typedliterals = [typedL lit (mkFastString dtype) | lit <- litvalues, dtype <- datatypes]
 
 litvalues :: [ByteString]
 litvalues = map B.pack ["hello", "world", "peace", "earth", "", "haskell"]
