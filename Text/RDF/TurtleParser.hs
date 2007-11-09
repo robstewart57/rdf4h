@@ -565,12 +565,9 @@ t_relativeURI = many t_ucharacter >>= return .  B.concat
 t_quotedString  :: GenParser Char ParseState ByteString
 t_quotedString = try t_longString <|> try t_string
 
+-- a non-long string: any number of scharacters (echaracter without ") inside doublequotes.
 t_string  :: GenParser Char ParseState ByteString
-t_string = 
-  do char '"'
-     schars <- many t_scharacter
-     char '"'
-     return $! (B.concat schars)
+t_string = between (char '"') (char '"') (many t_scharacter) >>= return . B.concat
 
 t_longString  :: GenParser Char ParseState ByteString
 t_longString = 
@@ -583,9 +580,9 @@ t_longString =
 
 longString_char  :: GenParser Char ParseState ByteString
 longString_char  = 
-  (try $! char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return $! s2b ('\\':'\\':c:[])) <|>
-  (try $! string "\\\"" >> return (s2b "\\\"")) <|>
   (try $! oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return $! B.singleton c)         <|>  -- \r|\n|\t as single char
+  (try $! char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return $! s2b ('\\':c:[])) <|>
+  (try $! string "\\\"" >> return (s2b "\\\"")) <|>
   (try $! non_ctrl_char_except ['\\'] >>= \s -> return $! s) <|> 
   (try unicode_escape)
 
@@ -608,9 +605,11 @@ t_ucharacter =
        try (string "\\>" >> return escapedGtBs) <|> 
          try (non_ctrl_char_except ['>'] >>= \s -> return $! s)
 
+-- characters used in (non-long) strings; any echaracters except ", or an escaped \"
+-- echaracter - #x22 ) | '\"'
 t_scharacter  :: GenParser Char ParseState ByteString
 t_scharacter =
-  do try (string "\\\"" >> return (s2b $! "\\\"")) 
+  do (try (string "\\\"") >> return (s2b ('\\':'"':[]))) 
      <|> try (do char '\\'; c <- oneOf ['t', 'n', 'r']; return $! s2b ('\\':c:[])) -- echaracter part 1
      <|> unicode_escape 
      <|> (non_ctrl_char_except ['\\', '"'] >>= \s -> return $! s)       -- echaracter part 2 minus "
@@ -619,9 +618,9 @@ t_scharacter =
 t_lcharacter  :: GenParser Char ParseState ByteString
 t_lcharacter = 
   t_echaracter <|> 
-  -- FIXME: doesn't work with 2 embedded quotes
-  (char '"' >> notFollowedBy  (char '"') >>  (return $! s2b "\"")) <|>
-  (oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return $! B.singleton c)
+  (oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return $! B.singleton c) <|>
+  (try (string "\"\"") >> notFollowedBy  (char '"') >>  (return $! s2b "\"\"")) <|> -- FIXME: doesn't work with 2 embedded quotes
+  (char '"' >> notFollowedBy (char '"') >> return (B.singleton '"'))
 
 unicode_escape  :: GenParser Char ParseState ByteString
 unicode_escape = 
