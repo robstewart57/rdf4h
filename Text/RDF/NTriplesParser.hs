@@ -9,14 +9,14 @@ recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 -}
 
 module Text.RDF.NTriplesParser(
-  parseFile, {-parseURL,-} parseString, ParseFailure
+  parseFile, parseURL, parseString, ParseFailure
 ) 
 
 where
 
 import Text.RDF.Core
 import Text.RDF.Namespace
-import Text.RDF.ParserUtils()
+import Text.RDF.ParserUtils
 
 import qualified Data.Map as Map
 
@@ -250,12 +250,10 @@ inner_string   =
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
 parseFile path = parseFromFile nt_ntripleDoc path >>= return . handleParse mkGraph
 
-{- Broken until dev-haskell/http and dev-haskell/http-simple are updated.
 -- |Parse the N-Triples document at the given URL, 
 -- generating a graph containing the parsed triples.
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL url = _parseURL parseString url
--}
 
 -- |Parse the given string as an N-Triples document, 
 -- generating a graph containing the parsed triples.
@@ -272,19 +270,3 @@ handleParse _mkGraph (Right (ts, baseUrl, prefixes)) =
     conv [] = []
     conv (Nothing:ts)  = conv ts
     conv ((Just t):ts) = t : conv ts
-
-
-------------------------------------------------------------------------------
---             prototyping and testing stuff only below this                 -
-------------------------------------------------------------------------------
-
--- A test function, which parses a test file, defaulting to the w3c test cases
--- if an empty path is given.
---_test :: String -> IO ()
---_test filepath = 
---  do
---    let path = if filepath == [] then "data/w3c-testcases.nt" else filepath
---    result <- parseFile path
---    case (result) of
---      Left err         -> undefined -- print err
---      Right (xs, _, _) -> undefined -- mapM_ (putStrLn . show) (justTriples xs)

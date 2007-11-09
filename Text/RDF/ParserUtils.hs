@@ -1,8 +1,8 @@
 module Text.RDF.ParserUtils where
 
 import Text.RDF.Core
---import Network.URI
---import Network.HTTP.Simple
+import Network.URI
+import Network.HTTP.Simple
 
 -- A convenience function for terminating a parse with a parse failure, using 
 -- the given error message as the message for the failure.
@@ -16,10 +16,7 @@ justTriples = map (maybe (error "ParserUtils.justTriples") id) .
               filter (/= Nothing)
 
 
-{- Broken until dev-haskell/http and dev-haskell/http-simple are updated
-_parseURL :: Graph gr => (String -> IO (Either ParseFailure gr)) 
-                         -> String 
-                         -> IO (Either ParseFailure gr)
+_parseURL :: Graph gr => (String -> Either ParseFailure gr)  -> String -> IO (Either ParseFailure gr)
 _parseURL parseFunc url =
   return (parseURI url) >>=  
     maybe (return (errResult $ "Unable to parse URL: " ++ url)) p
@@ -28,5 +25,4 @@ _parseURL parseFunc url =
       httpGet url >>= \result ->
         case result of
           Nothing  -> return (errResult $ "couldn't retrieve from URL: " ++ show url)
-          Just str -> parseFunc str
--}
+          Just str -> return $ parseFunc str

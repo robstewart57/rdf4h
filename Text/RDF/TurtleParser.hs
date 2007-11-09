@@ -12,7 +12,7 @@ module Text.RDF.TurtleParser where
 
 import Text.RDF.Core hiding (Object)
 import Text.RDF.Namespace
-import Text.RDF.ParserUtils()
+import Text.RDF.ParserUtils
 
 import Text.ParserCombinators.Parsec
 import qualified Data.Map as Map
@@ -756,16 +756,16 @@ parseFile bUrl docUrl fpath =
   readFile fpath >>= \str -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, Nothing, Nothing, [])
 
-{- Broken until dev-haskell/http and dev-haskell/http-simple are updated.
 -- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
--- as the base URL, if present, and using the given document URL as the URL of the Turtle document. The
--- document URL is for the purpose of resolving references to 'this document' within the document, and
--- may be different than the actual location URL from which the document is retrieved.
+-- as the base URL, if present, and using the given document URL as the URL of the Turtle document. 
+--
+-- The document URL is for the purpose of resolving references to 'this document' within the document, 
+-- and may be different than the actual location URL from which the document is retrieved.
 -- 
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
-parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> (Either ParseFailure gr)
+parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
--}
+
 
 handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (Triples, PrefixMappings) -> Either ParseFailure gr
 handleResult !bUrl !result =
