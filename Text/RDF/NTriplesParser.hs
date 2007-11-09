@@ -150,9 +150,7 @@ nt_nodeID = do string "_:"; n <- nt_name; return $ s2b "_:" `B.append` n
 nt_literal :: GenParser Char st (LValue)
 nt_literal    = 
   do 
-    char '"'
-    str <- nt_string
-    char '"'
+    str <- between (char '"') (char '"') nt_string
     rt <- do {char '@'; lng <- nt_language; return (Just (Left lng))} <|> 
           do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
           do {return Nothing}
@@ -235,12 +233,12 @@ nt_string =  many inner_string >>= return . B.concat
 -- (\Uxxxxxxxx where x is a hexadecimaldigit).
 inner_string :: GenParser Char st ByteString
 inner_string   = 
-  do {
+  try (do {
        char '\\'; 
        do {c <- oneOf ['t', 'r', 'n', '\\', '"']; return $ s2b ('\\':c:[])}  <|>
        do {char 'u'; chrs <- count 4 hexDigit; return $ s2b ('\\':'u':chrs)} <|>
        do {char 'U'; chrs <- count 8 hexDigit; return $ s2b ('\\':'U':chrs)}
-  }  <|> do {c <- satisfy is_nonquote_char; return (B.singleton c)} 
+  })  <|> do {c <- satisfy is_nonquote_char; return (B.singleton c)} 
 
 -- ==========================================================
 -- ==  END OF PARSER COMBINATORS AND SUPPORTING FUNCTIONS  ==
