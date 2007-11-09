@@ -2,16 +2,17 @@ module Text.RDF.Core (
   Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
   BaseUrl(BaseUrl),
   PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
-  Triple, triple, Triples,sortTriples,
+  Triple(Triple), triple, Triples, sortTriples,
   Node(UNode, BNode, BNodeGen, LNode),
-  LValue, LValueV(PlainLV, PlainLLV, TypedLV),
+  LValue(PlainL, PlainLL, TypedL),
   NodeSelector, isUNode, isBNode, isLNode,
   subjectOf, predicateOf, objectOf,
   Subject, Predicate, Object,
   ParseFailure(ParseFailure),
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
-  printT, printTs, printN, printNs
+  printT, printTs, printN, printNs,
+  View, view
 )
 where
 
@@ -21,7 +22,7 @@ import Text.RDF.Utils
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List
-import Control.Monad
+--import Control.Monad
 --import System.IO.Unsafe(unsafePerformIO)
 
 import Text.Printf
@@ -127,17 +128,17 @@ data Node =
 -- ==============================
 -- Constructor functions for Node
 
--- |A convenience function for creating a UNode for the given String URI.
+-- |Return a URIRef node for the given bytetring URI.
 {-# INLINE unode #-}
 unode :: ByteString -> Node
 unode = UNode . mkFastString
 
--- |A convenience function for creating a BNode for the given string id.
+-- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
 bnode :: ByteString ->  Node
 bnode = BNode . mkFastString
 
--- |A convenience function for creating an LNode for the given LValue.
+-- |Return a literal node using the given LValue.
 {-# INLINE lnode #-}
 lnode :: LValue ->  Node
 lnode = LNode
@@ -158,17 +159,11 @@ type Triples = [Triple]
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
--- |A view of a 'Triple'.
-data TripleV = TripleV {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
-
-instance View Triple TripleV where
-  view (Triple s p o) = (TripleV s p o)
-
 -- |Return a'Triple' for the given subject, predicate, and object.
 {-# INLINE triple #-}
 triple :: Subject -> Predicate -> Object -> Triple
 triple subj pred obj 
-  | isLNode subj     =  error $ "subject must be UNode or BNode: " ++ show subj
+  | isLNode subj     =  error $ "subject must be UNode or BNode: "     ++ show subj
   | isLNode pred     =  error $ "predicate must be UNode, not LNode: " ++ show pred
   | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred
   | otherwise        =  Triple subj pred obj
@@ -188,17 +183,6 @@ data LValue =
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
   | TypedL {-# UNPACK #-} !ByteString {-# UNPACK #-} !FastString
-
--- |A view of an 'LValue'.
-data LValueV =
-    PlainLV  {-# UNPACK #-} !ByteString
-  | PlainLLV {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString 
-  | TypedLV  {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
-
-instance View LValue LValueV where
-  view (PlainL  val)        =  (PlainLV  val)
-  view (PlainLL val lang)   =  (PlainLLV val lang)
-  view (TypedL  val dtype)  =  (TypedLV  val (value dtype))
 
 -- ================================
 -- Constructor functions for LValue
