@@ -28,18 +28,17 @@ library
     build-depends: base >= 3, bytestring, directory, containers
   else
     build-depends: base < 3
-  build-depends: parsec
--- network, HTTP-Simple
--- -ddump-simpl-stats for optimization info
+  build-depends:   parsec, network, HTTP-Simple
   other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
 
 executable ntparse
   main-is:       NTriplesParserMain.hs
   if flag(small_base)
-    build-depends: base >= 3, bytestring, parsec
+    build-depends: base >= 3, bytestring
   else
-    build-depends: base < 3, parsec
+    build-depends: base < 3
+  build-depends:   parsec, network, HTTP-Simple
   hs-source-dirs:  .
   other-modules:   Text.RDF.Core, Text.RDF.TriplesGraph
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
@@ -47,9 +46,10 @@ executable ntparse
 executable ttlparse
   main-is:         TurtleParserMain.hs
   if flag(small_base)
-    build-depends: base >= 3, bytestring, parsec
+    build-depends: base >= 3, bytestring
   else
-    build-depends: base < 3, parsec
+    build-depends: base < 3
+  build-depends:   parsec, network, HTTP-Simple
   hs-source-dirs:  .
   other-modules:   Text.RDF.Core, Text.RDF.MGraph
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
