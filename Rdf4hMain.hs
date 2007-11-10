@@ -64,7 +64,7 @@ write :: Graph gr => Either ParseFailure gr -> IO ()
 write res =
   case res of
     (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
-    (Right gr) -> mapM_ (putStrLn . show) (triplesOf gr)
+    (Right gr) -> mapM_ (printT) (triplesOf gr)
 
 getInputBaseUri :: String -> [String] -> [Flag] -> String
 getInputBaseUri inputUri args flags =

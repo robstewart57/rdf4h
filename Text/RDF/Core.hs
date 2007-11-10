@@ -11,7 +11,7 @@ module Text.RDF.Core (
   ParseFailure(ParseFailure),
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
-  printT, printTs, printN, printNs,
+  printT, printN,
   View, view
 )
 where
@@ -328,21 +328,21 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
 -- String representations of the various data types; generally NTriples-like.
 
 instance Show Triple where
-  show (Triple subj pred obj) = 
-    printf "%s %s %s ." (show subj) (show pred) (show obj)
+  show (Triple s p o) = 
+    printf "%s %s %s ." (show s) (show p) (show o)
 
 instance Show Node where
-  show (UNode uri)                = printf "<%s>" (show uri)
-  show (BNode  id)                = show id
+  show (UNode uri)                = show uri
+  show (BNode  i)                 = show i
   show (BNodeGen genId)           = "_:genid" ++ show genId
-  show (LNode (PlainL lit))       = printf "%s" (show lit)
-  show (LNode (PlainLL lit lang)) = printf "%s@\"%s\"" (show lit) (show lang)
-  show (LNode (TypedL lit uri))   = printf "%s^^<%s>" (show lit) (show uri)
+  show (LNode (PlainL lit))       = show lit
+  show (LNode (PlainLL lit lang)) = show lit ++ "@\"" ++ show lang ++ "\""
+  show (LNode (TypedL lit uri))   = show lit ++ "^^\"" ++ show uri ++ "\""
 
 instance Show LValue where
-  show (PlainL lit)               = printf "%s" (show lit)
-  show (PlainLL lit lang)         = printf "%s@%s" (show lit) (show lang)
-  show (TypedL lit dtype)         = printf "%s^^%s" (show lit) (show dtype)
+  show (PlainL lit)               = show lit
+  show (PlainLL lit lang)         = show lit ++ "@\"" ++ show lang ++ "\""
+  show (TypedL lit dtype)         = show lit ++ "^^\"" ++ show dtype ++ "\""
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples
@@ -382,19 +382,24 @@ isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
 
--- Utility functions for interactive experimentation
--- |Utility function to print a triple to stdout.
+-- |Print a triple to stdout followed by a newline.
 printT :: Triple -> IO ()
-printT  = putStrLn . show
-
--- |Utility function to print a list of triples to stdout.
-printTs :: [Triple] -> IO ()
-printTs = mapM_ printT
+printT (Triple s p o) = 
+  printN s >> putChar ' ' >>
+  printN p >> putChar ' ' >>
+  printN o >> putStrLn " ."
 
 -- |Utility function to print a node to stdout.
 printN :: Node -> IO ()
-printN  = putStrLn . show
+printN n = 
+  case n of
+    (UNode fs)                 -> putChar '<' >> revPutStr (value fs) >> putChar '>'
+    (BNode genId)              -> revPutStr (value genId)
+    (BNodeGen i)               -> putStr $ show i
+    (LNode (PlainL lit))       -> revPutStr lit
+    (LNode (PlainLL lit lang)) -> revPutStr lit >> putStr "@\"" >> revPutStr lang >> putStr "\""
+    (LNode (TypedL lit dtype)) -> revPutStr lit >> putStr "^^\"" >> revPutStr (value dtype) >> putStrLn "\""
 
--- |Utility function to print a list of nodes to stdout.
-printNs :: [Node] -> IO ()
-printNs = mapM_ printN
+{-# INLINE revPutStr #-}
+revPutStr :: ByteString -> IO ()
+revPutStr = B.putStr . B.reverse

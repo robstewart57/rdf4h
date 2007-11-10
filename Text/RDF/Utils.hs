@@ -8,8 +8,6 @@ module Text.RDF.Utils (
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
-import Text.Printf(printf)
-
 import Data.Map(Map)
 import qualified Data.Map as Map
 
@@ -36,7 +34,7 @@ data FastString = FS {
 }
 
 instance Show FastString where
-  show fs = printf "(%d, %s)" (uniq fs) (B.unpack $ B.reverse $ value fs)
+  show = B.unpack . B.reverse . value
 
 -- |Two 'FastString' values are equal iff they have the same unique identifer.
 instance Eq FastString where
