@@ -59,7 +59,6 @@ main =
                                   else getContents >>= return . NP.parseString)
                                 >>= \(res :: Either ParseFailure NG.TriplesGraph) -> write res
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
-     --putStrLn $ show (opts, args)
 
 write :: Graph gr => Either ParseFailure gr -> IO ()
 write res =
