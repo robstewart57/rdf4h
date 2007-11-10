@@ -48,11 +48,15 @@ main =
      case (inputFormat, isUri $ s2b inputUri) of
        ("turtle",    True) -> TP.parseURL mInputUri docUri inputUri
                                 >>= \(res :: Either ParseFailure TG.MGraph) -> write res
-       ("turtle",   False) -> TP.parseFile mInputUri docUri inputUri
+       ("turtle",   False) -> (if inputUri /= "-" 
+                                  then TP.parseFile mInputUri docUri inputUri 
+                                  else getContents >>= return . TP.parseString mInputUri docUri)
                                 >>= \(res :: Either ParseFailure TG.MGraph) -> write res
        ("ntriples",  True) -> NP.parseURL inputUri
                                 >>= \(res :: Either ParseFailure NG.TriplesGraph) -> write res
-       ("ntriples", False) -> NP.parseFile inputUri
+       ("ntriples", False) -> (if inputUri /= "-"
+                                  then NP.parseFile inputUri
+                                  else getContents >>= return . NP.parseString)
                                 >>= \(res :: Either ParseFailure NG.TriplesGraph) -> write res
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
      --putStrLn $ show (opts, args)
