@@ -40,9 +40,6 @@ prop_tg_empty = p_empty _triplesOf _empty
 prop_tg_mkGraph_triplesOf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 prop_tg_mkGraph_triplesOf = p_mkGraph_triplesOf _triplesOf _mkGraph
 
-prop_tg_mkGraph_no_dupes :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-prop_tg_mkGraph_no_dupes = p_mkGraph_no_dupes _triplesOf _mkGraph
-
 prop_tg_query_match_none :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 prop_tg_query_match_none = p_query_match_none _mkGraph
 

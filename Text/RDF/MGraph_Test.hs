@@ -1,13 +1,12 @@
 import Text.RDF.Core
 import Text.RDF.Namespace
+import Text.RDF.MGraph
+import Text.RDF.GraphTestUtils
 
---import Data.Map(Map)
 import qualified Data.Map as Map
 import Control.Monad
-import GraphTestUtils
 import Test.QuickCheck
 
-import MGraph
 
 ----------------------------------------------------
 --   instances and graph functions for AvlGraph   --

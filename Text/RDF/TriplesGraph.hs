@@ -55,10 +55,11 @@ baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 
+-- We no longer remove duplicates here, as it is very time consuming, and raptor does not
+-- seem to remove dupes, so we follow suit.
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkGraph' ts baseUrl pms = TriplesGraph $! (dupeFreeTs, baseUrl, pms)
+mkGraph' ts baseUrl pms = TriplesGraph $! (map normalizeTriple ts, baseUrl, pms)
   where 
-    dupeFreeTs = nub . sort . map normalizeTriple $ ts
     normalizeTriple (Triple s p o) = triple s p (norm o)
     norm :: Node -> Node
     norm n 

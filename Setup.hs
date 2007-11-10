@@ -9,5 +9,11 @@ main :: IO ()
 main = defaultMainWithHooks (defaultUserHooks { runTests = test })
 
 test :: Args -> Bool -> PackageDescription -> LocalBuildInfo -> IO ()
-test _ _ _ _ = runCommand commandStr >>= waitForProcess >> return ()
-  where commandStr = "./quickcheck +names -fbang-patterns TriplesGraph_Test.hs MGraph_Test.hs"
+test _ _ _ _ = 
+  runCommand runQuickCheckTests >>= waitForProcess >> 
+    runCommand compileConformanceTests >>= waitForProcess >> 
+    runCommand runConformanceTests >>= waitForProcess >> return ()
+  where 
+    runQuickCheckTests = "./quickcheck +names -fbang-patterns Text/RDF/TriplesGraph_Test.hs Text/RDF/MGraph_Test.hs"
+    compileConformanceTests = "ghc -O2 -fglasgow-exts -fbang-patterns -odir dist/build -hidir dist/build -o test --make Text/RDF/TurtleParser_ConformanceTest.hs"
+    runConformanceTests = "./test"
