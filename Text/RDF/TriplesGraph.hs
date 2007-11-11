@@ -1,5 +1,8 @@
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
--- for smallish graphs.
+-- for smallish graphs or for temporary graphs that will not be queried.
+-- It maintains the triples in the order that they are given in, and is
+-- especially useful for holding N-Triples, where it is often desirable
+-- to preserve the order of the triples when they were originally parsed.
 module Text.RDF.TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
@@ -8,12 +11,8 @@ import Text.RDF.Core
 import Text.RDF.Namespace
 
 import qualified Data.Map as Map
---import qualified Data.Set.AVL as Set
 
 import Data.List
-
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
 
 -- |A simple implementation of the 'Graph' type class that represents
 -- the graph internally as a list of triples. 
@@ -51,58 +50,14 @@ prefixMappings' (TriplesGraph (_, _, pms)) = pms
 baseUrl' :: TriplesGraph -> Maybe BaseUrl
 baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 
-{-# NOINLINE empty' #-}
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 
 -- We no longer remove duplicates here, as it is very time consuming, and raptor does not
 -- seem to remove dupes, so we follow suit.
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkGraph' ts baseUrl pms = TriplesGraph $! (map normalizeTriple ts, baseUrl, pms)
-  where 
-    normalizeTriple (Triple s p o) = triple s p (norm o)
-    norm :: Node -> Node
-    norm n 
-      | isLNode n  = 
-        case n of
-          (UNode fs)      -> UNode   fs
-          (BNode fs)      -> BNode   fs
-          (BNodeGen i)    -> BNodeGen i
-          (LNode litVal)  ->
-            case litVal of          -- TODO: this is very inefficiently implemented
-              (PlainL s)         -> LNode $ PlainL  (escapeQuotes $ B.concatMap replace s)
-              (PlainLL val lang) -> LNode $ PlainLL (escapeQuotes $ B.concatMap replace val) lang
-              (TypedL val dtype) -> LNode $ TypedL  (escapeQuotes $ B.concatMap replace val) dtype
-      | otherwise  = n
-    replace c = 
-      case c of
-        '\n' -> newLineBs
-        '\t' -> tabBs      -- not strictly necessary, but a conformance test converts tabs, so we do too
-        _    -> B.singleton c
+mkGraph' ts baseUrl pms = TriplesGraph (ts, baseUrl, pms)
 
-escapeQuotes :: ByteString -> ByteString
-escapeQuotes bs =
-  case null pieces of
-    True  -> bs
-    False ->
-      case null (tail pieces) of
-        True  -> bs
-        False -> f [] (head pieces) (tail pieces)
-  where 
-    pieces = B.split '"' bs :: [ByteString]
-    f acc prev []     = B.concat $ reverse (prev:acc)
-    f acc prev (x:xs) =
-      case B.last prev == '\\' of
-        True  ->  f (prev `B.snoc` '"' : acc) x xs
-        False ->  f (prev `B.append` backslashQuoteBs : acc) x xs
-
-tabBs, newLineBs, backslashQuoteBs :: ByteString
-tabBs            = B.pack "\\t"
-newLineBs        = B.pack "\\n"
-backslashQuoteBs = B.pack "\\\""
-
--- mapAccumL :: (acc -> Char -> (acc, Char)) -> acc -> ByteString -> (acc, ByteString)
--- scanl1 :: (Char -> Char -> Char) -> ByteString -> ByteString
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
 

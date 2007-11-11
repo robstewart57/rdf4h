@@ -11,7 +11,6 @@ module Text.RDF.Core (
   ParseFailure(ParseFailure),
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
-  printT, printN,
   View, view
 )
 where
@@ -382,24 +381,3 @@ isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
 
--- |Print a triple to stdout followed by a newline.
-printT :: Triple -> IO ()
-printT (Triple s p o) = 
-  printN s >> putChar ' ' >>
-  printN p >> putChar ' ' >>
-  printN o >> putStrLn " ."
-
--- |Utility function to print a node to stdout.
-printN :: Node -> IO ()
-printN n = 
-  case n of
-    (UNode fs)                 -> putChar '<' >> revPutStr (value fs) >> putChar '>'
-    (BNode genId)              -> revPutStr (value genId)
-    (BNodeGen i)               -> putStr $ show i
-    (LNode (PlainL lit))       -> revPutStr lit
-    (LNode (PlainLL lit lang)) -> revPutStr lit >> putStr "@\"" >> revPutStr lang >> putStr "\""
-    (LNode (TypedL lit dtype)) -> revPutStr lit >> putStr "^^\"" >> revPutStr (value dtype) >> putStrLn "\""
-
-{-# INLINE revPutStr #-}
-revPutStr :: ByteString -> IO ()
-revPutStr = B.putStr . B.reverse

@@ -1,7 +1,8 @@
 {-#  GHC_OPTIONS -fno-cse  #-}
 module Text.RDF.Utils (
   FastString(uniq, value), 
-  mkFastString, equalFS, compareFS, s2b, b2s,
+  mkFastString, equalFS, compareFS, 
+  s2b, b2s, hPutStrRev, hPutStrLnRev,
   canonicalize
 ) where
 
@@ -11,6 +12,7 @@ import qualified Data.ByteString.Char8 as B
 import Data.Map(Map)
 import qualified Data.Map as Map
 
+import System.IO
 import Data.IORef
 import System.IO.Unsafe(unsafePerformIO)
 
@@ -66,6 +68,17 @@ b2s = B.unpack
 {-# INLINE s2b #-}
 s2b :: String -> ByteString
 s2b = B.pack
+
+-- |Write to the handle the reversed value of the bytestring, with no newline.
+{-# INLINE hPutStrRev #-}
+hPutStrRev :: Handle -> ByteString -> IO ()
+hPutStrRev h bs = B.hPutStr h (B.reverse bs)
+
+-- |Write to the handle the reversed value of the bytestring, followed by
+-- a newline.
+{-# Inline revPutStrLnRev #-}
+hPutStrLnRev :: Handle -> ByteString -> IO ()
+hPutStrLnRev h bs = B.hPutStrLn h (B.reverse bs)
 
 -- |Return a 'FastString' value for the given 'ByteString', reusing a 'FastString'
 -- if one has been created for equal bytestrings, or creating a new one if necessary.
@@ -140,3 +153,5 @@ _decimalStr !s =     -- haskell double parser doesn't handle '1.'..,
     '.' -> f (s `B.snoc` '0')
     _   -> f s
   where f s' = B.pack $ show (read $ B.unpack s' :: Double)
+
+

@@ -1,10 +1,11 @@
 module Main where
 
 import Text.RDF.Core
-import qualified Text.RDF.TriplesGraph   as NG
-import qualified Text.RDF.NTriplesParser as NP
-import qualified Text.RDF.MGraph         as TG
-import qualified Text.RDF.TurtleParser   as TP
+import qualified Text.RDF.TriplesGraph       as NG
+import qualified Text.RDF.NTriplesParser     as NP
+import qualified Text.RDF.NTriplesSerializer as NS
+import qualified Text.RDF.MGraph             as TG
+import qualified Text.RDF.TurtleParser       as TP
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -66,24 +67,38 @@ write :: Graph gr => Either ParseFailure gr -> IO ()
 write res =
   case res of
     (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
-    (Right gr) -> mapM_ (printT) (triplesOf gr)
+    (Right gr) -> NS.writeNTriples stdout (triplesOf gr)
 
+-- Get the input base URI from the argument list or flags, using the 
+-- first string arg as the default if not found in string args (as
+-- the second item in the list) or in the flags as an explicitly 
+-- selected flag. If the user submitted both a 2nd commandline arg
+-- after the INPUT-URI and used the -I/--input-base-uri arg, then
+-- the -I/--input-base-uri value is used and the 2nd commandline
+-- arg is silently discarded.
 getInputBaseUri :: String -> [String] -> [Flag] -> String
 getInputBaseUri inputUri args flags =
   case (null $ tail args) of
     True  -> getWithDefault (InputBaseUri inputUri) flags
     False -> getWithDefault (InputBaseUri (head $ tail args)) flags
 
+-- Determine if the bytestring represents a URI, which is currently 
+-- decided solely by checking for a colon in the string.
 isUri :: ByteString -> Bool
 isUri str = not (B.null post) && B.all isLetter pre
   where (pre, post) = B.break (== ':') str
 
+-- Extract from the list of flags a flag of the same type as the first
+-- flag argument, returning its string value; if there is no such flag,
+-- return the string value of the first argument.
 getWithDefault :: Flag -> [Flag] -> String
 getWithDefault def args = 
   case find (== def) args of
     Nothing  -> strValue def
     Just val -> strValue val
 
+-- Convert the flag to a string, which is only valid for flags that have
+-- a string argument.
 strValue :: Flag -> String
 strValue (InputFormat s)   = s
 strValue (InputBaseUri s)  = s
