@@ -32,14 +32,14 @@ _triplesOf = triplesOf
 --    generic tests parameterized for MGraph    --
 ----------------------------------------------------
 
-prop_empty :: Bool
-prop_empty = p_empty _triplesOf _empty
+prop_mg_empty :: Bool
+prop_mg_empty = p_empty _triplesOf _empty
 
-prop_mkGraph_triplesOf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-prop_mkGraph_triplesOf = p_mkGraph_triplesOf _triplesOf _mkGraph
+prop_mg_mkGraph_triplesOf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+prop_mg_mkGraph_triplesOf = p_mkGraph_triplesOf _triplesOf _mkGraph
 
-prop_mkGraph_no_dupes :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-prop_mkGraph_no_dupes = p_mkGraph_no_dupes _triplesOf _mkGraph
+prop_mg_mkGraph_no_dupes :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+prop_mg_mkGraph_no_dupes = p_mkGraph_no_dupes _triplesOf _mkGraph
 
 prop_mg_query_match_none :: Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 prop_mg_query_match_none = p_query_match_none _mkGraph
