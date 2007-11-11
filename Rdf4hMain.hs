@@ -37,6 +37,8 @@ main =
          outputFormat  = getWithDefault (OutputFormat "ntriples") opts
          inputBaseUri  = getInputBaseUri inputUri args opts
          outputBaseUri = getWithDefault (OutputBaseUri inputBaseUri) opts
+     unless (outputFormat == "ntriples")
+       (hPrintf stderr ("'" ++ outputFormat ++ "' is not a valid output format. Supported output formats are: ntriples\n") >> exitWith (ExitFailure 1))
      when (not quiet)
        (hPrintf stderr "      INPUT-URI:  %s\n\n" inputUri     >>
         hPrintf stderr "   INPUT-FORMAT:  %s\n"   inputFormat  >>
@@ -89,17 +91,16 @@ strValue (OutputFormat s)  = s
 strValue (OutputBaseUri s) = s
 strValue flag              = error $ "No string value for flag: " ++ show flag
 
---  getArgs >>= \t -> (TP.parseFile Nothing "" $ head t) >>= \res ->
---    case (res) of
---      Left err -> print $ show err
---      Right gr -> mapM_ (putStrLn . show) (triplesOf (gr :: TG.TriplesGraph))
-
+-- The commandline arguments we accept. None are required.
 data Flag 
  = Help | Quiet | Version
  | InputFormat String | InputBaseUri String
  | OutputFormat String | OutputBaseUri String
  deriving (Show)
 
+-- Two flags are equal if they are of the same type, regardless of value: a
+-- strange definition, but we never care about values when finding or comparing
+-- them.
 instance Eq Flag where
   Help            == Help            = True
   Quiet           == Quiet           = True
@@ -110,6 +111,7 @@ instance Eq Flag where
   OutputBaseUri _ == OutputBaseUri _ = True
   _               == _               = False
 
+-- The top part of the usage output.
 header :: String
 header = 
   "\nrdf4h: an RDF parser and serializer\n\n"                                ++
@@ -119,14 +121,16 @@ header =
   "    Default is INPUT-URI\n"                                               ++
   "    Equivalent to -I INPUT-BASE-URI, --input-base-uri INPUT-BASE-URI\n\n"
 
+-- The current version of the library as a whole; should always match what is in
+-- the rdf4h.cabal file.
 version :: String
-version = "0.4"
+version = "0.3"
 
 options :: [OptDescr Flag]
 options =
  [ Option ['h']  ["help"]                           (NoArg Help)   "Display this help, then exit"
  , Option ['q']  ["quiet"]                         (NoArg Quiet)   "No extra information messages to stderr"
- , Option ['v']  ["version"]                     (NoArg Version)   "Show version number"
+ , Option ['v']  ["version"]                     (NoArg Version)   "Show version number\n\n"
 
  , Option ['i']  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
@@ -135,8 +139,8 @@ options =
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
  , Option ['o']  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" ++
-                                                                   "  ntriples    N-Triples (default)\n" ++
-                                                                   "  turtle      Turtle"
+                                                                   "  ntriples    N-Triples (default)\n" -- ++
+                                                                   --"  turtle      Turtle"
  , Option ['O'] ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" ++
                                                                    "  Default is input/parser base URI."
  ]
