@@ -1,4 +1,7 @@
-module Text.RDF.NTriplesSerializer where
+module Text.RDF.NTriplesSerializer(
+  writeGraph, writeTriples, writeTriple,
+  writeNode, writeLValue, writeLiteralString
+) where
 
 import Text.RDF.Core
 import Text.RDF.Utils
@@ -9,11 +12,14 @@ import qualified Data.ByteString.Char8 as B
 import System.IO
 import Control.Monad
 
-writeNTriples :: Handle -> Triples -> IO ()
-writeNTriples h = mapM_ (writeNTriple h)
+writeGraph :: Graph gr => Handle -> gr -> IO ()
+writeGraph h = writeTriples h . triplesOf
 
-writeNTriple :: Handle -> Triple -> IO ()
-writeNTriple h (Triple s p o) =
+writeTriples :: Handle -> Triples -> IO ()
+writeTriples h = mapM_ (writeTriple h)
+
+writeTriple :: Handle -> Triple -> IO ()
+writeTriple h (Triple s p o) =
   writeNode h s >> hPutChar h ' ' >>
   writeNode h p >> hPutChar h ' ' >>
   writeNode h o >> hPutStrLn h " ."

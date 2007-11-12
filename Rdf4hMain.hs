@@ -67,7 +67,7 @@ write :: Graph gr => Either ParseFailure gr -> IO ()
 write res =
   case res of
     (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
-    (Right gr) -> NS.writeNTriples stdout (triplesOf gr)
+    (Right gr) -> NS.writeTriples stdout (triplesOf gr)
 
 -- Get the input base URI from the argument list or flags, using the 
 -- first string arg as the default if not found in string args (as
