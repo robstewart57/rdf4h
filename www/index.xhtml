@@ -15,10 +15,17 @@
 
             <h2>rdf4h: RDF for Haskell</h2>
 
-            <p>rdf4h is the beginnings of a library for working with RDF in Haskell. I'm making it available at this very early stage of development in order to motivate myself to not be too distracted by other projects. At present, it consists of just an N-Triples parser and some basic functions for querying an RDF graph.</p>
-            <p>The N-Triples parser is stable for the moment. When Parsec is byte-string able (a Google SoC project), I'll revisit the parser and convert it to use byte-strings. It does handle all the W3C testcases correctly, but I haven't tested it much otherwise (read 'at all').</p>
-            <p>There is a core module which contains fundamental types such as Graph, Triple, Node and friends. The graph representation is the simplest thing that would work initially, and will change very soon.</p>
-            <p>There is a source tarball <a href='rdf4h-0.2.tar.gz' title='Source Tarball for rdf4h.'>available here</a>, and API documentation is <a href="doc/" title="API documentation for rdf4h">available here</a>. You can pull the <a href='http://darcs.net/' title="Darcs Homepage">Darcs</a> repository from the URL of <em>this page</em> if you want the latest and greatest. Patches are welcome.</p>
+            <p>rdf4h is a library for working with RDF in Haskell. At present it parses both N-Triples and Turtle documents, and serializes to N-Triples (Turtle to follow). The core graph provides some basic query abilities such as querying for triples containing a particular subject, predicate, or object, or selecting triples that satisfy an arbitrary predicate function.</p>
+            <p>There is a source tarball <a href='rdf4h-0.3.tar.gz' title='Source Tarball for rdf4h.'>available here</a>, and API documentation is <a href="doc/" title="API documentation for rdf4h">available here</a>. You can pull the <a href='http://darcs.net/' title="Darcs Homepage">Darcs</a> repository from the URL of <em>this page</em> if you want the latest and greatest. Patches are welcome.</p>
+            <p>The library requires Cabal &gt;= 1.2, and should build on GHC 6.6 or higher.</p>
+
+            <h3>History</h3>
+            <ul>
+                <li>Nov. 11, 2007: version 0.3; added Turtle parser and greatly improved performance of N-Triples parser; minimum Cabal version bumped to 1.2; now builds with GHC 6.8 (as well as 6.6)</li>
+                <li>Oct. 06, 2007: version 0.2; first public release, new graph implementation providing more efficient querying</li>
+                <li>Sep. 23, 2007: version 0.1; initial implementation of list-backed graph and N-Triples parser</li>
+            </ul>
+
 
         </div>
         <p class='isvalid'>This site is valid <a href='http://validator.w3.org/check?uri=referer' title='Validate XHTML'>XHTML 1.0</a>, <a href='http://jigsaw.w3.org/css-validator/check/referer' title='Validate CSS'>CSS</a>.</p>
