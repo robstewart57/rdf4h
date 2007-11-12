@@ -11,7 +11,8 @@ module Text.RDF.Core (
   ParseFailure(ParseFailure),
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
-  View, view
+  View, view,
+  fromEither
 )
 where
 
@@ -381,3 +382,10 @@ isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
 
+-- |Convert a parse result into a graph if it was successful
+-- and error and terminate if not.
+fromEither :: Graph gr => Either ParseFailure gr -> gr
+fromEither res =
+  case res of
+    (Left err) -> error (show err)
+    (Right gr) -> gr
