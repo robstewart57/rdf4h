@@ -50,16 +50,22 @@ writeLValue h lv =
 writeLiteralString:: Handle -> ByteString -> IO ()
 writeLiteralString h bs = 
   do hPutChar h '"'
-     --case B.any (\c -> c == '\n' || c == '"') bs of -- TODO: see if this is faster than just always folding
-     --  False -> B.hPutStr h bs >> return True
-     --  True  -> B.foldl' writeChar (return True) bs
      B.foldl' writeChar (return True) bs
      hPutChar h '"'
   where
+    writeChar :: IO (Bool) -> Char -> IO (Bool)
     writeChar b c = 
       case c of 
-        '\n' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'n') >> return True
-        '\t' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 't') >> return True
-        '"'  ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '"') >> return True
-        _    ->  b >>= \b' -> when b' (hPutChar  h c)                     >> return True
+        '\n' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'n')  >> return True
+        '\t' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 't')  >> return True
+        '\r' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'r')  >> return True
+        '"'  ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '"')  >> return True
+        '\\' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '\\') >> return True
+        _    ->  b >>= \b' -> when b' (hPutChar  h c)                      >> return True
 
+_bs1, _bs2 :: ByteString
+_bs1 = B.pack "\nthis \ris a \\U00015678long\t\nliteral\\uABCD\n"
+_bs2 = B.pack "\nan \\U00015678 escape\n"
+
+_w :: IO ()
+_w = writeLiteralString stdout _bs1
