@@ -234,11 +234,16 @@ nt_string =  many inner_string >>= return . B.concat
 inner_string :: GenParser Char st ByteString
 inner_string   = 
   try (do {
-       char '\\'; 
-       do {c <- oneOf ['t', 'r', 'n', '\\', '"']; return $ s2b ('\\':c:[])}  <|>
-       do {char 'u'; chrs <- count 4 hexDigit; return $ s2b ('\\':'u':chrs)} <|>
-       do {char 'U'; chrs <- count 8 hexDigit; return $ s2b ('\\':'U':chrs)}
-  })  <|> do {c <- satisfy is_nonquote_char; return (B.singleton c)} 
+         char '\\';
+         (char 't' >> return (B.singleton '\t'))  <|>
+         (char 'r' >> return (B.singleton '\r'))  <|>
+         (char 'n' >> return (B.singleton '\n'))  <|>
+         (char '\\' >> return (B.singleton '\\')) <|>
+         (char '"' >> return (B.singleton '"'))   <|>
+         do {char 'u'; chrs <- count 4 hexDigit; return $ s2b ('\\':'u':chrs)} <|>
+         do {char 'U'; chrs <- count 8 hexDigit; return $ s2b ('\\':'U':chrs)}
+        })  
+      <|> do {c <- satisfy is_nonquote_char; return (B.singleton c)} 
 
 -- ==========================================================
 -- ==  END OF PARSER COMBINATORS AND SUPPORTING FUNCTIONS  ==

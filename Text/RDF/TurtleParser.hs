@@ -581,19 +581,30 @@ t_longString =
 longString_char  :: GenParser Char ParseState ByteString
 longString_char  = 
   (try $! oneOf ['\x0009', '\x000A', '\x000D'] >>= \c -> return $! B.singleton c)         <|>  -- \r|\n|\t as single char
-  (try $! char '\\' >> oneOf ['t', 'n', 'r', '\\'] >>= \c -> return $! s2b ('\\':c:[])) <|>
-  (try $! string "\\\"" >> return (s2b "\\\"")) <|>
+  (try $! char '\\' >> 
+          ((char 't' >> return (B.singleton '\t')) <|>
+          (char 'n' >> return (B.singleton '\n')) <|>
+          (char 'r' >> return (B.singleton '\r')) <|>
+          (char '\\' >> return (B.singleton '\\')) )) <|>
+  (try $! string "\\\"" >> return (B.singleton '"')) <|>
   (try $! non_ctrl_char_except ['\\'] >>= \s -> return $! s) <|> 
   (try unicode_escape)
 
 t_character  :: GenParser Char ParseState ByteString
 t_character =  
   try (non_ctrl_char_except ['\\'] >>= \c -> return c) <|> 
-  try (string "\\" >> return (B.singleton '\\')) <|> 
-  try unicode_escape
+  try (string "\\" >> 
+        ((char 't' >> return (B.singleton '\t')) <|>
+        (char 'n' >> return (B.singleton '\n')) <|>
+        (char 'r' >> return (B.singleton '\r')))) 
+  <|>  try unicode_escape
 
 t_echaracter  :: GenParser Char ParseState ByteString
-t_echaracter = try( do { (char '\\'); c <- oneOf ['t', 'n', 'r']; return $! s2b ('\\':c:[]);}) <|>
+t_echaracter = try( do { (char '\\'); 
+                         (char 't' >> return (B.singleton '\t')) <|>
+                         (char 'n' >> return (B.singleton '\n')) <|>
+                         (char 'r' >> return (B.singleton '\r'))
+                         }) <|>
                t_character
                
 t_hex  :: GenParser Char ParseState Char
@@ -609,8 +620,11 @@ t_ucharacter =
 -- echaracter - #x22 ) | '\"'
 t_scharacter  :: GenParser Char ParseState ByteString
 t_scharacter =
-  do (try (string "\\\"") >> return (s2b ('\\':'"':[]))) 
-     <|> try (do char '\\'; c <- oneOf ['t', 'n', 'r']; return $! s2b ('\\':c:[])) -- echaracter part 1
+  do (try (string "\\\"") >> return (B.singleton '"')) 
+     <|> try (do {char '\\'; 
+                  (char 't' >> return (B.singleton '\t')) <|>
+                  (char 'n' >> return (B.singleton '\n')) <|>
+                  (char 'r' >> return (B.singleton '\r'))}) -- echaracter part 1
      <|> unicode_escape 
      <|> (non_ctrl_char_except ['\\', '"'] >>= \s -> return $! s)       -- echaracter part 2 minus "
 
