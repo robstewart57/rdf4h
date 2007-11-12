@@ -80,10 +80,10 @@ nt_ntripleDoc =
 -- the EBNF. Parsec did not like having optional stuff after the skipMany,
 -- and this was a workaround.
 nt_line :: GenParser Char st (Maybe Triple)
-nt_line      = do skipMany nt_space
-                  res <- (nt_comment <|>  nt_triple <|> nt_empty)
-                  nt_eoln
-                  return res
+nt_line      = 
+  skipMany nt_space >>
+    (nt_comment <|>  nt_triple <|> nt_empty) >>= 
+    \res -> nt_eoln >> return res
 
 -- A comment consists of an initial # character, followed by any number of 
 -- characters except cr or lf. The spec is redundant in specifying that
@@ -92,7 +92,7 @@ nt_line      = do skipMany nt_space
 -- lf #x000A are both already excluded. This returns Nothing as we are
 -- ignoring comments for now.
 nt_comment :: GenParser Char st (Maybe Triple)
-nt_comment   = do char '#'; skipMany nt_character; return Nothing;
+nt_comment   = char '#' >> skipMany nt_character >> return Nothing
 
 -- A triple consists of whitespace-delimited subject, predicate, and object,
 -- followed by optional whitespace and a period, and possibly more 
@@ -113,33 +113,35 @@ nt_triple    =
 -- nt_empty is a line that isn't a comment or a triple. They appear in the 
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
 nt_empty :: GenParser Char st (Maybe Triple)
-nt_empty     = do skipMany nt_space; return Nothing
+nt_empty     = skipMany nt_space >> return Nothing
 
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
 nt_subject :: GenParser Char st (Node)
-nt_subject   = do {uri <- nt_uriref; return (unode uri);} <|> 
-               do {nodeId <- nt_nodeID; return (bnode nodeId);}
+nt_subject   =   
+  (nt_uriref >>= return . unode) <|>  
+  (nt_nodeID >>= return . bnode)
 
 
 -- A predicate may only be a URI reference to a resource.
 nt_predicate :: GenParser Char st (Node)
-nt_predicate = do uri <- nt_uriref; return (unode uri);
+nt_predicate = nt_uriref >>= return . unode
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
 nt_object :: GenParser Char st (Node)
-nt_object = do {uri    <- nt_uriref;  return (unode uri) } <|> 
-            do {nodeId <- nt_nodeID;  return (bnode nodeId)} <|> 
-            do {lit    <- nt_literal; return (LNode lit)}
+nt_object = 
+  (nt_uriref >>=  return . unode) <|> 
+  (nt_nodeID >>=  return . bnode) <|> 
+  (nt_literal >>= return . LNode)
 
 -- A URI reference is an absolute URI inside angle brackets.
 nt_uriref :: GenParser Char st (ByteString)
-nt_uriref = do char '<'; uri <- nt_absoluteURI; char '>'; return uri
+nt_uriref = between (char '<') (char '>') nt_absoluteURI
 
 -- A node id is "_:" followed by a name.
 nt_nodeID :: GenParser Char st (ByteString)
-nt_nodeID = do string "_:"; n <- nt_name; return $ s2b "_:" `B.append` n
+nt_nodeID = string "_:" >> nt_name >>= \n -> return (s2b "_:" `B.append` n)
 
 -- A literal is either a language literal (with optional language
 -- specified) or a datatype literal (with required datatype
@@ -149,33 +151,26 @@ nt_nodeID = do string "_:"; n <- nt_name; return $ s2b "_:" `B.append` n
 -- the closing quote with ^^ followed by the URI of the datatype.
 nt_literal :: GenParser Char st (LValue)
 nt_literal    = 
-  do 
-    str <- between (char '"') (char '"') nt_string
-    rt <- do {char '@'; lng <- nt_language; return (Just (Left lng))} <|> 
-          do {string "^^"; uri <- nt_uriref; return (Just (Right uri))} <|>
-          do {return Nothing}
-    case rt of
-      Nothing              -> return (plainL str)
-      (Just (Left lng))    -> return (plainLL str lng)
-      (Just (Right uri))   -> return (typedL str  (mkFastString uri))
+  between (char '"') (char '"') nt_string >>= \str ->
+    (char '@' >> nt_language  >>= return . plainLL str) <|> 
+    (string "^^" >> nt_uriref >>= return . typedL str . mkFastString) <|>
+    (return $ plainL str)
+
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
 -- by one or more lowercase letters or digits.
 nt_language :: GenParser Char st (ByteString)
 nt_language    =   
-  do
-    str1 <- many1 lower >>= return . s2b; 
-    str2 <- many (do { char '-'; 
-                       ld <- many (lower <|> digit); 
-                       return (s2b $ '-':ld); 
-                     })
-    return (B.concat (str1:str2))
+  many1 lower >>= return . s2b >>= \str1 -> many block >>= \strs ->
+    return (B.concat (str1:strs))
+  where
+    block = char '-' >> many (lower <|> digit) >>= \lds -> return $ s2b ('-':lds)
 
 -- End-of-line consists of either lf or crlf. We left-factored the pattern
 -- here to avoid using the try combinator.
 nt_eoln :: GenParser Char st ()
-nt_eoln        =   do  { nt_lf <|> nt_cr; optional nt_lf; }
+nt_eoln        =   (nt_lf <|> nt_cr) >> optional nt_lf
 
 -- Whitespace is either a space or tab character. We must avoid using the
 -- built-in space combinator here, because it includes newline.
@@ -233,17 +228,15 @@ nt_string =  many inner_string >>= return . B.concat
 -- (\Uxxxxxxxx where x is a hexadecimaldigit).
 inner_string :: GenParser Char st ByteString
 inner_string   = 
-  try (do {
-         char '\\';
-         (char 't' >> return (B.singleton '\t'))  <|>
-         (char 'r' >> return (B.singleton '\r'))  <|>
-         (char 'n' >> return (B.singleton '\n'))  <|>
-         (char '\\' >> return (B.singleton '\\')) <|>
-         (char '"' >> return (B.singleton '"'))   <|>
-         do {char 'u'; chrs <- count 4 hexDigit; return $ s2b ('\\':'u':chrs)} <|>
-         do {char 'U'; chrs <- count 8 hexDigit; return $ s2b ('\\':'U':chrs)}
-        })  
-      <|> do {c <- satisfy is_nonquote_char; return (B.singleton c)} 
+  try (char '\\' >>
+         ((char 't' >> return (B.singleton '\t'))  <|>
+          (char 'r' >> return (B.singleton '\r'))  <|>
+          (char 'n' >> return (B.singleton '\n'))  <|>
+          (char '\\' >> return (B.singleton '\\')) <|>
+          (char '"' >> return (B.singleton '"'))   <|>
+          (char 'u' >> count 4 hexDigit >>= \cs -> return $ s2b ('\\':'u':cs)) <|>
+          (char 'U' >> count 8 hexDigit >>= \cs -> return $ s2b ('\\':'U':cs))))
+  <|> (satisfy is_nonquote_char >>= return . B.singleton) 
 
 -- ==========================================================
 -- ==  END OF PARSER COMBINATORS AND SUPPORTING FUNCTIONS  ==
