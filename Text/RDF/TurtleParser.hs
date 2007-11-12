@@ -487,7 +487,7 @@ convertColl !bUrl !pms !subj !pred (B_Collection !objs) =
 convertColl _ _ _ _ coll = error $ "TurtleParser.convertColl. Unexpected blank: " ++ show coll
 
 t_collection :: GenParser Char ParseState ([Object])
-t_collection = try $! between (char '(') (char ')') g
+t_collection = try (between (char '(') (char ')') g)
   where
     g =  many t_ws >> option [] t_itemList >>= \l -> many t_ws >> return l
 
