@@ -31,7 +31,7 @@ writeNode h node =
                      hPutStrRev h (value fs) >> 
                      hPutChar h '>'
     (BNode gId) -> hPutStrRev h (value gId)
-    (BNodeGen i)-> hPutStr h (show i)
+    (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n
 
 writeLValue :: Handle -> LValue -> IO ()
