@@ -244,86 +244,11 @@ t_boolean =
   try ((string "true" >>= return . s2b) <|> 
   (string "false" >>= return . s2b))
 
-( object1 object2 ) is short for:
-
-[ rdf:first object1; rdf:rest [ rdf:first object2; rdf:rest rdf:nil ] ]
-
-Which expands to the following triples:
-:genid0 rdf:first object1 .
-:genid0 rdf:rest :genid1 .
-:genid1 rdf:first object2 .
-:genid1 rdf:rest rdf:nil .
--- plus the initial:
-:subj :pred :genid0
-
-( ) is short for the resource:
-rdf:nil
-
-The Notation3 spec has the following to say on lists:
-
-1. All lists exist. The statement [rdf:first <a>; rdf:rest rdf:nil]. carries no
-   information in that the list ( <a> ) exists and this expression carries no 
-   new information about it.
-
-2. A list has only one rdf:first. rdf:first is functional. If the same thing
-   has rdf:first arcs from it, they must be to nodes which are RDF
-   equivalent - are the same RDF node.
-
-3. Lists are the same RDF node if they have the same the:first and the
-   same rdf:rest.
-
--}
-convertColl :: Maybe BaseUrl -> PrefixMappings -> Resource -> Resource -> Blank -> Triples
-convertColl !bUrl !pms !subj !pred (B_Collection !objs) =  
-  let ts = convertColl' objs
-  in  case null objs of
-         True   ->  ts
-         False  ->  initialTriple (head objs) : ts
-  where
-    initialTriple :: (Int, Object) -> Triple
-    initialTriple (initId, _) = triple subjNode predNode (BNodeGen initId)
-    subjNode = uriRefQNameOrBlank  bUrl pms subj
-    predNode = uriRefOrQName bUrl pms pred
-    -- only called with empty list if collection was empty
-    convertColl' :: [(Int, Object)] -> Triples
-    convertColl' []                = [triple subjNode predNode rdfNilNode]
-    -- if next elem is nil, then we're finished, and make rdf:rest nil
-    convertColl' ((i, obj):[])     = triple (BNodeGen i) rdfFirstNode (bObjToNode obj) : triple (BNodeGen i) rdfRestNode rdfNilNode : []
-    convertColl' ((i1,obj1):o2@(i2,_):os) = triple (BNodeGen i1) rdfFirstNode (bObjToNode obj1) : triple (BNodeGen i1) rdfRestNode (BNodeGen i2) : convertColl' (o2:os) -- do {f <- rdfFirstNode;r <- rdfRestNode;o <- bObjToNode obj1; convertColl' (o2:os) >>= \ts -> return $! triple (BNodeGen i1) f o : triple (BNodeGen i1) r (BNodeGen i2) : ts}
-    bObjToNode :: Object -> Node
-    bObjToNode (O_Resource res) = uriRefOrQName bUrl pms res
-    bObjToNode (O_Literal lit)  = lit
-    bObjToNode errObj            = error $ "TurtleParser.convertColl: not allowed in collection: " ++ show errObj
-convertColl _ _ _ _ coll = error $ "TurtleParser.convertColl. Unexpected blank: " ++ show coll
-
-t_collection :: GenParser Char ParseState ([Object])
-t_collection = try $! between (char '(') (char ')') g
-  where
-    g =  many t_ws >> option [] t_itemList >>= \l -> many t_ws >> return l
-
-t_ws  :: GenParser Char ParseState Char
-t_ws = char '\x000A' <|> char '\x000D' <|> char '\x0020' <|> t_comment <?> "whitespace"
-
-t_resource :: GenParser Char ParseState (Resource)
-t_resource = t_uriref <|> t_qname
-
-t_nodeID  :: GenParser Char ParseState ByteString
-t_nodeID = do { string "_:"; cs <- t_name; return $! s2b "_:" `B.append` cs }
-
-
-uriRefQNameOrBlank :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefQNameOrBlank (Just (BaseUrl u)) _ (R_URIRef url)           = UNode $! mkFastString (mkAbsoluteUrl u url)
-uriRefQNameOrBlank  Nothing           _ (R_URIRef url)           = UNode $! mkFastString url
-uriRefQNameOrBlank  bUrl     pms   (R_QName pre local)           = UNode $! mkFastString ((resolveQName bUrl pre pms) `B.append` local)
-uriRefQNameOrBlank  _        _     (R_Blank (B_BlankId bId))     = BNode $! mkFastString bId
-uriRefQNameOrBlank  _        _     (R_Blank (B_BlankGen genId))  = BNodeGen genId
-uriRefQNameOrBlank  _        _     !res                          = error  $  show ("TurtleParser.uriRefQNameOrBlank: " ++ show res)
-
-uriRefOrQName :: Maybe BaseUrl -> PrefixMappings -> Resource -> Node
-uriRefOrQName Nothing                _    (R_URIRef !url)     = UNode $! mkFastString url
-uriRefOrQName (Just (BaseUrl base))  _    (R_URIRef url)      = UNode $! mkFastString (mkAbsoluteUrl base url)
-uriRefOrQName bUrl                   pms  (R_QName pre local) = UNode $! mkFastString (resolveQName bUrl pre pms `B.append` local)
-uriRefOrQName _                      _    _                   = error "TurtleParser.predicate"
+t_comment :: GenParser Char ParseState ()
+t_comment = 
+  char '#' >> 
+  many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >>
+  return ()
 
 t_ws  :: GenParser Char ParseState ()
 t_ws = 
