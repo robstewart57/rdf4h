@@ -12,7 +12,7 @@ module Text.RDF.Core (
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
-  fromEither
+  fromEither, maybeHead
 )
 where
 
