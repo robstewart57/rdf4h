@@ -3,7 +3,7 @@ module Text.RDF.Utils (
   FastString(uniq, value), 
   mkFastString, equalFS, compareFS, 
   s2b, b2s, hPutStrRev, hPutStrLnRev,
-  canonicalize
+  canonicalize, maybeHead
 ) where
 
 import Data.ByteString.Char8(ByteString)
@@ -17,6 +17,12 @@ import Data.IORef
 import System.IO.Unsafe(unsafePerformIO)
 
 import Control.Monad
+
+-- |A safe version of head that returns 'Nothing' for an empty list or 'Just (head lst)' for
+-- a non-empty list.
+maybeHead :: [a] -> Maybe a
+maybeHead lst | null lst   =  Nothing
+              | otherwise  =  Just (head lst)
 
 -- |'FastString' is a bytestring-based string type that provides constant-time equality
 -- testing.
