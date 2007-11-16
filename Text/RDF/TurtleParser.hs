@@ -112,11 +112,11 @@ t_objectList = -- t_object actually adds the triples
 
 t_object :: GenParser Char ParseState ()
 t_object =
-  do inColl <- isInColl             -- whether this object is in a collection
-     onFirstItem <- onCollFirstItem -- whether we're on the first item of the collection
+  do inColl      <- isInColl          -- whether this object is in a collection
+     onFirstItem <- onCollFirstItem   -- whether we're on the first item of the collection
      let processObject = ((t_literal >>= addTripleForObject) <|>
                           (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
-                          (blank_as_obj) <|> t_collection) 
+                          blank_as_obj <|> t_collection) 
      case (inColl, onFirstItem) of
        (False, _)    -> processObject
        (True, True)  -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> addTripleForObject bSubj >>
