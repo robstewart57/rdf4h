@@ -149,7 +149,7 @@ blank_as_obj =
   (t_nodeID >>= return . BNode . mkFastString >>= addTripleForObject) <|>
   -- if a simple blank like [], do likewise
   (genBlank >>= addTripleForObject) <|>
-  -- if a blank containing a predicateObjectList, like [ :b :c; :b :d ], TODO:
+  -- if a blank containing a predicateObjectList, like [ :b :c; :b :d ]
   poList
   where
     genBlank = try (string "[]") >> nextIdCounter >>=  return . BNodeGen
