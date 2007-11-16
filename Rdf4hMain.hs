@@ -1,10 +1,9 @@
 module Main where
 
 import Text.RDF.Core
-import qualified Text.RDF.TriplesGraph       as NG
+import Text.RDF.TriplesGraph
 import qualified Text.RDF.NTriplesParser     as NP
 import qualified Text.RDF.NTriplesSerializer as NS
-import qualified Text.RDF.MGraph             as TG
 import qualified Text.RDF.TurtleParser       as TP
 
 import Data.ByteString.Char8(ByteString)
@@ -49,18 +48,19 @@ main =
      let mInputUri  = if inputBaseUri == "-" then Nothing else Just (BaseUrl $ s2b inputBaseUri)
          docUri     = inputUri
      case (inputFormat, isUri $ s2b inputUri) of
+       -- we use TriplesGraph in all cases, since it preserves the ordering of triples
        ("turtle",    True) -> TP.parseURL mInputUri docUri inputUri
-                                >>= \(res :: Either ParseFailure TG.MGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
        ("turtle",   False) -> (if inputUri /= "-" 
                                   then TP.parseFile mInputUri docUri inputUri 
                                   else getContents >>= return . TP.parseString mInputUri docUri)
-                                >>= \(res :: Either ParseFailure TG.MGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
        ("ntriples",  True) -> NP.parseURL inputUri
-                                >>= \(res :: Either ParseFailure NG.TriplesGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
        ("ntriples", False) -> (if inputUri /= "-"
                                   then NP.parseFile inputUri
                                   else getContents >>= return . NP.parseString)
-                                >>= \(res :: Either ParseFailure NG.TriplesGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
 write :: Graph gr => Either ParseFailure gr -> IO ()
