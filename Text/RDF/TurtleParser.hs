@@ -114,19 +114,16 @@ t_object :: GenParser Char ParseState ()
 t_object =
   do inColl <- isInColl             -- whether this object is in a collection
      onFirstItem <- onCollFirstItem -- whether we're on the first item of the collection
-     case (inColl, onFirstItem) of
-       (False, _)    -> (t_literal >>= addTripleForObject) <|>
-                          (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
-                          (blank_as_obj)  <|> t_collection
-       (True, True)  -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> addTripleForObject bSubj >>
-                          pushSubj bSubj >> pushPred rdfFirstNode >> ((t_literal >>= addTripleForObject) <|>
-                          (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
-                          (blank_as_obj) <|> t_collection) >> collFirstItemProcessed
-       (True, False) -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> pushPred rdfRestNode >>
-                          addTripleForObject bSubj >> popPred >> popSubj >> pushSubj bSubj >> 
-                          ((t_literal >>= addTripleForObject) <|>
+     let processObject = ((t_literal >>= addTripleForObject) <|>
                           (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
                           (blank_as_obj) <|> t_collection) 
+     case (inColl, onFirstItem) of
+       (False, _)    -> processObject
+       (True, True)  -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> addTripleForObject bSubj >>
+                          pushSubj bSubj >> pushPred rdfFirstNode >> processObject >> collFirstItemProcessed
+       (True, False) -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> pushPred rdfRestNode >>
+                          addTripleForObject bSubj >> popPred >> popSubj >> 
+                          pushSubj bSubj >> processObject
   
 -- collection: '(' ws* itemList? ws* ')'
 -- itemList:      object (ws+ object)*
