@@ -25,10 +25,10 @@ writeTriple h (Triple s p o) =
   writeNode h o >> hPutStrLn h " ."
 
 writeNode :: Handle -> Node -> IO ()
-writeNode h node = 
+writeNode h node =
   case node of
-    (UNode fs)  -> hPutChar h '<' >> 
-                     hPutStrRev h (value fs) >> 
+    (UNode fs)  -> hPutChar h '<' >>
+                     hPutStrRev h (value fs) >>
                      hPutChar h '>'
     (BNode gId) -> hPutStrRev h (value gId)
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
@@ -40,22 +40,22 @@ writeLValue h lv =
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@\"" >>
-                            B.hPutStr h lang >> 
+                            B.hPutStr h lang >>
                             hPutStr h "\""
-    (TypedL lit dtype) -> writeLiteralString h lit >> 
+    (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^\"" >>
-                            hPutStrRev h (value dtype) >> 
+                            hPutStrRev h (value dtype) >>
                             hPutStr h "\""
 
 writeLiteralString:: Handle -> ByteString -> IO ()
-writeLiteralString h bs = 
+writeLiteralString h bs =
   do hPutChar h '"'
      B.foldl' writeChar (return True) bs
      hPutChar h '"'
   where
     writeChar :: IO (Bool) -> Char -> IO (Bool)
-    writeChar b c = 
-      case c of 
+    writeChar b c =
+      case c of
         '\n' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'n')  >> return True
         '\t' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 't')  >> return True
         '\r' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'r')  >> return True

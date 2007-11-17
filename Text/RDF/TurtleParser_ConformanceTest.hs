@@ -27,7 +27,7 @@ testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
 mtestBaseUri :: Maybe BaseUrl
 mtestBaseUri = Just $ BaseUrl $ B.pack testBaseUri
 
-fpath :: String -> Int -> String -> String    
+fpath :: String -> Int -> String -> String
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 
 runAllCTests :: IO (T.Counts, Int)
@@ -39,10 +39,10 @@ runAllCTests = allTests >>= return . T.TestList >>= runTest
         --allTests = allGoodTests
 
 checkGoodConformanceTest :: Int -> IO T.Test
-checkGoodConformanceTest i = 
+checkGoodConformanceTest i =
   do
     expGr <- expected "test" i
-    inGr  <- input    "test" i 
+    inGr  <- input    "test" i
     t1 <-  return (return expGr >>= assertLoadSuccess (printf "expected%02d:" i :: String))
     t2 <-  return (return inGr  >>= assertLoadSuccess (printf "   input%02d:" i :: String))
     t3 <-  return $ assertEquivalent i expGr inGr
@@ -64,13 +64,13 @@ equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
     gr1ts = ordered $ triplesOf $ gr1
     gr2ts = ordered $ triplesOf $ gr2
     test []           = Nothing
-    test ((t1,t2):ts) = 
+    test ((t1,t2):ts) =
       case compareTriple t1 t2 of
         Nothing -> test ts
         err     -> err
-    compareTriple t1 t2 = 
+    compareTriple t1 t2 =
       if equalNodes s1 s2 && equalNodes p1 p2 && equalNodes o1 o2
-        then Nothing 
+        then Nothing
         else Just ("Expected:\n  " ++ show t1 ++ "\nFound:\n  " ++ show t2 ++ "\n")
       where
         (s1, p1, o1) = f t1
@@ -78,17 +78,17 @@ equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
         f t = (subjectOf t, predicateOf t, objectOf t)
     equalNodes (BNode fs1) (BNodeGen i) = B.reverse (value fs1) == s2b ("_:genid" ++ show i)
     equalNodes n1          n2           = n1 == n2
-    
+
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
 -- triples into a format so that they can be compared with the expected output triples.
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-input name n = 
+input name n =
   readFile (fpath name n "ttl") >>=
     return .  parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>= \res ->
     case res of
       l@(Left _)  -> return l
       (Right gr)  -> return . Right $ mkGraph (map normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
-  where 
+  where
     normalize :: Triple -> Triple
     normalize t = let s' = normalizeN $ subjectOf t
                       p' = normalizeN $ predicateOf t
@@ -108,7 +108,7 @@ assertLoadFailure _       (Left _)   = return ()
 assertLoadFailure idStr _          = T.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
 
 assertEquivalent :: Graph gr => Int -> Either ParseFailure gr -> Either ParseFailure gr -> T.Assertion
-assertEquivalent i r1 r2 = 
+assertEquivalent i r1 r2 =
   case equiv of
     Nothing    -> T.assert True
     (Just msg) -> fail $ "Graph " ++ show i ++ " not equivalent to expected:\n" ++ msg

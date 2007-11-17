@@ -2,15 +2,15 @@
 
 This module defines a parser for RDF in N-Triples format.
 
-The most current description of N-Triples (as of Sept. 07) -- that is, the 
-one used for creating this module -- is in the 'RDF Test Cases' candidate 
+The most current description of N-Triples (as of Sept. 07) -- that is, the
+one used for creating this module -- is in the 'RDF Test Cases' candidate
 recommendation  <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 -}
 
 module Text.RDF.NTriplesParser(
   parseFile, parseURL, parseString, ParseFailure
-) 
+)
 
 where
 
@@ -29,76 +29,75 @@ import Control.Monad
 
 {-
 
-URIs are not validated syntactically, nor are datatype URIs checked in 
+URIs are not validated syntactically, nor are datatype URIs checked in
 any way. All URIs are treated as opaque strings at present.
 
 The following EBNF grammar for n-triples is taken from
 <http://www.w3.org/TR/rdf-testcases/#ntriples>. I've doubled the pipe symbol
 and the ampersand symbol in order to escape them for lhs2Tex.
 
-ntripleDoc  	::=  	line*  	
-line 	        ::= 	ws* ( comment | triple )? eoln 	
-comment 	::= 	'#' ( character - ( cr | lf ) )* 	
-triple 	        ::= 	subject ws+ predicate ws+ object ws* '.' ws* 	
-subject 	::= 	uriref | nodeID 	
-predicate 	::= 	uriref 	
-object 	        ::= 	uriref | nodeID | literal 	
-uriref 	        ::= 	'<' absoluteURI '>' 	
-nodeID 	        ::= 	'_:' name 	
-literal 	::= 	langString | datatypeString 	
+ntripleDoc  	::=  	line*
+line 	        ::= 	ws* ( comment | triple )? eoln
+comment 	::= 	'#' ( character - ( cr | lf ) )*
+triple 	        ::= 	subject ws+ predicate ws+ object ws* '.' ws*
+subject 	::= 	uriref | nodeID
+predicate 	::= 	uriref
+object 	        ::= 	uriref | nodeID | literal
+uriref 	        ::= 	'<' absoluteURI '>'
+nodeID 	        ::= 	'_:' name
+literal 	::= 	langString | datatypeString
 langString 	::= 	'"' string '"' ( '@' language )?
-datatypeString 	::= 	'"' string '"' '^^' uriref 	
-language 	::= 	[a-z]+ ('-' [a-z0-9]+ )* /*encoding a language tag.*/	
-ws 	        ::= 	space | tab 	
-eoln 	        ::= 	cr | lf | cr lf 	
-space 	        ::= 	#x20 /* US-ASCII space - decimal 32 */ 	
-cr 	        ::= 	#xD /* US-ASCII carriage return - decimal 13 */ 	
-lf 	        ::= 	#xA /* US-ASCII line feed - decimal 10 */ 	
-tab 	        ::= 	#x9 /* US-ASCII horizontal tab - decimal 9 */ 	
-string 	        ::= 	character* with escapes as defined in section Strings 	
-name 	        ::= 	[A-Za-z][A-Za-z0-9]* 	
-absoluteURI 	::= 	character+ with escapes as defined in section URI References 	
+datatypeString 	::= 	'"' string '"' '^^' uriref
+language 	::= 	[a-z]+ ('-' [a-z0-9]+ )* /*encoding a language tag.*/
+ws 	        ::= 	space | tab
+eoln 	        ::= 	cr | lf | cr lf
+space 	        ::= 	#x20 /* US-ASCII space - decimal 32 */
+cr 	        ::= 	#xD /* US-ASCII carriage return - decimal 13 */
+lf 	        ::= 	#xA /* US-ASCII line feed - decimal 10 */
+tab 	        ::= 	#x9 /* US-ASCII horizontal tab - decimal 9 */
+string 	        ::= 	character* with escapes as defined in section Strings
+name 	        ::= 	[A-Za-z][A-Za-z0-9]*
+absoluteURI 	::= 	character+ with escapes as defined in section URI References
 character 	::= 	[#x20-#x7E] /* US-ASCII space to decimal 126 */
 
 -}
 
-
 -- We define or redefine all here using same names as the spec, but with an
--- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes 
+-- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
 -- nt_ntripleDoc).
 
 -- |nt_ntripleDoc is simply zero or more lines.
---nt_ntripleDoc = GenParser Char st (Maybe 
+--nt_ntripleDoc = GenParser Char st (Maybe
 nt_ntripleDoc :: GenParser Char st ([Maybe Triple], Maybe BaseUrl, PrefixMappings)
-nt_ntripleDoc = 
+nt_ntripleDoc =
   many nt_line >>= \lines ->
   return (lines, Nothing, PrefixMappings Map.empty)
 
--- |nt_line is optional whitespace followed by either a comment, a triple, or 
+-- |nt_line is optional whitespace followed by either a comment, a triple, or
 -- empty. The 'empty' option is a simple deviation from the EBNF grammar
 -- above. It encodes that the comment or triple are optional, as given in
 -- the EBNF. Parsec did not like having optional stuff after the skipMany,
 -- and this was a workaround.
 nt_line :: GenParser Char st (Maybe Triple)
-nt_line      = 
+nt_line      =
   skipMany nt_space >>
-    (nt_comment <|>  nt_triple <|> nt_empty) >>= 
+    (nt_comment <|>  nt_triple <|> nt_empty) >>=
     \res -> nt_eoln >> return res
 
--- A comment consists of an initial # character, followed by any number of 
+-- A comment consists of an initial # character, followed by any number of
 -- characters except cr or lf. The spec is redundant in specifying that
 -- comment is hash followed by "character - (cr | lf)", since character
--- is already defined as the range #x0020-#x007E, so cr #x000D and 
+-- is already defined as the range #x0020-#x007E, so cr #x000D and
 -- lf #x000A are both already excluded. This returns Nothing as we are
 -- ignoring comments for now.
 nt_comment :: GenParser Char st (Maybe Triple)
 nt_comment   = char '#' >> skipMany nt_character >> return Nothing
 
 -- A triple consists of whitespace-delimited subject, predicate, and object,
--- followed by optional whitespace and a period, and possibly more 
+-- followed by optional whitespace and a period, and possibly more
 -- whitespace.
 nt_triple :: GenParser Char st (Maybe Triple)
-nt_triple    = 
+nt_triple    =
   do
     subj <- nt_subject
     many1 nt_space
@@ -110,7 +109,7 @@ nt_triple    =
     many nt_space
     return $ Just (triple subj pred obj)
 
--- nt_empty is a line that isn't a comment or a triple. They appear in the 
+-- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
 nt_empty :: GenParser Char st (Maybe Triple)
 nt_empty     = skipMany nt_space >> return Nothing
@@ -118,8 +117,8 @@ nt_empty     = skipMany nt_space >> return Nothing
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
 nt_subject :: GenParser Char st (Node)
-nt_subject   =   
-  (nt_uriref >>= return . unode) <|>  
+nt_subject   =
+  (nt_uriref >>= return . unode) <|>
   (nt_nodeID >>= return . bnode)
 
 
@@ -130,9 +129,9 @@ nt_predicate = nt_uriref >>= return . unode
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
 nt_object :: GenParser Char st (Node)
-nt_object = 
-  (nt_uriref >>=  return . unode) <|> 
-  (nt_nodeID >>=  return . bnode) <|> 
+nt_object =
+  (nt_uriref >>=  return . unode) <|>
+  (nt_nodeID >>=  return . bnode) <|>
   (nt_literal >>= return . LNode)
 
 -- A URI reference is an absolute URI inside angle brackets.
@@ -150,9 +149,9 @@ nt_nodeID = string "_:" >> nt_name >>= \n -> return (s2b "_:" `B.append` n)
 -- followed by a language specifier. A datatype literal follows
 -- the closing quote with ^^ followed by the URI of the datatype.
 nt_literal :: GenParser Char st (LValue)
-nt_literal    = 
+nt_literal    =
   between (char '"') (char '"') nt_string >>= \str ->
-    (char '@' >> nt_language  >>= return . plainLL str) <|> 
+    (char '@' >> nt_language  >>= return . plainLL str) <|>
     (string "^^" >> nt_uriref >>= return . typedL str . mkFastString) <|>
     (return $ plainL str)
 
@@ -161,7 +160,7 @@ nt_literal    =
 -- letters followed by any number of blocks consisting of a hyphen followed
 -- by one or more lowercase letters or digits.
 nt_language :: GenParser Char st (ByteString)
-nt_language    =   
+nt_language    =
   many1 lower >>= return . s2b >>= \str1 -> many block >>= \strs ->
     return (B.concat (str1:strs))
   where
@@ -193,7 +192,7 @@ nt_tab         =   char '\x0009'
 nt_name :: GenParser Char st ByteString
 nt_name        =   do ltr <- letter; str <- many alphaNum; return $! s2b (ltr:str)
 
--- An absolute URI is at least 1 nrab_character. We do not attempt to 
+-- An absolute URI is at least 1 nrab_character. We do not attempt to
 -- validate the URI at all, so anything that parses is accepted.
 nt_absoluteURI :: GenParser Char st ByteString
 nt_absoluteURI =   many1 nrab_character >>= return . s2b
@@ -220,14 +219,14 @@ is_nonquote_char c = is_character c && c/= '"'
 nt_string :: GenParser Char st ByteString
 nt_string =  many inner_string >>= return . B.concat
 
--- An inner_string is a fragment of a string (this is used inside double 
--- quotes), and consists of the non-quote characters allowed and the 
+-- An inner_string is a fragment of a string (this is used inside double
+-- quotes), and consists of the non-quote characters allowed and the
 -- standard escapes for a backslash (\\), a tab (\t), a carriage  return (\r),
--- a newline (\n), a double-quote (\"), a 4-digit Unicode escape (\uxxxx 
+-- a newline (\n), a double-quote (\"), a 4-digit Unicode escape (\uxxxx
 -- where x is a hexadecimal digit), and an 8-digit Unicode escape
 -- (\Uxxxxxxxx where x is a hexadecimaldigit).
 inner_string :: GenParser Char st ByteString
-inner_string   = 
+inner_string   =
   try (char '\\' >>
          ((char 't' >> return (B.singleton '\t'))  <|>
           (char 'r' >> return (B.singleton '\r'))  <|>
@@ -236,7 +235,7 @@ inner_string   =
           (char '"' >> return (B.singleton '"'))   <|>
           (char 'u' >> count 4 hexDigit >>= \cs -> return $ s2b ('\\':'u':cs)) <|>
           (char 'U' >> count 8 hexDigit >>= \cs -> return $ s2b ('\\':'U':cs))))
-  <|> (satisfy is_nonquote_char >>= return . B.singleton) 
+  <|> (satisfy is_nonquote_char >>= return . B.singleton)
 
 -- ==========================================================
 -- ==  END OF PARSER COMBINATORS AND SUPPORTING FUNCTIONS  ==
@@ -248,12 +247,12 @@ inner_string   =
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
 parseFile path = parseFromFile nt_ntripleDoc path >>= return . handleParse mkGraph
 
--- |Parse the N-Triples document at the given URL, 
+-- |Parse the N-Triples document at the given URL,
 -- generating a graph containing the parsed triples.
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL url = _parseURL parseString url
 
--- |Parse the given string as an N-Triples document, 
+-- |Parse the given string as an N-Triples document,
 -- generating a graph containing the parsed triples.
 parseString :: Graph gr => String -> Either ParseFailure gr
 parseString str = handleParse mkGraph (parse nt_ntripleDoc "" str)
@@ -262,7 +261,7 @@ handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
                            Either ParseError ([Maybe Triple], Maybe BaseUrl, PrefixMappings) ->
                            (Either ParseFailure gr)
 handleParse _        (Left err) = Left $ ParseFailure $ show err
-handleParse _mkGraph (Right (ts, baseUrl, prefixes)) = 
+handleParse _mkGraph (Right (ts, baseUrl, prefixes)) =
   Right $ _mkGraph (conv ts) baseUrl prefixes
   where
     conv [] = []

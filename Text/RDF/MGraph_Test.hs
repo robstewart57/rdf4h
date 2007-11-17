@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import Control.Monad
 import Test.QuickCheck
 
-
 ----------------------------------------------------
 --   instances and graph functions for AvlGraph   --
 ----------------------------------------------------

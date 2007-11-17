@@ -15,13 +15,13 @@ import qualified Data.Map as Map
 import Data.List
 
 -- |A simple implementation of the 'Graph' type class that represents
--- the graph internally as a list of triples. 
+-- the graph internally as a list of triples.
 --
 -- Note that this type of graph is fine for interactive
 -- experimentation and querying of smallish (<10,000 triples) graphs,
 -- but there are better options for larger graphs or graphs that you
 -- will do many queries against (e.g., 'AvlGraph' is faster for queries).
--- 
+--
 -- The time complexity of the functions (where n == num_triples) are:
 --
 --  * 'empty'    : O(1)
@@ -68,9 +68,9 @@ query' :: TriplesGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Tr
 query' (TriplesGraph (ts, _, _)) s p o = filter (matchPattern s p o) ts
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
-matchSelect s p o t = 
+matchSelect s p o t =
   match s (subjectOf t) && match p (predicateOf t) && match o (objectOf t)
-  where 
+  where
     match Nothing   _ = True
     match (Just fn) n = fn n
 

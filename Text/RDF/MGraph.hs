@@ -45,7 +45,7 @@ instance Graph MGraph where
 -- to the adjacent nodes via that predicate.
 type AdjacencyMap = Map Predicate Adjacencies
 
--- 
+--
 type Adjacencies = Set Object
 type SPOMap    = Map Subject AdjacencyMap
 
@@ -55,7 +55,7 @@ baseUrl' (MGraph (_, baseUrl, _)) = baseUrl
 prefixMappings' :: MGraph -> PrefixMappings
 prefixMappings' (MGraph (_, _, pms)) = pms
 
-empty' :: MGraph 
+empty' :: MGraph
 empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)
 
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
@@ -68,7 +68,7 @@ mergeTs = foldl' mergeT
     mergeT m t = mergeT' m (subjectOf t) (predicateOf t) (objectOf t)
 
 mergeT' :: SPOMap -> Subject -> Predicate -> Object -> SPOMap
-mergeT' m s p o = 
+mergeT' m s p o =
   case s `Map.member` m of
     False -> Map.insert s (newPredMap p o) m
     True  -> case p `Map.member` adjs of
@@ -86,7 +86,7 @@ mergeT' m s p o =
     addPredObj p o = Map.insert p (Set.insert o (get p adjs))
     get :: Ord k => k -> Map k v -> v
     get = Map.findWithDefault undefined
-    
+
 -- 3 following functions support triplesOf
 triplesOf' :: MGraph -> Triples
 triplesOf' (MGraph (spoMap, _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
@@ -101,7 +101,7 @@ tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: MGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (MGraph (spoMap,_,_)) subjFn predFn objFn = 
+select' (MGraph (spoMap,_,_)) subjFn predFn objFn =
   map (\(s,p,o) -> triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
@@ -110,24 +110,23 @@ sel1 (Just subjFn) p o spoMap =
 sel1 Nothing p o spoMap = Set.unions $ map (sel2 p o) $ Map.toList spoMap
 
 sel2 :: NodeSelector -> NodeSelector -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
-sel2 (Just predFn) mobjFn (s, ps) = 
+sel2 (Just predFn) mobjFn (s, ps) =
   Set.map (\(p,o) -> (s,p,o)) $
-  foldl' Set.union Set.empty $ 
+  foldl' Set.union Set.empty $
   map (sel3 mobjFn) poMapS :: Set (Node, Node, Node)
-  where 
+  where
     poMapS :: [(Node, Set Node)]
     poMapS = filter (\(k,_) -> predFn k) $ Map.toList ps
-sel2 Nothing mobjFn (s, ps) = 
-  Set.map (\(p,o) -> (s,p,o)) $ 
+sel2 Nothing mobjFn (s, ps) =
+  Set.map (\(p,o) -> (s,p,o)) $
   foldl' Set.union Set.empty $
   map (sel3 mobjFn) poMaps
-  where 
+  where
     poMaps = Map.toList ps
 
 sel3 :: NodeSelector -> (Node, Set Node) -> Set (Node, Node)
 sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
 sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
-
 
 -- support query
 query' :: MGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
@@ -139,15 +138,15 @@ q1 (Just s) p o spoMap = q2 p o (s, Map.findWithDefault Map.empty s spoMap)
 q1 Nothing  p o spoMap = Set.unions $ map (q2 p o) $ Map.toList spoMap
 
 q2 :: Maybe Node -> Maybe Node -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
-q2 (Just p) o (s, pmap) = 
+q2 (Just p) o (s, pmap) =
   case p `Map.member` pmap of
     False  -> Set.empty
-    True   -> Set.map (\(p', o') -> (s, p', o')) $ 
+    True   -> Set.map (\(p', o') -> (s, p', o')) $
                 q3 o (p, Map.findWithDefault undefined p pmap)
 q2 Nothing o (s, pmap) = Set.map (\(x,y) -> (s,x,y)) $ Set.unions $ map (q3 o) opmaps
   where opmaps ::[(Node, Set Node)]
         opmaps = Map.toList pmap
-        
+
 q3 :: Maybe Node -> (Node, Set Node) -> Set (Node, Node)
 q3 (Just o) (p, os) = if o `Set.member` os then Set.singleton (p, o) else Set.empty
 q3 Nothing  (p, os) = Set.map (\o -> (p, o)) os

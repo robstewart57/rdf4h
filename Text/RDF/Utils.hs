@@ -1,7 +1,7 @@
 {-#  GHC_OPTIONS -fno-cse  #-}
 module Text.RDF.Utils (
-  FastString(uniq, value), 
-  mkFastString, equalFS, compareFS, 
+  FastString(uniq, value),
+  mkFastString, equalFS, compareFS,
   s2b, b2s, hPutStrRev, hPutStrLnRev,
   canonicalize, maybeHead
 ) where
@@ -52,8 +52,8 @@ instance Eq FastString where
 equalFS :: FastString -> FastString -> Bool
 equalFS !fs1 !fs2 = uniq fs1 == uniq fs2
 
--- |Two 'FastString' values are equal if they have the same unique identifier, 
--- and are otherwise ordered using the natural ordering of 'ByteString' in the 
+-- |Two 'FastString' values are equal if they have the same unique identifier,
+-- and are otherwise ordered using the natural ordering of 'ByteString' in the
 -- internal (reversed) representation.
 instance Ord FastString where
   compare !fs1 !fs2 = compareFS fs1 fs2
@@ -90,25 +90,25 @@ hPutStrLnRev h bs = B.hPutStrLn h (B.reverse bs)
 -- if one has been created for equal bytestrings, or creating a new one if necessary.
 -- The 'FastString' values created maintain the invariant that two values have the
 -- same unique identifier (accessible via 'uniq') iff their respective bytestring
--- values are equal. 
+-- values are equal.
 --
 -- The unique identifier is only for the given session, and equal 'ByteString' values
 -- will generally not be assigned the same identifier under different processes and
 -- different executions.
 {-# NOINLINE mkFastString #-}
 mkFastString :: ByteString -> FastString
-mkFastString !bs = 
-  unsafePerformIO $ 
+mkFastString !bs =
+  unsafePerformIO $
   do m <- readIORef fsMap
      let mFs = Map.lookup bs m
      case mFs of
        Just fs  -> return fs
-       Nothing  -> newFastString bs >>= \fs -> 
-                     writeIORef fsMap (Map.insert bs fs m) >> 
+       Nothing  -> newFastString bs >>= \fs ->
+                     writeIORef fsMap (Map.insert bs fs m) >>
                      return fs
 
 -- |Canonicalize the given 'ByteString' value using the 'FastString'
--- as the datatype URI. 
+-- as the datatype URI.
 {-# NOINLINE canonicalize #-}
 canonicalize :: FastString -> ByteString -> ByteString
 canonicalize typeFs litValue =
@@ -118,7 +118,7 @@ canonicalize typeFs litValue =
 
 {-# INLINE newFastString #-}
 newFastString ::  ByteString -> IO FastString
-newFastString !str = 
+newFastString !str =
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
      return $! (FS curr ((1 :: Int) `seq` B.reverse str))
@@ -136,10 +136,10 @@ fsMap = unsafePerformIO $ newIORef Map.empty
 -- assumed to be of that type.
 {-# NOINLINE canonicalizerTable #-}
 canonicalizerTable :: Map FastString (ByteString -> ByteString)
-canonicalizerTable = 
+canonicalizerTable =
   Map.fromList [(integerUri, _integerStr), (doubleUri, _doubleStr),
                 (decimalUri, _decimalStr)]
-  where 
+  where
     integerUri = mkFsUri "http://www.w3.org/2001/XMLSchema#integer"
     decimalUri = mkFsUri "http://www.w3.org/2001/XMLSchema#decimal"
     doubleUri  = mkFsUri "http://www.w3.org/2001/XMLSchema#double"
@@ -154,10 +154,8 @@ _integerStr !s = B.dropWhile (== '0') s
 _doubleStr !s = B.pack $ show $ (read $ B.unpack s :: Double)
 
 -- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
-_decimalStr !s =     -- haskell double parser doesn't handle '1.'.., 
+_decimalStr !s =     -- haskell double parser doesn't handle '1.'..,
   case B.last s of   -- so we add a zero if that's the case and then parse
     '.' -> f (s `B.snoc` '0')
     _   -> f s
   where f s' = B.pack $ show (read $ B.unpack s' :: Double)
-
-

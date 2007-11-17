@@ -15,7 +15,6 @@ import qualified Data.Map as Map
 import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)
 
-
 instance Arbitrary BaseUrl where
   arbitrary = oneof $ map (return . BaseUrl . s2b) ["http://example.com/a", "http://asdf.org/b"]
   coarbitrary = undefined
@@ -35,43 +34,43 @@ p_empty _triplesOf _empty = _triplesOf _empty == []
 
 -- triplesOf any graph should return unique triples used to create it
 p_mkGraph_triplesOf :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-p_mkGraph_triplesOf _triplesOf _mkGraph ts bUrl pms = 
+p_mkGraph_triplesOf _triplesOf _mkGraph ts bUrl pms =
   ordered (_triplesOf (_mkGraph ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned
 p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-p_mkGraph_no_dupes _triplesOf _mkGraph ts bUrl pms = 
+p_mkGraph_no_dupes _triplesOf _mkGraph ts bUrl pms =
   case null ts of
     True  -> True
     False -> ordered result == uordered ts
-  where 
+  where
     tsWithDupe = head ts : ts
     result = _triplesOf $ _mkGraph tsWithDupe bUrl pms
 
 -- query with all 3 wildcards should yield all triples in graph
 p_query_match_none :: Graph g => (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_query_match_none  _mkGraph ts bUrl pms = uordered ts == ordered result
-  where 
+  where
     result = query (_mkGraph ts bUrl pms) Nothing Nothing Nothing
 
 -- query with no wildcard and a triple in the graph should yield
 -- a singleton list with just the triple.
 p_query_matched_spo :: Graph g => (g -> Triples) -> g -> Property
-p_query_matched_spo _triplesOf gr = 
-  classify (null ts) "trivial" $ 
+p_query_matched_spo _triplesOf gr =
+  classify (null ts) "trivial" $
     forAll (tripleFromGen _triplesOf gr) f
-  where 
+  where
     ts = _triplesOf gr
-    f t = case t of 
+    f t = case t of
             Nothing   ->  True
             (Just t') ->  [t'] == queryT gr t'
 
 -- query with no wildcard and a triple no in the graph should yield []
 p_query_unmatched_spo :: Graph g => (g -> Triples) -> g -> Triple -> Property
-p_query_unmatched_spo _triplesOf gr t = 
+p_query_unmatched_spo _triplesOf gr t =
   classify (t `elem` ts) "ignored" $
     not (t `elem` ts) ==> [] == queryT gr t
-  where 
+  where
     ts = _triplesOf gr
 
 -- query with fixed subject and wildcards for pred and obj should yield
@@ -90,7 +89,7 @@ p_query_match_p = mk_query_match_fn samePred f
 
 -- likewise for fixed subject and predicate with object wildcard
 p_query_match_o :: Graph g => (g -> Triples) -> g -> Property
-p_query_match_o = mk_query_match_fn sameObj f 
+p_query_match_o = mk_query_match_fn sameObj f
   where f t = (Nothing, Nothing, Just (objectOf t))
 
 -- verify likewise for fixed subject and predicate with wildcard object
@@ -120,11 +119,11 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf gr =
     f :: Maybe Triple -> Bool
     f Nothing   = True
     f (Just t)  =
-      let 
+      let
         all_ts = _triplesOf gr
         all_ts_sorted = ordered all_ts
         results = ordered $ queryC gr (mkPatternFn t)
-        notResults = ldiff all_ts_sorted results        
+        notResults = ldiff all_ts_sorted results
       in
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
@@ -135,21 +134,21 @@ p_select_match_none gr = select gr Nothing Nothing Nothing == triplesOf gr
 p_select_match_s :: Graph g => (g -> Triples) -> g -> Property
 p_select_match_s =
   p_select_match_fn same mkPattern
-  where 
+  where
     same = equivNode (==) subjectOf
     mkPattern t = (Just (\n -> n == subjectOf t), Nothing, Nothing)
-        
+
 p_select_match_p :: Graph g => (g -> Triples) -> g -> Property
 p_select_match_p =
   p_select_match_fn same mkPattern
-  where 
+  where
     same = equivNode equiv predicateOf
     equiv (UNode u1) (UNode u2) = B.last (value u1) == B.last (value u2)
     equiv _          _          = error $ "GraphTestUtils.p_select_match_p.equiv"
     mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
     lastChar (UNode uri) = B.last $ value uri
     lastChar _           = error "GraphTestUtils.p_select_match_p.lastChar"
-    
+
 
 p_select_match_o :: Graph g => (g -> Triples) -> g -> Property
 p_select_match_o =
@@ -197,7 +196,7 @@ p_select_match_fn :: Graph g => (Triple -> Triple -> Bool)
   -> (g -> Triples) -> g -> Property
 p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
   forAll (tripleFromGen _triplesOf gr) f
-  where 
+  where
     f :: Maybe Triple -> Bool
     f Nothing = True
     f (Just t) =
@@ -227,8 +226,8 @@ curry3 :: ((a, b, c) -> d)    ->     (a -> b -> c -> d)
 curry3 fn = \x -> \y -> \z -> fn (x,y,z)
 
 debug :: String -> Triples -> Bool
-debug msg ts = 
-  unsafePerformIO $ 
+debug msg ts =
+  unsafePerformIO $
     putStrLn msg >> mapM (putStrLn . show) ts >> return True
 
 ldiff :: Triples -> Triples -> Triples
@@ -250,7 +249,7 @@ uordered :: Triples -> Triples
 uordered  =  map head . group . sortTriples
 
 tripleFromGen :: Graph g => (g -> Triples) -> g -> Gen (Maybe Triple)
-tripleFromGen _triplesOf gr = 
+tripleFromGen _triplesOf gr =
   case null ts of
     True  -> return Nothing
     False -> oneof $ map (return . Just) ts

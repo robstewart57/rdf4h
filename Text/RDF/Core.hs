@@ -12,7 +12,7 @@ module Text.RDF.Core (
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
-  fromEither, maybeHead
+  fromEither, maybeHeads
 )
 where
 
@@ -22,8 +22,6 @@ import Text.RDF.Utils
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.List
---import Control.Monad
---import System.IO.Unsafe(unsafePerformIO)
 
 import Text.Printf
 
@@ -40,12 +38,12 @@ type Predicate = Node
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Object = Node
 
--- |An RDF graph is a set of (unique) RDF triples, together with the 
+-- |An RDF graph is a set of (unique) RDF triples, together with the
 -- operations defined upon the graph.
--- 
+--
 -- For information about the efficiency of the functions, see the
 -- documentation for the particular graph instance.
--- 
+--
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class Graph gr where
@@ -60,7 +58,7 @@ class Graph gr where
   empty  :: gr
 
   -- |Return a graph containing all the given triples. Duplicate triples
-  -- are permitted in the input, but the resultant graph will contains only 
+  -- are permitted in the input, but the resultant graph will contains only
   -- unique triples.
   mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> gr
 
@@ -68,43 +66,43 @@ class Graph gr where
   triplesOf :: gr -> Triples
 
   -- |Select the triples in the graph that match the given selectors.
-  -- 
+  --
   -- The three NodeSelector parameters are optional functions that match
   -- the respective subject, predicate, and object of a triple. The triples
-  -- returned are those in the given graph for which the first selector 
+  -- returned are those in the given graph for which the first selector
   -- returns true when called on the subject, the second selector returns
   -- true when called on the predicate, and the third selector returns true
-  -- when called on the ojbect. A 'Nothing' parameter is equivalent to a 
-  -- function that always returns true for the appropriate node; but 
+  -- when called on the ojbect. A 'Nothing' parameter is equivalent to a
+  -- function that always returns true for the appropriate node; but
   -- implementations may be able to much more efficiently answer a select
   -- that involves a 'Nothing' parameter rather than an @(id True)@ parameter.
-  -- 
+  --
   -- The following call illustrates the use of select, and would result in
-  -- the selection of all and only the triples that have a blank node 
+  -- the selection of all and only the triples that have a blank node
   -- as subject and a literal node as object:
-  -- 
+  --
   -- > select gr (Just isBNode) Nothing (Just isLNode)
   --
-  -- Note: this function may be very slow; see the documentation for the 
+  -- Note: this function may be very slow; see the documentation for the
   -- particular graph implementation for more information.
   select    :: gr -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 
   -- |Return the triples in the graph that match the given pattern, where
   -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
-  -- 
+  --
   -- The @Maybe Node@ params are interpreted as the subject, predicate, and
   -- object of a triple, respectively. @Just n@ is true iff the triple has
   -- a node equal to @n@ in the appropriate location; @Nothing@ is always
   -- true, regardless of the node in the appropriate location.
-  -- 
+  --
   -- For example, @ query gr (Just n1) Nothing (Just n2) @ would return all
-  -- and only the triples that have @n1@ as subject and @n2@ as object, 
+  -- and only the triples that have @n1@ as subject and @n2@ as object,
   -- regardless of the predicate of the triple.
   query         :: gr -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
 
--- |An RDF node, which may be either a URIRef node ('UNode'), a blank 
+-- |An RDF node, which may be either a URIRef node ('UNode'), a blank
 -- node ('BNode'), or a literal node ('LNode').
-data Node =  
+data Node =
 
   -- |An RDF URI reference. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
@@ -116,7 +114,7 @@ data Node =
   -- information.
   | BNode {-# UNPACK #-} !FastString
 
-  -- |An RDF blank node with an auto-generated identifier, as used in 
+  -- |An RDF blank node with an auto-generated identifier, as used in
   -- Turtle.
   | BNodeGen  {-# UNPACK #-} !Int
 
@@ -155,14 +153,14 @@ type Triples = [Triple]
 --
 -- To create a 'Triple', use the 'triple' function.
 --
--- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for 
+-- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
 -- |Return a'Triple' for the given subject, predicate, and object.
 {-# INLINE triple #-}
 triple :: Subject -> Predicate -> Object -> Triple
-triple subj pred obj 
+triple subj pred obj
   | isLNode subj     =  error $ "subject must be UNode or BNode: "     ++ show subj
   | isLNode pred     =  error $ "predicate must be UNode, not LNode: " ++ show pred
   | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred
@@ -170,7 +168,7 @@ triple subj pred obj
 
 -- |The actual value of an RDF literal, represented as the 'LValue'
 -- parameter of an 'LNode'.
-data LValue = 
+data LValue =
   -- Constructors are not exported, because we need to have more
   -- control over the format of the literal bytestring that we store.
 
@@ -178,7 +176,7 @@ data LValue =
   PlainL {-# UNPACK #-} !ByteString
 
   -- |A plain (untyped) literal value with a language specifier.
-  | PlainLL {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString 
+  | PlainLL {-# UNPACK #-} !ByteString {-# UNPACK #-} !ByteString
 
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
@@ -198,7 +196,7 @@ plainL =  PlainL
 plainLL :: ByteString -> ByteString -> LValue
 plainLL = PlainLL
 
--- |Return a TypedL LValue for the given string value and datatype URI, 
+-- |Return a TypedL LValue for the given string value and datatype URI,
 -- respectively.
 {-# INLINE typedL #-}
 typedL :: ByteString -> FastString -> LValue
@@ -215,7 +213,7 @@ newtype BaseUrl = BaseUrl ByteString
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
 -- nodes would return 'True'.
--- 
+--
 -- The selector is said to select, or match, the nodes for
 -- which it returns 'True'.
 --
@@ -238,12 +236,12 @@ instance Eq Node where
   _              ==  _               =  False
 
 -- |Node ordering is defined first by type, with Unode < BNode < BNodeGen
--- < LNode PlainL < LNode PlainLL < LNode TypedL, and secondly by 
+-- < LNode PlainL < LNode PlainLL < LNode TypedL, and secondly by
 -- the natural ordering of the node value.
 --
--- E.g., a '(UNode _)' is LT any other type of node, and a 
--- '(LNode (TypedL _ _))' is GT any other type of node, and the ordering 
--- of '(BNodeGen 44)' and '(BNodeGen 3)' is that of the values, or 
+-- E.g., a '(UNode _)' is LT any other type of node, and a
+-- '(LNode (TypedL _ _))' is GT any other type of node, and the ordering
+-- of '(BNodeGen 44)' and '(BNodeGen 3)' is that of the values, or
 -- 'compare 44 3', GT.
 instance Ord Node where
   compare n1 n2 = compareNode n1 n2
@@ -292,7 +290,7 @@ instance Ord Triple where
       LT -> LT
 
 -- |Two 'LValue' values are equal iff they are of the same type and all fields are
--- equal. 
+-- equal.
 instance Eq LValue where
   (PlainL bs1)        ==  (PlainL bs2)        =  bs1 == bs2
   (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  bs1' == bs2'    &&  bs1 == bs2
@@ -312,7 +310,7 @@ compareLValue :: LValue -> LValue -> Ordering
 compareLValue (PlainL bs1)       (PlainL bs2)       = compare bs1 bs2
 compareLValue (PlainL _)         _                  = LT
 compareLValue _                  (PlainL _)         = GT
-compareLValue (PlainLL bs1 bs1') (PlainLL bs2 bs2') = 
+compareLValue (PlainLL bs1 bs1') (PlainLL bs2 bs2') =
   case compare bs1' bs2' of
     EQ -> compare bs1 bs2
     GT -> GT
@@ -328,7 +326,7 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
 -- String representations of the various data types; generally NTriples-like.
 
 instance Show Triple where
-  show (Triple s p o) = 
+  show (Triple s p o) =
     printf "%s %s %s ." (show s) (show p) (show o)
 
 instance Show Node where

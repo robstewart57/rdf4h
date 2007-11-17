@@ -1,6 +1,5 @@
 module Text.RDF.TurtleParser where
 
-
 import Text.RDF.Core
 import Text.RDF.Namespace
 import Text.RDF.ParserUtils
@@ -33,7 +32,7 @@ t_turtleDoc =
 
 t_statement :: GenParser Char ParseState ()
 t_statement = d <|> t <|> ((many1 t_ws <?> "blankline-whitespace") >> return ())
-  where 
+  where
     d = t_directive >> (many t_ws <?> "directive-whitespace1") >> (char '.' <?> "end-of-directive-period") >> (many t_ws <?> "directive-whitespace2") >> return ()
     t = t_triples >> (many t_ws <?> "triple-whitespace1") >> (char '.' <?> "end-of-triple-period") >> (many t_ws <?> "triple-whitespace2") >> return ()
 
@@ -75,7 +74,7 @@ t_nodeID  :: GenParser Char ParseState ByteString
 t_nodeID = do { try (string "_:"); cs <- t_name; return $! s2b "_:" `B.append` cs }
 
 t_qname :: GenParser Char ParseState ByteString
-t_qname = 
+t_qname =
   do pre <- option B.empty (try t_prefixName)
      char ':'
      name <- option B.empty t_name
@@ -92,7 +91,7 @@ t_subject =
     resource    = (t_resource <?> "resource") >>= return . UNode . mkFastString >>= pushSubj
     nodeId      = (t_nodeID   <?> "nodeID")   >>= return . BNode . mkFastString >>= pushSubj
     simpleBNode = try (string "[]") >> nextIdCounter >>=  pushSubj . BNodeGen
-    poList      = nextIdCounter >>= pushSubj . BNodeGen >> 
+    poList      = nextIdCounter >>= pushSubj . BNodeGen >>
                     many t_ws >> t_predicateObjectList >> many t_ws >> return ()
 
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
@@ -116,19 +115,19 @@ t_object =
      onFirstItem <- onCollFirstItem   -- whether we're on the first item of the collection
      let processObject = ((t_literal >>= addTripleForObject) <|>
                           (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
-                          blank_as_obj <|> t_collection) 
+                          blank_as_obj <|> t_collection)
      case (inColl, onFirstItem) of
-       (False, _)    -> processObject
+       (False, _)    -> processObjects
        (True, True)  -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> addTripleForObject bSubj >>
                           pushSubj bSubj >> pushPred rdfFirstNode >> processObject >> collFirstItemProcessed
        (True, False) -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> pushPred rdfRestNode >>
-                          addTripleForObject bSubj >> popPred >> popSubj >> 
+                          addTripleForObject bSubj >> popPred >> popSubj >>
                           pushSubj bSubj >> processObject
-  
+
 -- collection: '(' ws* itemList? ws* ')'
 -- itemList:      object (ws+ object)*
 t_collection:: GenParser Char ParseState ()
-t_collection = 
+t_collection =
   -- ( object1 object2 ) is short for:
   -- [ rdf:first object1; rdf:rest [ rdf:first object2; rdf:rest rdf:nil ] ]
   -- ( ) is short for the resource:  rdf:nil
@@ -138,7 +137,7 @@ t_collection =
        emptyColl <- option (True) (try t_object  >> many t_ws >> return False)
        case emptyColl of
          True  -> addTripleForObject rdfNilNode >> return ()
-         False -> many (many t_ws >> try t_object >> many t_ws) >> popPred >> 
+         False -> many (many t_ws >> try t_object >> many t_ws) >> popPred >>
                     pushPred rdfRestNode >> addTripleForObject rdfNilNode >> popPred >> return ()
        finishColl
        return ()
@@ -153,8 +152,8 @@ blank_as_obj =
   poList
   where
     genBlank = try (string "[]") >> nextIdCounter >>=  return . BNodeGen
-    poList   = between (char '[') (char ']') $ nextIdCounter >>= return . BNodeGen >>= \bSubj -> 
-                 addTripleForObject bSubj >> many t_ws >> pushSubj bSubj >>  
+    poList   = between (char '[') (char ']') $ nextIdCounter >>= return . BNodeGen >>= \bSubj ->
+                 addTripleForObject bSubj >> many t_ws >> pushSubj bSubj >>
                  t_predicateObjectList >> popSubj >> many t_ws >> return ()
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
@@ -170,7 +169,7 @@ xsdDecimalUri =  mkFastString $! makeUri xsd $! s2b "decimal"
 xsdBooleanUri =  mkFastString $! makeUri xsd $! s2b "boolean"
 
 t_literal :: GenParser Char ParseState Node
-t_literal = 
+t_literal =
   try str_literal <|>
   (try t_integer >>= return . flip mkLNode xsdIntUri)   <|>
   (try t_double  >>= return . flip mkLNode xsdDoubleUri)  <|>
@@ -195,13 +194,13 @@ t_string  :: GenParser Char ParseState ByteString
 t_string = between (char '"') (char '"') (many t_scharacter) >>= return . B.concat
 
 t_longString  :: GenParser Char ParseState ByteString
-t_longString = 
+t_longString =
   between tripleQuote (try tripleQuote) (many longString_char) >>= return . B.concat
   where
     tripleQuote = count 3 (char '"')
 
 t_integer :: GenParser Char ParseState ByteString
-t_integer = 
+t_integer =
   do sign <- sign_parser <?> "+-"
      ds <- many1 digit   <?> "digit"
      notFollowedBy (char '.')
@@ -217,44 +216,44 @@ t_double =
      return $! s2b sign `B.append` rest
 
 sign_parser :: GenParser Char ParseState String
-sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[]))) 
+sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[])))
 
 digits1_parser :: GenParser Char ParseState String
 digits1_parser = many1 digit
 
 t_decimal :: GenParser Char ParseState ByteString
-t_decimal = 
+t_decimal =
   do sign <- sign_parser
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
              <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
      return $ s2b sign `B.append` s2b rest
-     
+
 t_exponent :: GenParser Char ParseState ByteString
 t_exponent = do e <- oneOf "eE"
                 s <- option "" (oneOf "-+" >>= \c -> return (c:[]))
-                ds <- many1 digit; 
+                ds <- many1 digit;
                 return $! (e `B.cons` (s2b s `B.append` s2b ds))
 
 t_boolean :: GenParser Char ParseState ByteString
-t_boolean = 
-  try ((string "true" >>= return . s2b) <|> 
+t_boolean =
+  try ((string "true" >>= return . s2b) <|>
   (string "false" >>= return . s2b))
 
 t_comment :: GenParser Char ParseState ()
-t_comment = 
-  char '#' >> 
+t_comment =
+  char '#' >>
   many (satisfy (\c -> c /= '\x000A' && c /= '\x000D')) >>
   return ()
 
 t_ws  :: GenParser Char ParseState ()
-t_ws = 
+t_ws =
   try ((char '\x000A' <|> char '\x000D' <|> char '\x0020') >> return ())
   <|> t_comment <?> "whitespace"
 
 
 t_language  :: GenParser Char ParseState ByteString
-t_language = 
+t_language =
   do init <- many1 lower;
      rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return (s2b ('-':cs))})
      return $! (s2b init `B.append` (B.concat rest))
@@ -272,7 +271,7 @@ t_uriref :: GenParser Char ParseState ByteString
 t_uriref = between (char '<') (char '>') t_relativeURI
 
 t_relativeURI  :: GenParser Char ParseState ByteString
-t_relativeURI = 
+t_relativeURI =
   do frag <- many t_ucharacter >>= return . B.concat
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
@@ -282,9 +281,9 @@ t_nameChar :: GenParser Char ParseState Char
 t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
   where
     f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
-            
+
 longString_char  :: GenParser Char ParseState ByteString
-longString_char  = 
+longString_char  =
   specialChar        <|> -- \r|\n|\t as single char
   try escapedChar    <|> -- an backslash-escaped tab, newline, linefeed, backslash or doublequote
   try twoDoubleQuote <|> -- two doublequotes not followed by a doublequote
@@ -293,7 +292,7 @@ longString_char  =
   try unicode_escape     -- a unicode escape sequence (\uxxxx or \Uxxxxxxxx)
   where
     specialChar     = oneOf ['\x0009', '\x000A', '\x000D'] >>= bs1
-    escapedChar     = 
+    escapedChar     =
       do char '\\'
          ((char 't'  >> bs1 '\t') <|> (char 'n' >> bs1 '\n') <|> (char 'r' >> bs1 '\r') <|>
           (char '\\' >> bs1 '\\') <|> (char '"' >> bs1 '"'))
@@ -312,8 +311,8 @@ t_nameStartChar = char '_' <|> t_nameStartCharMinusUnderscore
 
 t_nameStartCharMinusUnderscore  :: GenParser Char ParseState Char
 t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
-  where 
-    blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'), 
+  where
+    blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'),
               ('\x00D8', '\x00F6'), ('\x00F8', '\x02FF'),
               ('\x0370', '\x037D'), ('\x037F', '\x1FFF'),
               ('\x200C', '\x200D'), ('\x2070', '\x218F'),
@@ -322,16 +321,16 @@ t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
               ('\x10000', '\xEFFFF')]
 
 t_character  :: GenParser Char ParseState ByteString
-t_character =  
-  non_ctrl_char_except ['\\'] <|> 
-  try (string "\\" >> 
+t_character =
+  non_ctrl_char_except ['\\'] <|>
+  try (string "\\" >>
         ((char 't' >> return (B.singleton '\t')) <|>
         (char 'n' >> return (B.singleton '\n')) <|>
-        (char 'r' >> return (B.singleton '\r')))) 
+        (char 'r' >> return (B.singleton '\r'))))
   <|>  try unicode_escape
 
 t_echaracter  :: GenParser Char ParseState ByteString
-t_echaracter = 
+t_echaracter =
   try((char '\\') >>
         ((char 't' >> return (B.singleton '\t')) <|>
          (char 'n' >> return (B.singleton '\n')) <|>
@@ -342,41 +341,41 @@ t_hex  :: GenParser Char ParseState Char
 t_hex = (satisfy $! (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) <?> "hexadecimal digit"
 
 t_ucharacter  :: GenParser Char ParseState ByteString
-t_ucharacter = 
-  try unicode_escape <|> 
-  try (string "\\>" >>= return . s2b) <|> 
+t_ucharacter =
+  try unicode_escape <|>
+  try (string "\\>" >>= return . s2b) <|>
   non_ctrl_char_except ['>']
 
 -- characters used in (non-long) strings; any echaracters except ", or an escaped \"
 -- echaracter - #x22 ) | '\"'
 t_scharacter  :: GenParser Char ParseState ByteString
 t_scharacter =
-  do (try (string "\\\"") >> return (B.singleton '"')) 
-     <|> try (do {char '\\'; 
+  do (try (string "\\\"") >> return (B.singleton '"'))
+     <|> try (do {char '\\';
                   (char 't' >> return (B.singleton '\t')) <|>
                   (char 'n' >> return (B.singleton '\n')) <|>
                   (char 'r' >> return (B.singleton '\r'))}) -- echaracter part 1
-     <|> unicode_escape 
+     <|> unicode_escape
      <|> (non_ctrl_char_except ['\\', '"'] >>= \s -> return $! s) -- echaracter part 2 minus "
 
 -- characters used in long strings
 t_lcharacter  :: GenParser Char ParseState ByteString
-t_lcharacter = 
-  t_echaracter <|> 
+t_lcharacter =
+  t_echaracter <|>
   (oneOf ['\x0009', '\x000A', '\x000D'] >>= return . B.singleton) <|>
   (try (string "\"\"") >> notFollowedBy  (char '"') >>  (return $! s2b "\"\"")) <|> -- FIXME: doesn't work with 2 embedded quotes
   (char '"' >> notFollowedBy (char '"') >> return (B.singleton '"'))
 
 unicode_escape  :: GenParser Char ParseState ByteString
-unicode_escape = 
+unicode_escape =
  (char '\\' >> return (B.singleton '\\')) >>
  ((char '\\' >> return (s2b "\\\\")) <|>
   (char 'u' >> count 4 t_hex >>= \cs -> return $! s2b "\\u" `B.append` s2b cs) <|>
   (char 'U' >> count 8 t_hex >>= \cs -> return $! s2b "\\U" `B.append` s2b cs))
-       
+
 non_ctrl_char_except  :: String -> GenParser Char ParseState ByteString
-non_ctrl_char_except !cs = 
-  satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>=  
+non_ctrl_char_except !cs =
+  satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>=
   return . B.singleton
 
 in_range :: Char -> [(Char, Char)] -> Bool
@@ -391,7 +390,7 @@ resolveQName mbaseUrl prefix (PrefixMappings pms') =
     (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty pms'
     (Nothing,             True)  ->  err1
     (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
-  where 
+  where
     err1 = error  "Cannot resolve empty QName prefix to a Base URL."
     err2 = error ("Cannot resolve QName prefix: " ++ B.unpack prefix)
 
@@ -400,7 +399,7 @@ absolutizeUrl :: Maybe BaseUrl -> Maybe ByteString -> ByteString -> ByteString
 absolutizeUrl mbUrl mdUrl urlFrag =
   case isAbsoluteUri urlFrag of
     True   ->  urlFrag
-    False  ->  
+    False  ->
       case (mbUrl, mdUrl) of
         (Nothing,             Nothing    )  -> urlFrag
         (Just (BaseUrl bUrl), Nothing    )  -> bUrl `B.append` urlFrag
@@ -421,9 +420,9 @@ newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 -- appending the URL to the given base URL.
 {-# INLINE mkAbsoluteUrl #-}
 mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
-mkAbsoluteUrl base url = 
+mkAbsoluteUrl base url =
   case isAbsoluteUri url of
-    True  ->  url 
+    True  ->  url
     False ->  base `B.append` url
 
 currBaseUrl :: GenParser Char ParseState (Maybe BaseUrl)
@@ -442,11 +441,11 @@ peekSubj :: GenParser Char ParseState (Maybe Subject)
 peekSubj = getState >>= \(_, _, _, _, ss, _, _, _) -> return (maybeHead ss)
 
 pushSubj :: Subject -> GenParser Char ParseState ()
-pushSubj s = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) -> 
+pushSubj s = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                   setState (bUrl, dUrl, i, pms, (s:ss), ps, cs, ts)
 
 popSubj :: GenParser Char ParseState (Subject)
-popSubj = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) -> 
+popSubj = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, tail ss, ps, cs, ts) >>
                   when (null ss) (error "Cannot pop subject off empty stack.") >>
                   return (head ss)
@@ -455,11 +454,11 @@ peekPred :: GenParser Char ParseState (Maybe Predicate)
 peekPred = getState >>= \(_, _, _, _, _, ps, _, _) -> return (maybeHead ps)
 
 pushPred :: Predicate -> GenParser Char ParseState ()
-pushPred p = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) -> 
+pushPred p = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                   setState (bUrl, dUrl, i, pms, ss, (p:ps), cs, ts)
 
 popPred :: GenParser Char ParseState (Predicate)
-popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) -> 
+popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
                   return (head ps)
@@ -475,7 +474,7 @@ updateBaseUrl val = modifyState val no no no no no
 
 -- combines get_current and increment into a single function
 nextIdCounter :: GenParser Char ParseState Int
-nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) -> 
+nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
                 setState (bUrl, dUrl, i+1, pms, s, p, cs, ts) >> return i
 
 updatePMs :: Maybe PrefixMappings -> GenParser Char ParseState ()
@@ -486,7 +485,7 @@ updateTs val = modifyState no no no no no val
 
 -- Register that we have begun processing a collection
 beginColl :: GenParser Char ParseState ()
-beginColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) -> 
+beginColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
             setState (bUrl, dUrl, i, pms, s, p, (True:cs), ts)
 
 onCollFirstItem :: GenParser Char ParseState Bool
@@ -498,10 +497,10 @@ collFirstItemProcessed = getState >>= \(bUrl, dUrl, i, pms, s, p, (_:cs), ts) ->
 
 -- Register that a collection is finished being processed; the bool value
 -- in the monad is *not* the value that was popped from the stack, but whether
--- we are still processing a parent collection or have finished processing 
+-- we are still processing a parent collection or have finished processing
 -- all collections and are no longer in a collection at all.
 finishColl :: GenParser Char ParseState (Bool)
-finishColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) -> 
+finishColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
              let cs' = drop 1 cs
              in setState (bUrl, dUrl, i, pms, s, p, cs', ts) >> return (not $ null cs')
 
@@ -512,8 +511,8 @@ no = Nothing
 
 -- Update the subject and predicate values of the ParseState to Nothing.
 resetSubjectPredicate :: GenParser Char ParseState ()
-resetSubjectPredicate = 
-  getState >>= \(bUrl, dUrl, n, pms, _, _, cs, ts) -> 
+resetSubjectPredicate =
+  getState >>= \(bUrl, dUrl, n, pms, _, _, cs, ts) ->
   setState (bUrl, dUrl, n, pms, [], [], cs, ts)
 
 resetPredicate :: GenParser Char ParseState ()
@@ -523,13 +522,13 @@ resetPredicate =
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
 modifyState :: Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
-               Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) -> 
+               Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
                GenParser Char ParseState ()
 modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
   do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _ts) <- getState
      setState (maybe _bUrl id mb_bUrl,
-              _dUrl, 
-              maybe _n (const _n) mb_n, 
+              _dUrl,
+              maybe _n (const _n) mb_n,
               maybe _pms id mb_pms,
               maybe _s (\s -> s : _s) mb_subj,
               maybe _p (\p -> p : _p) mb_pred,
@@ -553,27 +552,27 @@ addTripleForObject obj =
 
 -- |Parse the given string as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
 -- if present, and using the given document URL as the URL of the Turtle document.
--- 
+--
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> (Either ParseFailure gr)
 parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
--- if present, and using the given document URL as the URL of the Turtle document. 
--- 
+-- if present, and using the given document URL as the URL of the Turtle document.
+--
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
-parseFile bUrl docUrl fpath = 
+parseFile bUrl docUrl fpath =
   readFile fpath >>= \str -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
--- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)' 
--- as the base URL, if present, and using the given document URL as the URL of the Turtle document. 
+-- |Parse the document at the given location URL as a Turtle document, using the given '(Maybe BaseUrl)'
+-- as the base URL, if present, and using the given document URL as the URL of the Turtle document.
 --
--- The document URL is for the purpose of resolving references to 'this document' within the document, 
+-- The document URL is for the purpose of resolving references to 'this document' within the document,
 -- and may be different than the actual location URL from which the document is retrieved.
--- 
+--
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
