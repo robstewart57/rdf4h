@@ -1,6 +1,6 @@
 module Text.RDF.Namespace(
   Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
-  PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings),
+  PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
   makeUri,
   prefixOf, uriOf,
   rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2
@@ -8,6 +8,7 @@ module Text.RDF.Namespace(
 where
 
 import Data.Map(Map)
+import qualified Data.Map as Map
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
 
@@ -59,6 +60,11 @@ ex2   =   makePrefixedNS'  "ex2"   "http://www2.example.org/"
 newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
   deriving (Eq, Ord, Show)
 
+-- |View the prefix mappings as a list of key-value pairs. The PM in
+-- in the name is to reduce name clashes if used without qualifying.
+toPMList :: PrefixMappings -> [(ByteString, ByteString)]
+toPMList (PrefixMappings m) = Map.toList m
+
 -- |A mapping of a prefix to the URI for that prefix.
 newtype PrefixMapping = PrefixMapping (ByteString, ByteString)
   deriving (Eq, Ord, Show)
@@ -82,7 +88,7 @@ makePrefixedNS  :: ByteString -> ByteString -> Namespace
 makePrefixedNS    =  PrefixedNS
 
 -- |Make a namespace having the given prefix for the given URI reference,
--- respectively, using strings which will be converted to bytestrings 
+-- respectively, using strings which will be converted to bytestrings
 -- automatically.
 makePrefixedNS' :: String -> String -> Namespace
 makePrefixedNS' s1 s2 = makePrefixedNS (p s1) (p s2)
