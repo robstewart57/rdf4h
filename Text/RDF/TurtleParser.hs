@@ -117,7 +117,7 @@ t_object =
                           (t_resource >>= return . UNode . mkFastString >>= addTripleForObject) <|>
                           blank_as_obj <|> t_collection)
      case (inColl, onFirstItem) of
-       (False, _)    -> processObjects
+       (False, _)    -> processObject
        (True, True)  -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> addTripleForObject bSubj >>
                           pushSubj bSubj >> pushPred rdfFirstNode >> processObject >> collFirstItemProcessed
        (True, False) -> nextIdCounter >>= return . BNodeGen >>= \bSubj -> pushPred rdfRestNode >>
