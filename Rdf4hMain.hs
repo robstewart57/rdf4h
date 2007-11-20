@@ -5,6 +5,7 @@ import Text.RDF.TriplesGraph
 import qualified Text.RDF.NTriplesParser     as NP
 import qualified Text.RDF.NTriplesSerializer as NS
 import qualified Text.RDF.TurtleParser       as TP
+import qualified Text.RDF.TurtleSerializer   as TS
 
 import Data.ByteString.Char8(ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -20,10 +21,8 @@ import Data.List
 import Data.Char(isLetter)
 import Text.Printf(hPrintf)
 
--- TODO: doesn't obey the output format yet, because there is no serializer for turtle yet.
-
 main :: IO ()
-main = 
+main =
   do (opts, args) <- (getArgs >>= compilerOpts)
      when (elem Help opts)
        (putStrLn (usageInfo header options) >> exitWith ExitSuccess)
@@ -37,8 +36,8 @@ main =
          outputFormat  = getWithDefault (OutputFormat "ntriples") opts
          inputBaseUri  = getInputBaseUri inputUri args opts
          outputBaseUri = getWithDefault (OutputBaseUri inputBaseUri) opts
-     unless (outputFormat == "ntriples")
-       (hPrintf stderr ("'" ++ outputFormat ++ "' is not a valid output format. Supported output formats are: ntriples\n") >> exitWith (ExitFailure 1))
+     unless (outputFormat == "ntriples" || outputFormat == "turtle")
+       (hPrintf stderr ("'" ++ outputFormat ++ "' is not a valid output format. Supported output formats are: ntriples, turtle\n") >> exitWith (ExitFailure 1))
      when (not quiet)
        (hPrintf stderr "      INPUT-URI:  %s\n\n" inputUri     >>
         hPrintf stderr "   INPUT-FORMAT:  %s\n"   inputFormat  >>
@@ -50,28 +49,32 @@ main =
      case (inputFormat, isUri $ s2b inputUri) of
        -- we use TriplesGraph in all cases, since it preserves the ordering of triples
        ("turtle",    True) -> TP.parseURL mInputUri docUri inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
-       ("turtle",   False) -> (if inputUri /= "-" 
-                                  then TP.parseFile mInputUri docUri inputUri 
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
+       ("turtle",   False) -> (if inputUri /= "-"
+                                  then TP.parseFile mInputUri docUri inputUri
                                   else getContents >>= return . TP.parseString mInputUri docUri)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
        ("ntriples",  True) -> NP.parseURL inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
        ("ntriples", False) -> (if inputUri /= "-"
                                   then NP.parseFile inputUri
                                   else getContents >>= return . NP.parseString)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: Graph gr => Either ParseFailure gr -> IO ()
-write res =
+write :: Graph gr => Either ParseFailure gr -> String -> String -> IO ()
+write res format baseUri =
   case res of
     (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
-    (Right gr) -> NS.writeTriples stdout (triplesOf gr)
+    (Right gr) ->
+      case format of
+        "ntriples" -> NS.writeTriples stdout (triplesOf gr)
+        "turtle"   -> TS.writeGraph stdout gr
+        _          -> putStr "Invalid output format: " >> putStrLn format >> exitWith (ExitFailure 1)
 
--- Get the input base URI from the argument list or flags, using the 
+-- Get the input base URI from the argument list or flags, using the
 -- first string arg as the default if not found in string args (as
--- the second item in the list) or in the flags as an explicitly 
+-- the second item in the list) or in the flags as an explicitly
 -- selected flag. If the user submitted both a 2nd commandline arg
 -- after the INPUT-URI and used the -I/--input-base-uri arg, then
 -- the -I/--input-base-uri value is used and the 2nd commandline
@@ -82,7 +85,7 @@ getInputBaseUri inputUri args flags =
     True  -> getWithDefault (InputBaseUri inputUri) flags
     False -> getWithDefault (InputBaseUri (head $ tail args)) flags
 
--- Determine if the bytestring represents a URI, which is currently 
+-- Determine if the bytestring represents a URI, which is currently
 -- decided solely by checking for a colon in the string.
 isUri :: ByteString -> Bool
 isUri str = not (B.null post) && B.all isLetter pre
@@ -92,7 +95,7 @@ isUri str = not (B.null post) && B.all isLetter pre
 -- flag argument, returning its string value; if there is no such flag,
 -- return the string value of the first argument.
 getWithDefault :: Flag -> [Flag] -> String
-getWithDefault def args = 
+getWithDefault def args =
   case find (== def) args of
     Nothing  -> strValue def
     Just val -> strValue val
@@ -107,7 +110,7 @@ strValue (OutputBaseUri s) = s
 strValue flag              = error $ "No string value for flag: " ++ show flag
 
 -- The commandline arguments we accept. None are required.
-data Flag 
+data Flag
  = Help | Quiet | Version
  | InputFormat String | InputBaseUri String
  | OutputFormat String | OutputBaseUri String
@@ -128,7 +131,7 @@ instance Eq Flag where
 
 -- The top part of the usage output.
 header :: String
-header = 
+header =
   "\nrdf4h: an RDF parser and serializer\n\n"                                ++
   "\nUsage: rdf4h [OPTION...] INPUT-URI [INPUT-BASE-URI]\n\n"                ++
   "  INPUT-URI       a filename, URI or '-' for standard input (stdin).\n"   ++
@@ -161,7 +164,7 @@ options =
  ]
 
 compilerOpts :: [String] -> IO ([Flag], [String])
-compilerOpts argv = 
+compilerOpts argv =
    case getOpt Permute options argv of
       (o,n,[]  ) -> return (o,n)
       (_,_,errs) -> ioError (userError ("\n\n" ++ concat errs ++ usageInfo header options))
