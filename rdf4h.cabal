@@ -23,9 +23,9 @@ flag small_base
   description: Choose the new smaller, split-up base package.
 
 library
-  exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.TurtleParser
+  exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.TurtleParser, Text.RDF.TurtleSerializer
   if flag(small_base)
-    build-depends: base >= 3, bytestring, directory, containers
+    build-depends: base >= 3, bytestring, directory, containers, pretty
   else
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
@@ -35,7 +35,7 @@ library
 executable rdf4h
   main-is:         Rdf4hMain.hs 
   if flag(small_base)
-    build-depends: base >= 3, bytestring
+    build-depends: base >= 3, bytestring, pretty
   else
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
