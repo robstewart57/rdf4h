@@ -1,7 +1,7 @@
 module Text.RDF.Core (
   Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
   BaseUrl(BaseUrl),
-  PrefixMappings(PrefixMappings), PrefixMapping(PrefixMapping),
+  PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
   Triple(Triple), triple, Triples, sortTriples,
   Node(UNode, BNode, BNodeGen, LNode),
   LValue(PlainL, PlainLL, TypedL),
@@ -12,7 +12,7 @@ module Text.RDF.Core (
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
-  fromEither, maybeHeads
+  fromEither, maybeHead
 )
 where
 
