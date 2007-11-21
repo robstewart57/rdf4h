@@ -10,6 +10,8 @@ import qualified Data.ByteString.Char8 as B
 import Data.Map(Map)
 import qualified Data.Map as Map
 
+import Data.List
+
 import Control.Monad
 
 import Text.PrettyPrint.HughesPJ
@@ -31,8 +33,10 @@ writeHeader :: Handle -> Maybe BaseUrl -> PrefixMappings -> IO ()
 writeHeader h bUrl pms = writeBase h bUrl >> writePrefixes h pms
 
 writeBase :: Handle -> Maybe BaseUrl -> IO ()
-writeBase h Nothing               = return ()
-writeBase h (Just (BaseUrl bUrl)) = hPutStr h "@base " >> B.hPutStrLn h bUrl
+writeBase h Nothing               =
+  return ()
+writeBase h (Just (BaseUrl bUrl)) =
+  hPutStr h "@base " >> B.hPutStr h bUrl >> hPutChar h '.' >> hPutChar h '\n'
 
 writePrefixes :: Handle -> PrefixMappings -> IO ()
 writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
@@ -40,16 +44,31 @@ writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 writePrefix :: Handle -> (ByteString, ByteString) -> IO ()
 writePrefix h (pre, uri) =
   hPutStr h "@prefix " >> B.hPutStr h pre >> hPutChar h ':' >>
-  B.hPutStrLn h uri
+  B.hPutStr h uri >> hPutChar h '.' >> hPutChar h '\n'
 
 writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
-writeTriples _ _    _                    []     = return ()
-writeTriples h bUrl (PrefixMappings pms) (t:ts) =
-  let (subj, pred, obj) = (subjectOf t, predicateOf t, objectOf t)
-      revPms            = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
-  in writeNode h subj revPms >> hPutChar h ' ' >>
-     writeNode h pred revPms >> hPutChar h ' ' >>
-     writeNode h obj  revPms >> hPutStrLn h " ."
+writeTriples h bUrl (PrefixMappings pms) ts =
+  mapM_ (writeSubjGroup h bUrl revPms) (groupBy equalSubjects ts)
+  where
+    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
+
+-- Write a group of triples that all have the same subject, with the subject only
+-- being output once, and comma or semi-colon used as appropriate.
+writeSubjGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
+writeSubjGroup _ _    _   []     = return ()
+writeSubjGroup h bUrl pms ts@(t:_) =
+  writeNode h (subjectOf t) pms >> hPutChar h ' ' >>
+  mapM_ (writePredGroup h bUrl pms) (groupBy equalPredicates ts)
+
+-- Write a group of triples that all have the same subject and the same predicate,
+-- assuming the subject has already been output and only the predicate objects
+-- need to written.
+writePredGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
+writePredGroup h bUrl pms []     = return ()
+writePredGroup h bUrl pms (t:ts) =
+  writeNode h (predicateOf t) pms >> hPutChar h ' ' >> writeNode h (objectOf t) pms >>
+  mapM_ (\t -> hPutStr h ", " >> writeNode h (objectOf t) pms) ts >>
+  hPutStrLn h " ."
 
 writeNode :: Handle -> Node -> Map ByteString ByteString -> IO ()
 writeNode h node prefixes =
@@ -95,11 +114,6 @@ writeLiteralString h bs =
         '"'  ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '"')  >> return True
         '\\' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '\\') >> return True
         _    ->  b >>= \b' -> when b' (hPutChar  h c)                      >> return True
---writeSubjGroup :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
---writeSubjGroup h bUrl pms ts = mapM_ (writeSubjPredGroup h bUrl pms) (groupBy equalPred ts)
-
---writeSubjPredGroup :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
---writeSubjPredGroup h bUrl pms ts = undefined
 
 subj1 = unode $ s2b "http://example.com/subj"
 pred1 = unode $ s2b "http://example.com/pred"
