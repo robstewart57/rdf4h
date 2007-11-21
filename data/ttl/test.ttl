@@ -15,8 +15,8 @@ exp:eve    ex:moniker "Eve the Eavesdropper" ;
            ex:hasMessage  "false" ;
            ex:convictions  [ ex:title "Trespassing" ; ex:title "Fraud" ] .
 # the following three express the same triples:
-[x:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ]] .
-#[] x:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ] .
-[ :firstname "Ora" ] dc:wrote [ dc:title "Moby Dick" ] .
-#[ exp:firstname  "Ora" ] dc:wrote [ dc:title  "Moby Dick" ] . # from n3 page
+#[ex:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ]] .
+#[] ex:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ] .
+#[ :firstname "Ora" ] dc:wrote [ dc:title "Moby Dick" ] .
+#[ exp:firstname  "Ora" ] dc:wrote [ dc:title  "Moby Dick" ] . 
 #           ex:spiesOn     (exp:alice, exp:bob) ;
