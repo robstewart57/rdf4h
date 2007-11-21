@@ -14,7 +14,7 @@ import Data.List
 
 import Control.Monad
 
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint.HughesPJ()
 
 import System.IO
 
@@ -33,18 +33,18 @@ writeHeader :: Handle -> Maybe BaseUrl -> PrefixMappings -> IO ()
 writeHeader h bUrl pms = writeBase h bUrl >> writePrefixes h pms
 
 writeBase :: Handle -> Maybe BaseUrl -> IO ()
-writeBase h Nothing               =
+writeBase _ Nothing               =
   return ()
 writeBase h (Just (BaseUrl bUrl)) =
-  hPutStr h "@base " >> B.hPutStr h bUrl >> hPutChar h '.' >> hPutChar h '\n'
+  hPutStr h "@base " >> hPutChar h '<' >> B.hPutStr h bUrl >> hPutStr h "> ." >> hPutChar h '\n'
 
 writePrefixes :: Handle -> PrefixMappings -> IO ()
 writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 
 writePrefix :: Handle -> (ByteString, ByteString) -> IO ()
 writePrefix h (pre, uri) =
-  hPutStr h "@prefix " >> B.hPutStr h pre >> hPutChar h ':' >>
-  B.hPutStr h uri >> hPutChar h '.' >> hPutChar h '\n'
+  hPutStr h "@prefix " >> B.hPutStr h pre >> hPutStr h ": " >>
+  hPutChar h '<' >> B.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
 
 writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
 writeTriples h bUrl (PrefixMappings pms) ts =
@@ -64,8 +64,8 @@ writeSubjGroup h bUrl pms ts@(t:_) =
 -- assuming the subject has already been output and only the predicate objects
 -- need to written.
 writePredGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
-writePredGroup h bUrl pms []     = return ()
-writePredGroup h bUrl pms (t:ts) =
+writePredGroup _ _ _   []     = return ()
+writePredGroup h _ pms (t:ts) =
   writeNode h (predicateOf t) pms >> hPutChar h ' ' >> writeNode h (objectOf t) pms >>
   mapM_ (\t -> hPutStr h ", " >> writeNode h (objectOf t) pms) ts >>
   hPutStrLn h " ."
@@ -115,8 +115,8 @@ writeLiteralString h bs =
         '\\' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '\\') >> return True
         _    ->  b >>= \b' -> when b' (hPutChar  h c)                      >> return True
 
-subj1 = unode $ s2b "http://example.com/subj"
-pred1 = unode $ s2b "http://example.com/pred"
-obj1  = typedL (s2b "hello, world") (mkFastString $ makeUri xsd $ s2b "")
+--subj1 = unode $ s2b "http://example.com/subj"
+--pred1 = unode $ s2b "http://example.com/pred"
+--obj1  = typedL (s2b "hello, world") (mkFastString $ makeUri xsd $ s2b "")
 --  writeGraph, writeTriples, writeTriple,
 --  writeNode, writeLValue, writeLiteralString
