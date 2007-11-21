@@ -6,6 +6,7 @@ module Text.RDF.Core (
   Node(UNode, BNode, BNodeGen, LNode),
   LValue(PlainL, PlainLL, TypedL),
   NodeSelector, isUNode, isBNode, isLNode,
+  equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf,
   Subject, Predicate, Object,
   ParseFailure(ParseFailure),
@@ -379,6 +380,18 @@ isBNode _            = False
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
+
+-- |Determine whether two triples have equal subjects.
+equalSubjects :: Triple -> Triple -> Bool
+equalSubjects (Triple s1 _ _) (Triple s2 _ _) = s1 == s2
+
+-- |Determine whether two triples have equal predicates.
+equalPredicates :: Triple -> Triple -> Bool
+equalPredicates (Triple _ p1 _) (Triple _ p2 _) = p1 == p2
+
+-- |Determine whether two triples have equal objects.
+equalObjects :: Triple -> Triple -> Bool
+equalObjects (Triple _ _ o1) (Triple _ _ o2) = o1 == o2
 
 -- |Convert a parse result into a graph if it was successful
 -- and error and terminate if not.
