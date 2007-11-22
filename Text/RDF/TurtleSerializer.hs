@@ -58,17 +58,20 @@ writeSubjGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triple
 writeSubjGroup _ _    _   []     = return ()
 writeSubjGroup h bUrl pms ts@(t:_) =
   writeNode h (subjectOf t) pms >> hPutChar h ' ' >>
-  mapM_ (writePredGroup h bUrl pms) (groupBy equalPredicates ts)
+  writePredGroup h bUrl pms (head ts') >>
+  mapM_ (\t -> hPutStr h ";\n\t" >> writePredGroup h bUrl pms t) (tail ts') >>
+  hPutStrLn h " ."
+  where
+    ts' = groupBy equalPredicates ts
 
 -- Write a group of triples that all have the same subject and the same predicate,
--- assuming the subject has already been output and only the predicate objects
--- need to written.
+-- assuming the subject has already been output and only the predicate and objects
+-- need to be written.
 writePredGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
 writePredGroup _ _ _   []     = return ()
 writePredGroup h _ pms (t:ts) =
   writeNode h (predicateOf t) pms >> hPutChar h ' ' >> writeNode h (objectOf t) pms >>
-  mapM_ (\t -> hPutStr h ", " >> writeNode h (objectOf t) pms) ts >>
-  hPutStrLn h " ."
+  mapM_ (\t -> hPutStr h ", " >> writeNode h (objectOf t) pms) ts
 
 writeNode :: Handle -> Node -> Map ByteString ByteString -> IO ()
 writeNode h node prefixes =
