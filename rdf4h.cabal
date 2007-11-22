@@ -25,7 +25,7 @@ flag small_base
 library
   exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.TurtleParser, Text.RDF.TurtleSerializer
   if flag(small_base)
-    build-depends: base >= 3, bytestring, directory, containers, pretty
+    build-depends: base >= 3, bytestring, directory, containers
   else
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
@@ -35,7 +35,7 @@ library
 executable rdf4h
   main-is:         Rdf4hMain.hs 
   if flag(small_base)
-    build-depends: base >= 3, bytestring, pretty
+    build-depends: base >= 3, bytestring
   else
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
