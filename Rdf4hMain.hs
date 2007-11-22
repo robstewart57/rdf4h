@@ -49,21 +49,21 @@ main =
      case (inputFormat, isUri $ s2b inputUri) of
        -- we use TriplesGraph in all cases, since it preserves the ordering of triples
        ("turtle",    True) -> TP.parseURL mInputUri docUri inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("turtle",   False) -> (if inputUri /= "-"
                                   then TP.parseFile mInputUri docUri inputUri
                                   else getContents >>= return . TP.parseString mInputUri docUri)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("ntriples",  True) -> NP.parseURL inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("ntriples", False) -> (if inputUri /= "-"
                                   then NP.parseFile inputUri
                                   else getContents >>= return . NP.parseString)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat outputBaseUri
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: Graph gr => Either ParseFailure gr -> String -> String -> IO ()
-write res format baseUri =
+write :: Graph gr => Either ParseFailure gr -> String -> IO ()
+write res format =
   case res of
     (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
     (Right gr) ->
