@@ -14,8 +14,6 @@ import Data.List
 
 import Control.Monad
 
-import Text.PrettyPrint.HughesPJ()
-
 import System.IO
 
 splitUri :: ByteString -> (ByteString, ByteString)
