@@ -5,7 +5,10 @@ clean:
 	runhaskell Setup.hs clean
 
 configure: Setup.hs rdf4h.cabal *.hs
-	runhaskell Setup.hs configure --user --prefix=${HOME} --haddock-options="-v"
+	runhaskell Setup.hs configure --user --prefix=${HOME} --haddock-options="-v \
+		--source-base=http://protempore.net/rdf4h/ \
+		--source-module=http://protempore.net/rdf4h/%M.hs"
+#		--read-interface=http://www.haskell.org/ghc/docs/latest/html/libraries/base-3.0.0.0,http://www.haskell.org/ghc/docs/latest/html/libraries/base-3.0.0.0/base.haddock"
 #          --haddock-args="-v --source-base=http://protempore.net/rdf4h/ "
 #          --source-module=http://protempore.net/rdf4h/%M.hs \
 #          --read-interface=http://www.haskell.org/ghc/docs/latest/html/libraries/base,/usr/share/doc/ghc-6.6.1/html/libraries/base/base.haddock"
@@ -15,8 +18,8 @@ build: configure
 
 haddock: configure build
 	runhaskell Setup.hs haddock
-#	find dist/doc/html -name '*.html' -exec \
-#		sed -i -r 's_/usr/share/doc/ghc-[^/]+/html/libraries/_http://www.haskell.org/ghc/docs/latest/html/libraries/_g' {} \;
+	find dist/doc/html -name '*.html' -exec \
+		sed -i -r 's_/usr/share/doc/ghc-[^/]+/html/libraries/_http://www.haskell.org/ghc/docs/latest/html/libraries/_g' {} \;
 
 install:  configure build
 	runhaskell Setup.hs install
