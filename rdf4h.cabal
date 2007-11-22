@@ -23,7 +23,7 @@ flag small_base
   description: Choose the new smaller, split-up base package.
 
 library
-  exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.TurtleParser, Text.RDF.TurtleSerializer
+  exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.NTriplesSerializer, Text.RDF.TurtleParser, Text.RDF.TurtleSerializer
   if flag(small_base)
     build-depends: base >= 3, bytestring, directory, containers
   else
