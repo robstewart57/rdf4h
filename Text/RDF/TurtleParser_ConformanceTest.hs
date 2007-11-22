@@ -59,7 +59,7 @@ checkBadConformanceTest i =
 equivalent :: Graph gr => Either ParseFailure gr -> Either ParseFailure gr -> Maybe String
 equivalent (Left _) _                = Nothing
 equivalent _        (Left _)         = Nothing
-equivalent (Right !gr1) (Right !gr2) = test $! zip gr1ts gr2ts
+equivalent (Right gr1) (Right gr2) = test $! zip gr1ts gr2ts
   where
     gr1ts = ordered $ triplesOf $ gr1
     gr2ts = ordered $ triplesOf $ gr2

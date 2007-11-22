@@ -1,4 +1,6 @@
-module Text.RDF.TurtleSerializer where
+module Text.RDF.TurtleSerializer(writeGraph)
+
+ where
 
 import Text.RDF.Core
 import Text.RDF.Namespace

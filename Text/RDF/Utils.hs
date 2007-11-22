@@ -50,13 +50,14 @@ instance Eq FastString where
 
 {-# INLINE equalFS #-}
 equalFS :: FastString -> FastString -> Bool
-equalFS ! fs1 ! fs2 = uniq fs1 == uniq fs2
+equalFS fs1 fs2 = uniq fs1 == uniq fs2
+
 
 -- |Two 'FastString' values are equal if they have the same unique identifier,
 -- and are otherwise ordered using the natural ordering of 'ByteString' in the
 -- internal (reversed) representation.
 instance Ord FastString where
-  compare !fs1 !fs2 = compareFS fs1 fs2
+  compare fs1 fs2 = compareFS fs1 fs2
 
 {-# INLINE compareFS #-}
 compareFS :: FastString -> FastString -> Ordering
@@ -97,7 +98,7 @@ hPutStrLnRev h bs = B.hPutStrLn h (B.reverse bs)
 -- different executions.
 {-# NOINLINE mkFastString #-}
 mkFastString :: ByteString -> FastString
-mkFastString !bs =
+mkFastString bs =
   unsafePerformIO $
   do m <- readIORef fsMap
      let mFs = Map.lookup bs m
@@ -118,7 +119,7 @@ canonicalize typeFs litValue =
 
 {-# INLINE newFastString #-}
 newFastString ::  ByteString -> IO FastString
-newFastString !str =
+newFastString str =
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
      return $! (FS curr ((1 :: Int) `seq` B.reverse str))
@@ -147,14 +148,14 @@ canonicalizerTable =
     mkFsUri uri = mkFastString . s2b $! uri
 
 _integerStr, _decimalStr, _doubleStr :: ByteString -> ByteString
-_integerStr !s = B.dropWhile (== '0') s
+_integerStr s = B.dropWhile (== '0') s
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
-_doubleStr !s = B.pack $ show $ (read $ B.unpack s :: Double)
+_doubleStr s = B.pack $ show $ (read $ B.unpack s :: Double)
 
 -- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
-_decimalStr !s =     -- haskell double parser doesn't handle '1.'..,
+_decimalStr s =     -- haskell double parser doesn't handle '1.'..,
   case B.last s of   -- so we add a zero if that's the case and then parse
     '.' -> f (s `B.snoc` '0')
     _   -> f s

@@ -374,12 +374,12 @@ unicode_escape =
   (char 'U' >> count 8 t_hex >>= \cs -> return $! s2b "\\U" `B.append` s2b cs))
 
 non_ctrl_char_except  :: String -> GenParser Char ParseState ByteString
-non_ctrl_char_except !cs =
+non_ctrl_char_except cs =
   satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>=
   return . B.singleton
 
 in_range :: Char -> [(Char, Char)] -> Bool
-in_range !c = any (\(c1, c2) -> c >= c1 && c <= c2)
+in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
 -- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
 -- empty, then the base URL will be used if there is a base URL and if the map
