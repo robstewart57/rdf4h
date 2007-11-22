@@ -12,10 +12,11 @@ stability:       Experimental
 synopsis:        A library for RDF processing in Haskell.
 description:     
   rdf4h is the beginnings of a RDF library for Haskell. It
-  presently contains a parser for RDF in N-Triples format,
-  a couple of graph implementations, and some basic query abilities.
+  presently contains parsers and serializers for RDF in the N-Triples
+  and Turtle formats, and there are a couple of graph implementations
+  that expose some basic query functionality.
   .
-  It is experimental and certain to change, but I'm making it
+  The library is experimental and certain to change, but I'm making it
   publicly available while it develops in case it's of any use
   to others, even in its present humble state.
 
