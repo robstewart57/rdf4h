@@ -50,7 +50,7 @@ instance Eq FastString where
 
 {-# INLINE equalFS #-}
 equalFS :: FastString -> FastString -> Bool
-equalFS !fs1 !fs2 = uniq fs1 == uniq fs2
+equalFS ! fs1 ! fs2 = uniq fs1 == uniq fs2
 
 -- |Two 'FastString' values are equal if they have the same unique identifier,
 -- and are otherwise ordered using the natural ordering of 'ByteString' in the

@@ -414,11 +414,11 @@ isAbsoluteUri = B.elem ':'
 
 newBaseUrl :: Maybe BaseUrl -> ByteString -> BaseUrl
 newBaseUrl Nothing                url = BaseUrl url
-newBaseUrl (Just (BaseUrl !bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
+newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
+{-# INLINE mkAbsoluteUrl #-}
 -- Make an absolute URL by returning as is if already an absolute URL and otherwise
 -- appending the URL to the given base URL.
-{-# INLINE mkAbsoluteUrl #-}
 mkAbsoluteUrl :: ByteString -> ByteString -> ByteString
 mkAbsoluteUrl base url =
   case isAbsoluteUri url of
@@ -555,7 +555,7 @@ addTripleForObject obj =
 --
 -- Returns either a 'ParseFailure' or a new graph containing the parsed triples.
 parseString :: Graph gr => Maybe BaseUrl -> String -> String -> (Either ParseFailure gr)
-parseString !bUrl !docUrl !ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
+parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given file as a Turtle document, using the given '(Maybe BaseUrl)' as the base URL,
@@ -578,7 +578,7 @@ parseURL :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFai
 parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
 
 handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure gr
-handleResult !bUrl !result =
+handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkGraph (F.toList ts) bUrl pms
