@@ -33,8 +33,8 @@ library
   other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
 
-executable rdf4h
-  main-is:         Rdf4hMain.hs 
+executable rdf4h_parse
+  main-is:         Rdf4hParseMain.hs 
   if flag(small_base)
     build-depends: base >= 3, bytestring
   else
@@ -43,4 +43,3 @@ executable rdf4h
   hs-source-dirs:  .
   other-modules:   Text.RDF.Core, Text.RDF.TriplesGraph
   ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
-

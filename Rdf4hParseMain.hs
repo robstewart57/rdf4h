@@ -132,8 +132,8 @@ instance Eq Flag where
 -- The top part of the usage output.
 header :: String
 header =
-  "\nrdf4h: an RDF parser and serializer\n\n"                                ++
-  "\nUsage: rdf4h [OPTION...] INPUT-URI [INPUT-BASE-URI]\n\n"                ++
+  "\nrdf4h_parse: an RDF parser and serializer\n\n"                          ++
+  "\nUsage: rdf4h_parse [OPTION...] INPUT-URI [INPUT-BASE-URI]\n\n"          ++
   "  INPUT-URI       a filename, URI or '-' for standard input (stdin).\n"   ++
   "  INPUT-BASE-URI  the input/parser base URI or '-' for none.\n"           ++
   "    Default is INPUT-URI\n"                                               ++
@@ -142,7 +142,7 @@ header =
 -- The current version of the library as a whole; should always match what is in
 -- the rdf4h.cabal file.
 version :: String
-version = "0.3"
+version = "0.4"
 
 options :: [OptDescr Flag]
 options =
