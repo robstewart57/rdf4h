@@ -139,8 +139,8 @@ header =
   "    Default is INPUT-URI\n"                                               ++
   "    Equivalent to -I INPUT-BASE-URI, --input-base-uri INPUT-BASE-URI\n\n"
 
--- The current version of the library as a whole; should always match what is in
--- the rdf4h.cabal file.
+-- The current version of the executable, which for the moment is the same as
+-- the version for the library as a whole, as given in rdf4h.cabal.
 version :: String
 version = "0.4"
 
