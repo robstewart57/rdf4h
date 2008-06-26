@@ -13,7 +13,7 @@ import Test.QuickCheck
 
 instance Arbitrary MGraph where
   arbitrary = liftM3 mkGraph arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
-  coarbitrary = undefined
+  --coarbitrary = undefined
 
 instance Show MGraph where
   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)

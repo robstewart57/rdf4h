@@ -17,13 +17,13 @@ import System.IO.Unsafe(unsafePerformIO)
 
 instance Arbitrary BaseUrl where
   arbitrary = oneof $ map (return . BaseUrl . s2b) ["http://example.com/a", "http://asdf.org/b"]
-  coarbitrary = undefined
+  --coarbitrary = undefined
 
 instance Arbitrary PrefixMappings where
   arbitrary = oneof $ [return $ PrefixMappings Map.empty, return $ PrefixMappings $
                           Map.fromAscList [(s2b "eg1", s2b "http://example.com/1"),
                                         (s2b "eg2", s2b "http://example.com/2")]]
-  coarbitrary = undefined
+  --coarbitrary = undefined
 
 -- Test stubs, which just require the appropriate graph impl function
 -- passed in to determine the graph implementation to be tested.
@@ -35,21 +35,21 @@ p_empty _triplesOf _empty = _triplesOf _empty == []
 -- triplesOf any graph should return unique triples used to create it
 p_mkGraph_triplesOf :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkGraph_triplesOf _triplesOf _mkGraph ts bUrl pms =
-  ordered (_triplesOf (_mkGraph ts bUrl pms)) == uordered ts
+  uordered (_triplesOf (_mkGraph ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned
 p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkGraph_no_dupes _triplesOf _mkGraph ts bUrl pms =
   case null ts of
     True  -> True
-    False -> ordered result == uordered ts
+    False -> uordered result == uordered ts
   where
     tsWithDupe = head ts : ts
     result = _triplesOf $ _mkGraph tsWithDupe bUrl pms
 
 -- query with all 3 wildcards should yield all triples in graph
 p_query_match_none :: Graph g => (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-p_query_match_none  _mkGraph ts bUrl pms = uordered ts == ordered result
+p_query_match_none  _mkGraph ts bUrl pms = uordered ts == uordered result
   where
     result = query (_mkGraph ts bUrl pms) Nothing Nothing Nothing
 
@@ -121,8 +121,8 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf gr =
     f (Just t)  =
       let
         all_ts = _triplesOf gr
-        all_ts_sorted = ordered all_ts
-        results = ordered $ queryC gr (mkPatternFn t)
+        all_ts_sorted = uordered all_ts
+        results = uordered $ queryC gr (mkPatternFn t)
         notResults = ldiff all_ts_sorted results
       in
         all (tripleCompareFn t) results &&
@@ -202,8 +202,8 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
     f (Just t) =
       let
         all_ts = triplesOf gr
-        all_ts_sorted = ordered all_ts
-        results = ordered $ selectC gr (mkPatternFn t)
+        all_ts_sorted = uordered all_ts
+        results = uordered $ selectC gr (mkPatternFn t)
         notResults = ldiff all_ts_sorted results
       in
         all (tripleCompareFn t) results &&
@@ -241,9 +241,6 @@ samePred t1 t2 = predicateOf t1 == predicateOf t2
 
 sameObj :: Triple -> Triple -> Bool
 sameObj  t1 t2 = objectOf t1 == objectOf t2
-
-ordered :: Triples -> Triples
-ordered  =  sortTriples
 
 uordered :: Triples -> Triples
 uordered  =  map head . group . sortTriples
@@ -293,11 +290,11 @@ maxN = min 100 (length test_triples - 1)
 
 instance Arbitrary Triple where
   arbitrary = liftM3 triple arbitraryS arbitraryP arbitraryO
-  coarbitrary = undefined
+  --coarbitrary = undefined
 
 instance Arbitrary Node where
   arbitrary = oneof $ map return unodes
-  coarbitrary = undefined
+  --coarbitrary = undefined
 
 arbitraryTNum :: Gen Int
 arbitraryTNum = choose (0, maxN - 1)
