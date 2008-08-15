@@ -7,9 +7,8 @@ clean:
 configure: Setup.hs rdf4h.cabal *.hs
 	runhaskell Setup.hs configure --user --prefix=${HOME} \
 		--docdir=dist/doc \
-	    --haddock-options="-v \
-		--source-base=http://protempore.net/rdf4h/ \
-		--source-module=http://protempore.net/rdf4h/doc/html/rdf4h/src/%M.hs"
+		--haddock-options="-v \
+		--source-module=http://protempore.net/rdf4h/doc/src/%M.hs"
 
 build: configure
 	runhaskell Setup.hs build
