@@ -1,6 +1,7 @@
 name:            rdf4h
 version:         0.4
 cabal-version:   >= 1.2
+build-type:      Simple
 license:         BSD3
 license-file:    LICENSE.txt
 author:          Calvin Smith
@@ -31,7 +32,8 @@ library
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
   other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
-  ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
+  extensions:      BangPatterns
+  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
 
 executable rdf4h_parse
   main-is:         Rdf4hParseMain.hs 
@@ -41,7 +43,8 @@ executable rdf4h_parse
     build-depends: base < 3
   build-depends:   parsec, network, HTTP-Simple
   hs-source-dirs:  .
-  ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
+  extensions:      BangPatterns
+  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
 
 executable rdf4h_query
   main-is:         Rdf4hQueryMain.hs
@@ -50,4 +53,5 @@ executable rdf4h_query
   else
     build-depends: base < 3
   hs-source-dirs:  .
-  ghc-options:     -O2 -Wall -fglasgow-exts -fbang-patterns -fno-warn-name-shadowing -fno-warn-missing-signatures
+  extensions:      BangPatterns
+  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
