@@ -6,7 +6,7 @@ import Control.Monad
 import System.Process
 
 main :: IO ()
-main = defaultMainWithHooks (defaultUserHooks { runTests = test })
+main = defaultMainWithHooks (simpleUserHooks { runTests = test })
 
 test :: Args -> Bool -> PackageDescription -> LocalBuildInfo -> IO ()
 test _ _ _ _ = 
