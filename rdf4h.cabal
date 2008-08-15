@@ -1,15 +1,5 @@
 name:            rdf4h
 version:         0.4
-cabal-version:   >= 1.2
-build-type:      Simple
-license:         BSD3
-license-file:    LICENSE.txt
-author:          Calvin Smith
-copyright:       (c) Calvin Smith
-maintainer:      cs-haskell@protempore.net
-homepage:        http://protempore.net/rdf4h/
-category:        Semantic Web
-stability:       Experimental
 synopsis:        A library for RDF processing in Haskell.
 description:     
   rdf4h is the beginnings of a RDF library for Haskell. It
@@ -20,6 +10,17 @@ description:
   The library is experimental and certain to change, but I'm making it
   publicly available while it develops in case it's of any use
   to others, even in its present humble state.
+author:          Calvin Smith
+copyright:       (c) Calvin Smith
+maintainer:      cs-haskell@protempore.net
+homepage:        http://protempore.net/rdf4h/
+license:         BSD3
+license-file:    LICENSE.txt
+cabal-version:   >= 1.2
+build-type:      Simple
+category:        RDF
+stability:       Experimental
+extra-tmp-files: test
 
 flag small_base
   description: Choose the new smaller, split-up base package.
@@ -46,12 +47,12 @@ executable rdf4h_parse
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
 
-executable rdf4h_query
-  main-is:         Rdf4hQueryMain.hs
-  if flag(small_base)
-    build-depends: base >= 3, bytestring
-  else
-    build-depends: base < 3
-  hs-source-dirs:  .
-  extensions:      BangPatterns
-  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
+--executable rdf4h_query
+--  main-is:         Rdf4hQueryMain.hs
+--  if flag(small_base)
+--    build-depends: base >= 3, bytestring
+--  else
+--    build-depends: base < 3
+--  hs-source-dirs:  .
+--  extensions:      BangPatterns
+--  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
