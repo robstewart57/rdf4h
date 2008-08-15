@@ -8,6 +8,9 @@ import System.Process
 main :: IO ()
 main = defaultMainWithHooks (simpleUserHooks { runTests = test })
 
+-- TODO: there should be a better way of doing this.
+-- The conformance tests would take too long if interpreted, which is
+-- why use ghc to compile a test executable and then run it.
 test :: Args -> Bool -> PackageDescription -> LocalBuildInfo -> IO ()
 test _ _ _ _ = 
   runCommand runQuickCheckTests >>= waitForProcess >> 
