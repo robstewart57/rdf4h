@@ -222,9 +222,6 @@ t_double =
 sign_parser :: GenParser Char ParseState String
 sign_parser = option "" (oneOf "-+" >>= (\c -> return $! (c:[])))
 
-digits1_parser :: GenParser Char ParseState String
-digits1_parser = many1 digit
-
 t_decimal :: GenParser Char ParseState ByteString
 t_decimal =
   do sign <- sign_parser
@@ -324,23 +321,6 @@ t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
               ('\xF900', '\xFDCF'), ('\xFDF0', '\xFFFD'),
               ('\x10000', '\xEFFFF')]
 
-t_character  :: GenParser Char ParseState ByteString
-t_character =
-  non_ctrl_char_except ['\\'] <|>
-  try (string "\\" >>
-        ((char 't' >> return (B.singleton '\t')) <|>
-        (char 'n' >> return (B.singleton '\n')) <|>
-        (char 'r' >> return (B.singleton '\r'))))
-  <|>  try unicode_escape
-
-t_echaracter  :: GenParser Char ParseState ByteString
-t_echaracter =
-  try((char '\\') >>
-        ((char 't' >> return (B.singleton '\t')) <|>
-         (char 'n' >> return (B.singleton '\n')) <|>
-         (char 'r' >> return (B.singleton '\r'))))
-  <|> t_character
-
 t_hex  :: GenParser Char ParseState Char
 t_hex = (satisfy $! (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) <?> "hexadecimal digit"
 
@@ -362,14 +342,6 @@ t_scharacter =
      <|> unicode_escape
      <|> (non_ctrl_char_except ['\\', '"'] >>= \s -> return $! s) -- echaracter part 2 minus "
 
--- characters used in long strings
-t_lcharacter  :: GenParser Char ParseState ByteString
-t_lcharacter =
-  t_echaracter <|>
-  (oneOf ['\x0009', '\x000A', '\x000D'] >>= return . B.singleton) <|>
-  (try (string "\"\"") >> notFollowedBy  (char '"') >>  (return $! s2b "\"\"")) <|> -- FIXME: doesn't work with 2 embedded quotes
-  (char '"' >> notFollowedBy (char '"') >> return (B.singleton '"'))
-
 unicode_escape  :: GenParser Char ParseState ByteString
 unicode_escape =
  (char '\\' >> return (B.singleton '\\')) >>
@@ -382,6 +354,7 @@ non_ctrl_char_except cs =
   satisfy (\c -> c <= '\x10FFFF' && (c >= '\x0020' && c `notElem` cs)) >>=
   return . B.singleton
 
+{-# INLINE in_range #-}
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
@@ -435,15 +408,6 @@ currBaseUrl = getState >>= \(bUrl, _, _, _, _, _, _, _) -> return bUrl
 currDocUrl :: GenParser Char ParseState (Maybe ByteString)
 currDocUrl = getState >>= \(_, dUrl, _, _, _, _, _, _) -> return dUrl
 
-currIdCounter :: GenParser Char ParseState Int
-currIdCounter = getState >>= \(_, _, n, _, _, _, _, _) -> return n
-
-currPMs :: GenParser Char ParseState PrefixMappings
-currPMs = getState >>= \(_, _, _, pms, _, _, _, _) -> return pms
-
-peekSubj :: GenParser Char ParseState (Maybe Subject)
-peekSubj = getState >>= \(_, _, _, _, ss, _, _, _) -> return (maybeHead ss)
-
 pushSubj :: Subject -> GenParser Char ParseState ()
 pushSubj s = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                   setState (bUrl, dUrl, i, pms, (s:ss), ps, cs, ts)
@@ -454,9 +418,6 @@ popSubj = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                   when (null ss) (error "Cannot pop subject off empty stack.") >>
                   return (head ss)
 
-peekPred :: GenParser Char ParseState (Maybe Predicate)
-peekPred = getState >>= \(_, _, _, _, _, ps, _, _) -> return (maybeHead ps)
-
 pushPred :: Predicate -> GenParser Char ParseState ()
 pushPred p = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                   setState (bUrl, dUrl, i, pms, ss, (p:ps), cs, ts)
@@ -466,9 +427,6 @@ popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
                   return (head ps)
-
-currTs :: GenParser Char ParseState (Seq Triple)
-currTs = getState >>= \(_, _, _, _, _, _, _, ts) -> return ts
 
 isInColl :: GenParser Char ParseState Bool
 isInColl = getState >>= \(_, _, _, _, _, _, cs, _) -> return . not . null $ cs
@@ -483,9 +441,6 @@ nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
 
 updatePMs :: Maybe PrefixMappings -> GenParser Char ParseState ()
 updatePMs val = modifyState no no val no no no
-
-updateTs :: Maybe (Seq Triple) ->  GenParser Char ParseState ()
-updateTs val = modifyState no no no no no val
 
 -- Register that we have begun processing a collection
 beginColl :: GenParser Char ParseState ()
@@ -519,10 +474,6 @@ resetSubjectPredicate =
   getState >>= \(bUrl, dUrl, n, pms, _, _, cs, ts) ->
   setState (bUrl, dUrl, n, pms, [], [], cs, ts)
 
-resetPredicate :: GenParser Char ParseState ()
-resetPredicate =
-  getState >>= \(bUrl, dUrl, n, pms, s, _, cs, ts) -> setState (bUrl, dUrl, n, pms, s, [], cs, ts)
-
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
 modifyState :: Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
@@ -538,12 +489,6 @@ modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
               maybe _p (\p -> p : _p) mb_pred,
               _cs,
               maybe _ts id mb_trps)
-
-addTriple :: Triple -> GenParser Char ParseState ()
-addTriple trp =
-  do (_bUrl, _dUrl, _i, _pms, _s, _p, _cs, _ts) <- getState
-     setState (_bUrl, _dUrl, _i, _pms, _s, _p, _cs, _ts |> trp)
-     return ()
 
 addTripleForObject :: Object -> GenParser Char ParseState ()
 addTripleForObject obj =
