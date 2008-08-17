@@ -1,4 +1,8 @@
-module Text.RDF.TurtleParser where
+module Text.RDF.TurtleParser(
+  parseFile, parseURL, parseString, ParseFailure
+)
+
+where
 
 import Text.RDF.Core
 import Text.RDF.Namespace
