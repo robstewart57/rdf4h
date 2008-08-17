@@ -142,7 +142,7 @@ header =
 -- The current version of the executable, which for the moment is the same as
 -- the version for the library as a whole, as given in rdf4h.cabal.
 version :: String
-version = "0.4"
+version = "0.5"
 
 options :: [OptDescr Flag]
 options =
