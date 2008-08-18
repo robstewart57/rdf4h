@@ -20,7 +20,7 @@ import Data.List
 -- Note that this type of graph is fine for interactive
 -- experimentation and querying of smallish (<10,000 triples) graphs,
 -- but there are better options for larger graphs or graphs that you
--- will do many queries against (e.g., 'MGraph' is faster for queries).
+-- will do many queries against (e.g., @MGraph@ is faster for queries).
 --
 -- The time complexity of the functions (where n == num_triples) are:
 --
