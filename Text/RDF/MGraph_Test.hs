@@ -8,7 +8,7 @@ import Control.Monad
 import Test.QuickCheck
 
 ----------------------------------------------------
---   instances and graph functions for AvlGraph   --
+--   instances and graph functions for MGraph   --
 ----------------------------------------------------
 
 instance Arbitrary MGraph where
