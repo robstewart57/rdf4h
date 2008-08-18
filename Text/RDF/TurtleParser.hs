@@ -506,8 +506,8 @@ addTripleForObject obj =
 -- It may be changed within the document using the @\@base@ directive. At any given point, the current
 -- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or 
 -- if none given, the document URL given to @parseURL@. For example, if the @BaseUrl@ were
--- @http:\/\/example.org/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@ 
--- directive), then the relative URI would expand to @http:\/\/example.org/b@.
+-- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@ 
+-- directive), then the relative URI would expand to @http:\/\/example.org\/b@.
 --
 -- The document URL is for the purpose of resolving references to 'this document' within the document,
 -- and may be different than the actual location URL from which the document is retrieved. Any reference
