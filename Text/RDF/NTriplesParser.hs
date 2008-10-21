@@ -23,17 +23,13 @@ import Control.Monad(when)
 
 import Prelude hiding (takeWhile)
 
-type Payload = ([Maybe Triple], Maybe BaseUrl, PrefixMappings)
-
 -- We define or redefine all here using same names as the spec, but with an
 -- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
 -- nt_ntripleDoc).
 
 -- |nt_ntripleDoc is simply zero or more lines.
-nt_ntripleDoc :: Parser Payload
-nt_ntripleDoc =
-    manyTill nt_line eof >>= \lines ->
-        return (lines, Nothing, PrefixMappings Map.empty)
+nt_ntripleDoc :: Parser [Maybe Triple]
+nt_ntripleDoc = manyTill nt_line eof
 
 --many :: Parser a -> Parser [a]
 --many p =
@@ -217,20 +213,18 @@ parseURL url = _parseURL parseString url
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
 parseFile path = B.readFile path >>= return . parse nt_ntripleDoc >>= return . handleParse mkGraph
 
-parseString :: Graph gr =>
-               ByteString -> 
-               Either ParseFailure gr
+parseString :: Graph gr => ByteString -> Either ParseFailure gr
 parseString bs = handleParse mkGraph (parse nt_ntripleDoc bs)
 
 handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
-                           (ByteString, Either ParseError Payload) ->
+                           (ByteString, Either ParseError [Maybe Triple]) ->
                            (Either ParseFailure gr)
 handleParse _mkGraph (rem, result)
-  | B.length rem /= 0 = error ("Leftover JUNK: " ++ B.unpack rem ++ "\n")
+  | B.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ B.unpack rem)
   | otherwise          = 
       case result of
-        Left err               -> Left  $ error ("Parse error: " ++ err)
-        Right (ts, mbUrl, pms) -> Right $ _mkGraph (conv ts) mbUrl pms
+        Left err -> Left  $ ParseFailure $ "Parse failure: " ++ err
+        Right ts -> Right $ _mkGraph (conv ts) Nothing (PrefixMappings Map.empty)
   where
     conv []            = []
     conv (Nothing:ts)  = conv ts
