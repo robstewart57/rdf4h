@@ -5,28 +5,25 @@ module Text.RDF.NTriplesParser(
 where
 
 -- TODO: switch to OverloadedStrings and use ByteString literals
-import Debug.Trace
 
 import Text.RDF.Core
 import Text.RDF.Namespace
 import Text.RDF.ParserUtils
 
-import Data.Char(isHexDigit, isLetter, isDigit, isLower, isUpper)
+import Data.Char(isHexDigit, isLetter, isDigit, isLower)
 import qualified Data.Map as Map
 
 import Data.ParserCombinators.Attoparsec.Char8
 
 import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as BC
+import qualified Data.ByteString.Lazy.Char8 as B
 
 import Control.Applicative
-import Control.Monad
+import Control.Monad(when)
+
 import Prelude hiding (takeWhile)
 
 type Payload = ([Maybe Triple], Maybe BaseUrl, PrefixMappings)
-
-between_chars :: Char -> Char -> Parser ByteString -> Parser ByteString
-between_chars start end parser = char start >> parser >>= \res -> char end >> return res
 
 -- We define or redefine all here using same names as the spec, but with an
 -- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
@@ -87,7 +84,7 @@ nt_literal =
        (count 2 (char '^') >> nt_uriref >>= return . typedL lit_str . mkFastString) <|>
        (return $ plainL lit_str)
 
-  where inner_literal = (manyTill inner_string (lookAhead $ char '"') >>= return . BC.concat)
+  where inner_literal = (manyTill inner_string (lookAhead $ char '"') >>= return . B.concat)
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
@@ -95,28 +92,15 @@ nt_literal =
 nt_language :: Parser ByteString
 nt_language =
   do str <- takeWhile (\c -> c == '-' || isLower c)
-     if BC.null str || BC.last str == '-' || BC.head str == '-'
-        then fail ("Invalid language string: '" ++ BC.unpack str ++ "'")
+     if B.null str || B.last str == '-' || B.head str == '-'
+        then fail ("Invalid language string: '" ++ B.unpack str ++ "'")
         else return str
 
-test :: Parser a -> String -> IO a
-test p str =
-  do
-    when (not $ BC.null rest)
-      (putStr "Remainder: '" >> BC.putStr rest >> putStr "\n")
-    case result of
-      (Left err) -> putStr "ParseError: '" >> putStr err >> putStr "\n" >> error ""
-      (Right a)  -> return a
-  where (rest, result) = parse p (BC.pack str)
-
-combine :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
-combine f parser1 parser2 = 
-  do p1 <- parser1
-     p2 <- parser2
-     return $ f p1 p2
-
-lower :: Parser Char
-lower = satisfy isLower
+--combine :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
+--combine f parser1 parser2 = 
+--  do p1 <- parser1
+--     p2 <- parser2
+--     return $ f p1 p2
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
@@ -149,30 +133,21 @@ nt_uriref = between_chars '<' '>' (takeWhile1 (\c -> c /= '>'))
 -- A node id is "_:" followed by a name.
 nt_nodeID :: Parser ByteString
 nt_nodeID = char '_' >> char ':' >> nt_name >>= \n -> 
-                return ('_' `BC.cons'` (':' `BC.cons'` n))
+                return ('_' `B.cons'` (':' `B.cons'` n))
 
 -- A name is a letter followed by any number of alpha-numeric characters.
 nt_name :: Parser ByteString
 nt_name =
   do init <- letter
      rest <- takeWhile isLetterOrDigit
-     return (init `BC.cons'` rest)
+     return (init `B.cons'` rest)
 
 isLetterOrDigit :: Char -> Bool
 isLetterOrDigit c = isLetter c || isDigit c
 
-alpha_num :: Parser Char
-alpha_num = letter <|> digit
-
 -- An nt_character is any character except a double quote character.
 nt_character :: Parser Char
 nt_character   =   satisfy is_nonquote_char
-
--- A nrab_character is a character that isn't a right angle bracket (this
--- is used where we are inside a URIref, where right angle brackets are
--- not allowed).
-nrab_character :: Parser Char
-nrab_character =   satisfy (\c -> c /= '>' && is_character c)
 
 -- A character is any Unicode value from ASCII space to decimal 126 (tilde).
 is_character :: Char -> Bool
@@ -220,27 +195,27 @@ inner_string =
           (char 'n' >> return b_nl)  <|>
           (char '\\' >> return b_slash) <|>
           (char '"' >> return b_quote)   <|>
-          (char 'u' >> count 4 hexDigit >>= \cs -> return $ BC.pack ('\\':'u':cs)) <|>
-          (char 'U' >> count 8 hexDigit >>= \cs -> return $ BC.pack ('\\':'U':cs))))
+          (char 'u' >> count 4 hexDigit >>= \cs -> return $ B.pack ('\\':'u':cs)) <|>
+          (char 'U' >> count 8 hexDigit >>= \cs -> return $ B.pack ('\\':'U':cs))))
   <|> (takeWhile (\c -> is_nonquote_char c && c /= '\\'))
 
-b_tab = BC.singleton '\t'
-b_ret = BC.singleton '\r'
-b_nl  = BC.singleton '\n'
-b_slash = BC.singleton '\\'
-b_quote = BC.singleton '"'
+b_tab = B.singleton '\t'
+b_ret = B.singleton '\r'
+b_nl  = B.singleton '\n'
+b_slash = B.singleton '\\'
+b_quote = B.singleton '"'
 
 hexDigit :: Parser Char
 hexDigit = satisfy isHexDigit
 
-digitParser :: Parser [Char]
-digitParser = manyTill digit space
+between_chars :: Char -> Char -> Parser ByteString -> Parser ByteString
+between_chars start end parser = char start >> parser >>= \res -> char end >> return res
 
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL url = _parseURL parseString url
 
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
-parseFile path = BC.readFile path >>= return . parse nt_ntripleDoc >>= return . handleParse mkGraph
+parseFile path = B.readFile path >>= return . parse nt_ntripleDoc >>= return . handleParse mkGraph
 
 parseString :: Graph gr =>
                ByteString -> 
@@ -251,7 +226,7 @@ handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
                            (ByteString, Either ParseError Payload) ->
                            (Either ParseFailure gr)
 handleParse _mkGraph (rem, result)
-  | BC.length rem /= 0 = error ("Leftover JUNK: " ++ BC.unpack rem ++ "\n")
+  | B.length rem /= 0 = error ("Leftover JUNK: " ++ B.unpack rem ++ "\n")
   | otherwise          = 
       case result of
         Left err               -> Left  $ error ("Parse error: " ++ err)
@@ -260,3 +235,13 @@ handleParse _mkGraph (rem, result)
     conv []            = []
     conv (Nothing:ts)  = conv ts
     conv ((Just t):ts) = t : conv ts
+
+_test :: Parser a -> String -> IO a
+_test p str =
+  do
+    when (not $ B.null rest)
+      (putStr "Remainder: '" >> B.putStr rest >> putStr "\n")
+    case result of
+      (Left err) -> putStr "ParseError: '" >> putStr err >> putStr "\n" >> error ""
+      (Right a)  -> return a
+  where (rest, result) = parse p (B.pack str)
