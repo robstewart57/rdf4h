@@ -9,8 +9,8 @@ where
 
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 
 p :: String -> ByteString
 p = B.pack

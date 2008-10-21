@@ -7,8 +7,8 @@ import qualified Text.RDF.NTriplesSerializer as NS
 import qualified Text.RDF.TurtleParser       as TP
 import qualified Text.RDF.TurtleSerializer   as TS
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 
 import System.Environment
 import System.IO
@@ -52,13 +52,13 @@ main =
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("turtle",   False) -> (if inputUri /= "-"
                                   then TP.parseFile mInputUri docUri inputUri
-                                  else getContents >>= return . TP.parseString mInputUri docUri)
+                                  else B.getContents >>= return . TP.parseString mInputUri docUri)
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("ntriples",  True) -> NP.parseURL inputUri
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("ntriples", False) -> (if inputUri /= "-"
                                   then NP.parseFile inputUri
-                                  else getContents >>= return . NP.parseString)
+                                  else B.getContents >>= return . NP.parseString)
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 

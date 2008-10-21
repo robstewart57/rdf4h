@@ -3,8 +3,8 @@ module Text.RDF.GraphTestUtils where
 import Text.RDF.Core
 import Text.RDF.Namespace
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 import Test.QuickCheck
 
 import Data.Char

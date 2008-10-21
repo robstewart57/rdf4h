@@ -6,8 +6,10 @@ module Text.RDF.Utils (
   canonicalize, maybeHead
 ) where
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy as BL
+
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -17,6 +19,9 @@ import Data.IORef
 import System.IO.Unsafe(unsafePerformIO)
 
 import Control.Monad
+
+
+bs_newline = B.pack "\n"
 
 -- |A safe version of head that returns 'Nothing' for an empty list or 'Just (head lst)' for
 -- a non-empty list.
@@ -79,13 +84,13 @@ s2b = B.pack
 -- |Write to the handle the reversed value of the bytestring, with no newline.
 {-# INLINE hPutStrRev #-}
 hPutStrRev :: Handle -> ByteString -> IO ()
-hPutStrRev h bs = B.hPutStr h (B.reverse bs)
+hPutStrRev h bs = BL.hPutStr h (B.reverse bs)
 
 -- |Write to the handle the reversed value of the bytestring, followed by
 -- a newline.
 {-# Inline revPutStrLnRev #-}
 hPutStrLnRev :: Handle -> ByteString -> IO ()
-hPutStrLnRev h bs = B.hPutStrLn h (B.reverse bs)
+hPutStrLnRev h bs = BL.hPutStr h (B.reverse bs) >> BL.hPutStr h bs_newline
 
 -- |Return a 'FastString' value for the given 'ByteString', reusing a 'FastString'
 -- if one has been created for equal bytestrings, or creating a new one if necessary.

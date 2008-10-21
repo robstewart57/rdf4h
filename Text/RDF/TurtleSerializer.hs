@@ -6,8 +6,9 @@ import Text.RDF.Core
 import Text.RDF.Namespace
 import Text.RDF.Utils
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.ByteString.Lazy as BL
 
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -17,9 +18,6 @@ import Data.List
 import Control.Monad
 
 import System.IO
-
-splitUri :: ByteString -> (ByteString, ByteString)
-splitUri = B.breakEnd (\c -> c == '/' || c == ':' || c == '#')
 
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h gr =
@@ -36,15 +34,15 @@ writeBase :: Handle -> Maybe BaseUrl -> IO ()
 writeBase _ Nothing               =
   return ()
 writeBase h (Just (BaseUrl bUrl)) =
-  hPutStr h "@base " >> hPutChar h '<' >> B.hPutStr h bUrl >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@base " >> hPutChar h '<' >> BL.hPutStr h bUrl >> hPutStr h "> ." >> hPutChar h '\n'
 
 writePrefixes :: Handle -> PrefixMappings -> IO ()
 writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 
 writePrefix :: Handle -> (ByteString, ByteString) -> IO ()
 writePrefix h (pre, uri) =
-  hPutStr h "@prefix " >> B.hPutStr h pre >> hPutStr h ": " >>
-  hPutChar h '<' >> B.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@prefix " >> BL.hPutStr h pre >> hPutStr h ": " >>
+  hPutChar h '<' >> BL.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
 
 writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
 writeTriples h bUrl (PrefixMappings pms) ts =
@@ -83,11 +81,15 @@ writeNode h node prefixes =
 
 writeUNodeUri :: Handle -> ByteString -> Map ByteString ByteString -> IO ()
 writeUNodeUri h uri prefixes =
-  case Map.lookup urlInit prefixes of
-    Nothing    -> hPutChar h '<' >> B.hPutStr h uri >> hPutChar h '>'
-    (Just pre) -> B.hPutStr h pre >> hPutChar h ':' >> B.hPutStr h localName
+  case Map.lookup prefix prefixes of
+    Nothing    -> hPutChar h '<' >> BL.hPutStr h uri >> hPutChar h '>'
+    (Just pre) -> BL.hPutStr h pre >> hPutChar h ':' >> BL.hPutStr h rest
   where
-    (urlInit, localName) = splitUri uri
+    (prefix, rest)  = B.break (\c -> c == ':') uri
+    --(urlInit, localName) = splitUri uri
+    --splitUri :: ByteString -> (ByteString, ByteString)
+    --splitUri = B.breakEnd (\c -> c == '/' || c == ':' || c == '#')
+
 
 writeLValue :: Handle -> LValue -> IO ()
 writeLValue h lv =
@@ -95,7 +97,7 @@ writeLValue h lv =
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@\"" >>
-                            B.hPutStr h lang >>
+                            BL.hPutStr h lang >>
                             hPutStr h "\""
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^\"" >>

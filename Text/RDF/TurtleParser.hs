@@ -11,8 +11,9 @@ import Text.RDF.ParserUtils
 import Text.ParserCombinators.Parsec
 import qualified Data.Map as Map
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.ByteString.Lazy as BL
 
 import Data.Sequence(Seq, (|>))
 import qualified Data.Sequence as Seq
@@ -364,7 +365,7 @@ in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 resolveQName :: Maybe BaseUrl -> ByteString -> PrefixMappings -> ByteString
 resolveQName mbaseUrl prefix (PrefixMappings pms') =
   case (mbaseUrl, B.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base B.empty pms'
+    (Just (BaseUrl base), True)  ->  Map.findWithDefault base BL.empty pms'
     (Nothing,             True)  ->  err1
     (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
   where
@@ -538,8 +539,8 @@ parseFile bUrl docUrl fpath =
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a a string rather than a location URI.
-parseString :: Graph gr => Maybe BaseUrl -> String -> String -> Either ParseFailure gr
-parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
+parseString :: Graph gr => Maybe BaseUrl -> String -> ByteString -> Either ParseFailure gr
+parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (B.unpack ttlStr))
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 

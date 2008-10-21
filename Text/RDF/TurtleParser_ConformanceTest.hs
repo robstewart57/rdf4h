@@ -15,7 +15,7 @@ import Control.Monad
 
 import qualified Test.HUnit as T
 
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy.Char8 as B
 
 main :: IO ()
 main = runAllCTests >>= putStrLn . show
@@ -84,7 +84,7 @@ equivalent (Right gr1) (Right gr2) = test $! zip gr1ts gr2ts
 input :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 input name n =
   readFile (fpath name n "ttl") >>=
-    return .  parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>= \res ->
+    return .  parseString mtestBaseUri (mkDocUrl testBaseUri name n) . B.pack >>= \res ->
     case res of
       l@(Left _)  -> return l
       (Right gr)  -> return . Right $ mkGraph (map normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
@@ -99,7 +99,7 @@ input name n =
     normalizeN n            = n
 
 expected :: String -> Int -> IO (Either ParseFailure TriplesGraph)
-expected name n = readFile (fpath name n "out") >>= return . NT.parseString
+expected name n = readFile (fpath name n "out") >>= return . NT.parseString . B.pack
 
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left err) = T.assertFailure $ idStr  ++ show err
@@ -115,12 +115,13 @@ assertEquivalent i r1 r2 =
   where equiv = equivalent r1 r2
 
 _test :: Bool -> Int -> IO ()
-_test testGood testNum = readFile fpath >>= f
+_test testGood testNum = B.readFile fpath >>= f
   where
     fname = printf "%s-%02d.ttl" name testNum :: String
     fpath = "data/ttl/conformance/" ++ fname
     name = if testGood then "test" else "bad" :: String
     docUrl = mkDocUrl testBaseUri name testNum
+    f :: B.ByteString -> IO ()
     f s = let result = parseString mtestBaseUri docUrl s
           in case result of
                (Left err) -> putStrLn $ "ERROR:" ++ show err

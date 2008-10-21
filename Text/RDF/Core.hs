@@ -20,8 +20,8 @@ where
 import Text.RDF.Namespace
 import Text.RDF.Utils
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List
 
 import Text.Printf
@@ -328,20 +328,18 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
 
 instance Show Triple where
   show (Triple s p o) =
-    printf "%s %s %s ." (show s) (show p) (show o)
+    printf "Triple(%s,%s,%s)" (show s) (show p) (show o)
 
 instance Show Node where
-  show (UNode uri)                = show uri
-  show (BNode  i)                 = show i
-  show (BNodeGen genId)           = "_:genid" ++ show genId
-  show (LNode (PlainL lit))       = show lit
-  show (LNode (PlainLL lit lang)) = show lit ++ "@\"" ++ show lang ++ "\""
-  show (LNode (TypedL lit uri))   = show lit ++ "^^\"" ++ show uri ++ "\""
+  show (UNode uri)                   = "UNode(" ++ show uri ++ ")"
+  show (BNode  i)                    = "BNode(" ++ show i ++ ")"
+  show (BNodeGen genId)              = "BNodeGen(" ++ show genId ++ ")"
+  show (LNode lvalue)                = "LNode(" ++ show lvalue ++ ")"
 
 instance Show LValue where
-  show (PlainL lit)               = show lit
-  show (PlainLL lit lang)         = show lit ++ "@\"" ++ show lang ++ "\""
-  show (TypedL lit dtype)         = show lit ++ "^^\"" ++ show dtype ++ "\""
+  show (PlainL lit)               = "PlainL(" ++ B.unpack lit ++ ")"
+  show (PlainLL lit lang)         = "PlainLL(" ++ B.unpack lit ++ ", " ++ B.unpack lang ++ ")"
+  show (TypedL lit dtype)         = "TypedL(" ++ B.unpack lit ++ "," ++ show dtype ++ ")"
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples

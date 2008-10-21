@@ -6,8 +6,9 @@ module Text.RDF.NTriplesSerializer(
 import Text.RDF.Core
 import Text.RDF.Utils
 
-import Data.ByteString.Char8(ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.ByteString.Lazy as BL
 
 import System.IO
 import Control.Monad
@@ -40,7 +41,7 @@ writeLValue h lv =
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@\"" >>
-                            B.hPutStr h lang >>
+                            BL.hPutStr h lang >>
                             hPutStr h "\""
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^\"" >>

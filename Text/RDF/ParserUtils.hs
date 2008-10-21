@@ -7,6 +7,8 @@ import Network.HTTP
 import Network.HTTP.Headers
 
 import Data.Char(intToDigit)
+import Data.ByteString.Lazy.Char8(ByteString)
+import qualified Data.ByteString.Lazy.Char8 as B
 
 -- A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.
@@ -19,7 +21,7 @@ justTriples :: [Maybe(Triple)] -> [Triple]
 justTriples = map (maybe (error "ParserUtils.justTriples") id) .
               filter (/= Nothing)
 
-_parseURL :: Graph gr => (String -> Either ParseFailure gr)  -> String -> IO (Either ParseFailure gr)
+_parseURL :: Graph gr => (ByteString -> Either ParseFailure gr)  -> String -> IO (Either ParseFailure gr)
 _parseURL parseFunc url =
   return (parseURI url) >>=
     maybe (return (Left (ParseFailure $ "Unable to parse URL: " ++ url))) p
@@ -31,7 +33,7 @@ _parseURL parseFunc url =
         case resp of
           (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url ++ " [" ++ show e ++ "]")
           (Right res) -> case rspCode res of
-                           (2, 0, 0) -> return $ parseFunc (rspBody res)
+                           (2, 0, 0) -> return $ parseFunc (B.pack $ rspBody res)
                            _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
 
 request :: URI -> Request
