@@ -1,8 +1,12 @@
-module Text.RDF.ParserUtils where
+module Text.RDF.ParserUtils(_parseURL, justTriples) where
 
 import Text.RDF.Core
+
 import Network.URI
-import Network.HTTP.Simple
+import Network.HTTP
+import Network.HTTP.Headers
+
+import Data.Char(intToDigit)
 
 -- A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.
@@ -18,10 +22,20 @@ justTriples = map (maybe (error "ParserUtils.justTriples") id) .
 _parseURL :: Graph gr => (String -> Either ParseFailure gr)  -> String -> IO (Either ParseFailure gr)
 _parseURL parseFunc url =
   return (parseURI url) >>=
-    maybe (return (errResult $ "Unable to parse URL: " ++ url)) p
+    maybe (return (Left (ParseFailure $ "Unable to parse URL: " ++ url))) p
   where
+    showRspCode (a, b, c) = map intToDigit [a, b, c]
+    httpError resp = showRspCode (rspCode resp) ++ " " ++ rspReason resp
     p url =
-      httpGet url >>= \result ->
-        case result of
-          Nothing  -> return (errResult $ "couldn't retrieve from URL: " ++ show url)
-          Just str -> return $ parseFunc str
+      simpleHTTP (request url) >>= \resp ->
+        case resp of
+          (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url ++ " [" ++ show e ++ "]")
+          (Right res) -> case rspCode res of
+                           (2, 0, 0) -> return $ parseFunc (rspBody res)
+                           _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
+
+request :: URI -> Request
+request uri = Request { rqURI = uri,
+                        rqMethod = GET,
+                        rqHeaders = [Header HdrConnection "close"],
+                        rqBody = "" }
