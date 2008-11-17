@@ -1,4 +1,4 @@
-{-#  GHC_OPTIONS -fno-cse  #-}
+{-#  OPTIONS_GHC -fno-cse  #-}
 module Text.RDF.Utils (
   FastString(uniq, value),
   mkFastString, equalFS, compareFS,
@@ -88,7 +88,7 @@ hPutStrRev h bs = BL.hPutStr h (B.reverse bs)
 
 -- |Write to the handle the reversed value of the bytestring, followed by
 -- a newline.
-{-# Inline revPutStrLnRev #-}
+{-# INLINE hPutStrLnRev #-}
 hPutStrLnRev :: Handle -> ByteString -> IO ()
 hPutStrLnRev h bs = BL.hPutStr h (B.reverse bs) >> BL.hPutStr h bs_newline
 
