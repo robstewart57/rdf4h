@@ -8,7 +8,9 @@ import Text.RDF.Core
 import Text.RDF.Namespace
 import Text.RDF.ParserUtils
 
-import Text.ParserCombinators.Parsec
+import Text.Parsec
+import Text.Parsec.ByteString.Lazy
+
 import qualified Data.Map as Map
 
 import Data.ByteString.Lazy.Char8(ByteString)
@@ -440,7 +442,7 @@ isInColl :: GenParser Char ParseState Bool
 isInColl = getState >>= \(_, _, _, _, _, _, cs, _) -> return . not . null $ cs
 
 updateBaseUrl :: Maybe (Maybe BaseUrl) -> GenParser Char ParseState ()
-updateBaseUrl val = modifyState val no no no no no
+updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
 nextIdCounter :: GenParser Char ParseState Int
@@ -448,7 +450,7 @@ nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
                 setState (bUrl, dUrl, i+1, pms, s, p, cs, ts) >> return i
 
 updatePMs :: Maybe PrefixMappings -> GenParser Char ParseState ()
-updatePMs val = modifyState no no val no no no
+updatePMs val = _modifyState no no val no no no
 
 -- Register that we have begun processing a collection
 beginColl :: GenParser Char ParseState ()
@@ -471,7 +473,7 @@ finishColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, ts) ->
              let cs' = drop 1 cs
              in setState (bUrl, dUrl, i, pms, s, p, cs', ts) >> return (not $ null cs')
 
--- Alias for Nothing for use with modifyState calls, which can get very long with
+-- Alias for Nothing for use with _modifyState calls, which can get very long with
 -- many Nothing values.
 no :: Maybe a
 no = Nothing
@@ -484,10 +486,10 @@ resetSubjectPredicate =
 
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
-modifyState :: Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
-               Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
-               GenParser Char ParseState ()
-modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
+_modifyState :: Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
+                Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
+                GenParser Char ParseState ()
+_modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
   do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _ts) <- getState
      setState (maybe _bUrl id mb_bUrl,
               _dUrl,
@@ -540,14 +542,14 @@ parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
 -- Returns either a @ParseFailure@ or a new graph containing the parsed triples.
 parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
 parseFile bUrl docUrl fpath =
-  readFile fpath >>= \str -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl str)
+  B.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl bs)
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a a string rather than a location URI.
 parseString :: Graph gr => Maybe BaseUrl -> String -> ByteString -> Either ParseFailure gr
-parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (B.unpack ttlStr))
+parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (ttlStr))
   where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 
