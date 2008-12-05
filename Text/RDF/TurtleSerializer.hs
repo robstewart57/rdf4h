@@ -19,6 +19,8 @@ import Control.Monad
 
 import System.IO
 
+import Debug.Trace()
+
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h gr =
   writeHeader h bUrl pms >> writeTriples h bUrl pms ts >> hPutChar h '\n'
@@ -79,17 +81,37 @@ writeNode h node prefixes =
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n
 
+-- TODO: this is broken. It currently never writes the uri using a prefix,
+-- because in this PrefixMappings map, the key is the URI and the value is
+-- the prefix, while this function assumes the reverse at present.
 writeUNodeUri :: Handle -> ByteString -> Map ByteString ByteString -> IO ()
 writeUNodeUri h uri prefixes =
-  case Map.lookup prefix prefixes of
-    Nothing    -> hPutChar h '<' >> BL.hPutStr h uri >> hPutChar h '>'
-    (Just pre) -> BL.hPutStr h pre >> hPutChar h ':' >> BL.hPutStr h rest
+  case mapping of
+    Nothing                 -> hPutChar h '<' >> BL.hPutStr h uri >> hPutChar h '>'
+    (Just (pre, localName)) -> BL.hPutStr h pre >> hPutChar h ':' >> BL.hPutStr h localName
   where
-    (prefix, rest)  = B.break (\c -> c == ':') uri
-    --(urlInit, localName) = splitUri uri
-    --splitUri :: ByteString -> (ByteString, ByteString)
-    --splitUri = B.breakEnd (\c -> c == '/' || c == ':' || c == '#')
+    mapping         = findMapping prefixes uri
 
+-- Print prefix mappings to stdout for debugging.
+_debugPMs     :: Map ByteString ByteString -> IO ()
+_debugPMs pms =  mapM_ (\(k, v) -> B.putStr k >> putStr "__" >> B.putStrLn v) (Map.toList pms)
+
+-- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
+-- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
+-- there is no such mapping. This function does a linear-time search over the 
+-- map, but the prefix mappings should always be very small, so it's okay for now.
+findMapping :: Map ByteString ByteString -> ByteString -> Maybe (ByteString, ByteString)
+findMapping pms uri =
+  case mapping of
+    Nothing     -> Nothing
+    Just (u, p) -> let localName = B.drop (B.length u) uri
+                   in  if B.empty == localName
+                          then Nothing -- empty localName is not permitted
+                          else Just (p, localName)
+  where
+    mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
+
+--_testPms = PrefixMappings (Map.fromList [(s2b "http://example.com/ex#", s2b "eg")])
 
 writeLValue :: Handle -> LValue -> IO ()
 writeLValue h lv =
