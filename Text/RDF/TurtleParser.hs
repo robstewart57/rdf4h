@@ -278,10 +278,19 @@ t_uriref = between (char '<') (char '>') t_relativeURI
 
 t_relativeURI  :: GenParser Char ParseState ByteString
 t_relativeURI =
-  do frag <- many t_ucharacter >>= return . B.concat
+  do frag <- many t_ucharacter >>= return . B.pack . concat
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
      return $ absolutizeUrl bUrl dUrl frag
+
+-- We make this String rather than ByteString because we want
+-- t_relativeURI (the only place it's used) to have chars so that
+-- when it creates a ByteString it can all be in one chunk.
+t_ucharacter  :: GenParser Char ParseState String
+t_ucharacter =
+  try (unicode_escape >>= return . B.unpack) <|>
+  try (string "\\>") <|>
+  (non_ctrl_char_except ['>'] >>= return . B.unpack)
 
 t_nameChar :: GenParser Char ParseState Char
 t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
@@ -328,12 +337,6 @@ t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
 
 t_hex  :: GenParser Char ParseState Char
 t_hex = (satisfy $! (\c -> (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) <?> "hexadecimal digit"
-
-t_ucharacter  :: GenParser Char ParseState ByteString
-t_ucharacter =
-  try unicode_escape <|>
-  try (string "\\>" >>= return . s2b) <|>
-  non_ctrl_char_except ['>']
 
 -- characters used in (non-long) strings; any echaracters except ", or an escaped \"
 -- echaracter - #x22 ) | '\"'
