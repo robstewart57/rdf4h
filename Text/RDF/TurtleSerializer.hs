@@ -57,7 +57,10 @@ writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
 writeTriples h bUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h bUrl revPms) (groupBy equalSubjects ts)
   where
-    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
+    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList mergedPmsMap
+    -- a merged set of prefix mappings using those from the standard_ns_mappings
+    -- that are not defined already (union is left-biased).
+    mergedPmsMap = Map.union pms $ (\(PrefixMappings x) -> x) standard_ns_mappings
 
 -- Write a group of triples that all have the same subject, with the subject only
 -- being output once, and comma or semi-colon used as appropriate.
