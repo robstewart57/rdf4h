@@ -65,8 +65,8 @@ main =
 write :: Graph gr => Either ParseFailure gr -> String -> IO ()
 write res format =
   case res of
-    (Left err) -> putStrLn (show err) >> exitWith (ExitFailure 1)
-    (Right gr) ->
+    (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
+    (Right gr)                ->
       case format of
         "ntriples" -> NS.writeTriples stdout (triplesOf gr)
         "turtle"   -> TS.writeGraph stdout gr
