@@ -79,7 +79,6 @@ nt_literal =
      (char '@' >> nt_language >>=  return . plainLL lit_str) <|>
        (count 2 (char '^') >> nt_uriref >>= return . typedL lit_str . mkFastString) <|>
        (return $ plainL lit_str)
-
   where inner_literal = (manyTill inner_string (lookAhead $ char '"') >>= return . B.concat)
 
 -- A language specifier of a language literal is any number of lowercase
