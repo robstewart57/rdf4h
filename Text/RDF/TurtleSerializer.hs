@@ -19,7 +19,10 @@ import Control.Monad
 
 import System.IO
 
-import Debug.Trace()
+import Debug.Trace(trace)
+
+-- Defined so that there are no compiler warnings when trace is not used.
+_debug = trace
 
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h gr =
@@ -46,6 +49,10 @@ writePrefix h (pre, uri) =
   hPutStr h "@prefix " >> BL.hPutStr h pre >> hPutStr h ": " >>
   hPutChar h '<' >> BL.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
 
+-- We don't really use the map as a map yet, but we reverse the map anyway so that
+-- it maps from uri to prefix rather than the usual prefix to uri, since we never need
+-- to look anything up by prefix, where as we do use the uri for determining which
+-- prefix to use.
 writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
 writeTriples h bUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h bUrl revPms) (groupBy equalSubjects ts)
@@ -81,9 +88,6 @@ writeNode h node prefixes =
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n
 
--- TODO: this is broken. It currently never writes the uri using a prefix,
--- because in this PrefixMappings map, the key is the URI and the value is
--- the prefix, while this function assumes the reverse at present.
 writeUNodeUri :: Handle -> ByteString -> Map ByteString ByteString -> IO ()
 writeUNodeUri h uri prefixes =
   case mapping of
@@ -111,7 +115,7 @@ findMapping pms uri =
   where
     mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
 
---_testPms = PrefixMappings (Map.fromList [(s2b "http://example.com/ex#", s2b "eg")])
+--_testPms = Map.fromList [(s2b "http://example.com/ex#", s2b "eg")]
 
 writeLValue :: Handle -> LValue -> IO ()
 writeLValue h lv =
