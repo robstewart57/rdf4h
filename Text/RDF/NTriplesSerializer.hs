@@ -40,9 +40,8 @@ writeLValue h lv =
   case lv of
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
-                            hPutStr h "@\"" >>
-                            BL.hPutStr h lang >>
-                            hPutStr h "\""
+                            hPutStr h "@" >>
+                            BL.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^\"" >>
                             hPutStrRev h (value dtype) >>
