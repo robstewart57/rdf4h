@@ -3,7 +3,7 @@ module Text.RDF.Namespace(
   PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
   makeUri,
   prefixOf, uriOf,
-  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2
+  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2, standard_ns_mappings
 )
 where
 
@@ -11,6 +11,13 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
+
+standard_namespaces :: [Namespace]
+standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
+
+standard_ns_mappings  :: PrefixMappings
+standard_ns_mappings  =  PrefixMappings $ Map.fromList $ 
+                         map (\(PrefixedNS pre uri) -> (pre, uri)) standard_namespaces
 
 p :: String -> ByteString
 p = B.pack
