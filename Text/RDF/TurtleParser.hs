@@ -21,6 +21,10 @@ import qualified Data.Foldable as F
 
 import Control.Monad
 
+-- import Debug.Trace(trace)
+
+-- http://www.w3.org/TeamSubmission/turtle/
+
 type ParseState =
   (Maybe BaseUrl,    -- the current BaseUrl, may be Nothing initially, but not after it is once set
    Maybe ByteString, -- the docUrl, which never changes but may or may not be used
