@@ -13,6 +13,9 @@ import Text.RDF.ParserUtils
 import Data.Char(isHexDigit, isLetter, isDigit, isLower)
 import qualified Data.Map as Map
 
+--import Text.Parsec
+--import Text.Parsec.ByteString.Lazy
+
 import Data.ParserCombinators.Attoparsec.Char8
 
 import Data.ByteString.Lazy.Char8(ByteString)

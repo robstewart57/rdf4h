@@ -24,13 +24,24 @@ import Debug.Trace(trace)
 -- Defined so that there are no compiler warnings when trace is not used.
 _debug = trace
 
+-- TODO: writeGraph currently merges standard namespace prefix mappings with
+-- the ones that the graph already contains, so that if the graph has none
+-- (e.g., was parsed from ntriples RDF) the output still uses prefix for
+-- common mappings like rdf, owl, and the like. This behavior should be
+-- configurable somehow, so that if the user really doesn't want any extra
+-- prefix declarations added, that is possible.
+
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h gr =
-  writeHeader h bUrl pms >> writeTriples h bUrl pms ts >> hPutChar h '\n'
+  writeHeader h bUrl pms' >> writeTriples h bUrl pms' ts >> hPutChar h '\n'
   where
-    bUrl = baseUrl gr
-    pms  = prefixMappings gr
-    ts   = triplesOf gr
+    bUrl   = baseUrl gr
+    pms    = prefixMappings gr
+    -- a merged set of prefix mappings using those from the standard_ns_mappings
+    -- that are not defined already (union is left-biased).
+    pms'   = PrefixMappings $ Map.union (asMap $ prefixMappings gr) (asMap standard_ns_mappings)
+    asMap (PrefixMappings x) = x
+    ts     = triplesOf gr
 
 writeHeader :: Handle -> Maybe BaseUrl -> PrefixMappings -> IO ()
 writeHeader h bUrl pms = writeBase h bUrl >> writePrefixes h pms
@@ -57,10 +68,7 @@ writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
 writeTriples h bUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h bUrl revPms) (groupBy equalSubjects ts)
   where
-    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList mergedPmsMap
-    -- a merged set of prefix mappings using those from the standard_ns_mappings
-    -- that are not defined already (union is left-biased).
-    mergedPmsMap = Map.union pms $ (\(PrefixMappings x) -> x) standard_ns_mappings
+    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
 
 -- Write a group of triples that all have the same subject, with the subject only
 -- being output once, and comma or semi-colon used as appropriate.
@@ -89,7 +97,7 @@ writeNode h node prefixes =
     (UNode fs)  -> writeUNodeUri h (B.reverse $ value fs) prefixes
     (BNode gId) -> hPutStrRev h (value gId)
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
-    (LNode n)   -> writeLValue h n
+    (LNode n)   -> writeLValue h n prefixes
 
 writeUNodeUri :: Handle -> ByteString -> Map ByteString ByteString -> IO ()
 writeUNodeUri h uri prefixes =
@@ -111,26 +119,22 @@ findMapping :: Map ByteString ByteString -> ByteString -> Maybe (ByteString, Byt
 findMapping pms uri =
   case mapping of
     Nothing     -> Nothing
-    Just (u, p) -> let localName = B.drop (B.length u) uri
-                   in  if B.empty == localName
-                          then Nothing -- empty localName is not permitted
-                          else Just (p, localName)
+    Just (u, p) -> B.drop (B.length u) uri -- empty localName is permitted
   where
     mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
 
 --_testPms = Map.fromList [(s2b "http://example.com/ex#", s2b "eg")]
 
-writeLValue :: Handle -> LValue -> IO ()
-writeLValue h lv =
+writeLValue :: Handle -> LValue -> Map ByteString ByteString -> IO ()
+writeLValue h lv pms =
   case lv of
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@" >>
                             BL.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
-                            hPutStr h "^^\"" >>
-                            hPutStrRev h (value dtype) >>
-                            hPutStr h "\""
+                            hPutStr h "^^" >>
+                            writeUNodeUri h (B.reverse $ value dtype) pms
 
 writeLiteralString:: Handle -> ByteString -> IO ()
 writeLiteralString h bs =
