@@ -36,7 +36,6 @@ writeGraph h gr =
   writeHeader h bUrl pms' >> writeTriples h bUrl pms' ts >> hPutChar h '\n'
   where
     bUrl   = baseUrl gr
-    pms    = prefixMappings gr
     -- a merged set of prefix mappings using those from the standard_ns_mappings
     -- that are not defined already (union is left-biased).
     pms'   = PrefixMappings $ Map.union (asMap $ prefixMappings gr) (asMap standard_ns_mappings)
@@ -119,7 +118,7 @@ findMapping :: Map ByteString ByteString -> ByteString -> Maybe (ByteString, Byt
 findMapping pms uri =
   case mapping of
     Nothing     -> Nothing
-    Just (u, p) -> B.drop (B.length u) uri -- empty localName is permitted
+    Just (u, p) -> Just $ (p, B.drop (B.length u) uri) -- empty localName is permitted
   where
     mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
 
