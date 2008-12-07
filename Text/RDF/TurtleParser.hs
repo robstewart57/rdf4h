@@ -23,7 +23,7 @@ import qualified Data.Foldable as F
 
 import Control.Monad
 
--- import Debug.Trace(trace)
+import Debug.Trace(trace)
 
 -- http://www.w3.org/TeamSubmission/turtle/
 
@@ -54,7 +54,7 @@ t_directive :: GenParser ByteString ParseState ()
 t_directive = (t_prefixID <|> t_base)
 
 t_resource :: GenParser ByteString ParseState (ByteString)
-t_resource = (try t_uriref) <|> t_qname
+t_resource =  (try t_uriref) <|> t_qname
 
 t_prefixID :: GenParser ByteString ParseState ()
 t_prefixID =
@@ -111,8 +111,8 @@ t_predicateObjectList =
   do t_verb <?> "verb"     -- pushes pred onto pred stack
      many1 t_ws   <?> "polist-whitespace-after-verb"
      t_objectList <?> "polist-objectList"
-     many (try (many t_ws >> char ';' >> many t_ws >> t_verb >> many1 t_ws >> t_objectList))
-     popPred               -- pop off the predicate pushed by t_verb
+     many (try (many t_ws >> char ';') >> many t_ws >> t_verb >> many1 t_ws >> t_objectList >> popPred)
+     popPred               -- pop off the predicate pushed by 1st t_verb
      return ()
 
 t_objectList :: GenParser ByteString ParseState ()
@@ -163,9 +163,11 @@ blank_as_obj =
   poList
   where
     genBlank = try (string "[]") >> nextIdCounter >>=  return . BNodeGen
-    poList   = between (char '[') (char ']') $ nextIdCounter >>= return . BNodeGen >>= \bSubj ->
-                 addTripleForObject bSubj >> many t_ws >> pushSubj bSubj >>
-                 t_predicateObjectList >> popSubj >> many t_ws >> return ()
+    poList   = between (char '[') (char ']') $ 
+                 nextIdCounter >>= return . BNodeGen >>= \bSubj ->          -- generate new bnode
+                 addTripleForObject bSubj >>                                -- add triple with bnode as object
+                 many t_ws >> pushSubj bSubj >>                             -- push bnode as new subject
+                 t_predicateObjectList >> popSubj >> many t_ws >> return () -- process polist, which uses bnode as subj, then pop bnode
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
 rdfTypeNode   = UNode $ mkFastString $ makeUri rdf $ s2b "type"
@@ -192,13 +194,13 @@ t_literal =
 
 str_literal :: GenParser ByteString ParseState Node
 str_literal =
-  do str <- try (t_quotedString <?> "quotedString")
-     try ((char '^' >> char '^' >> t_uriref >>= return . LNode . typedL str . mkFastString) <|>
-          (char '@' >> t_language >>= return . lnode . plainLL str) <|>
-          (return $ lnode $ plainL str))
+  do str <- (t_quotedString <?> "quotedString")
+     ((try (count 2 (char '^')) >> t_resource >>= return . LNode . typedL str . mkFastString) <|>
+      (char '@' >> t_language >>= return . lnode . plainLL str) <|>
+      (return $ lnode $ plainL str))
 
 t_quotedString  :: GenParser ByteString ParseState ByteString
-t_quotedString = try t_longString <|> try t_string
+t_quotedString = t_longString <|> t_string
 
 -- a non-long string: any number of scharacters (echaracter without ") inside doublequotes.
 t_string  :: GenParser ByteString ParseState ByteString
@@ -206,7 +208,11 @@ t_string = between (char '"') (char '"') (many t_scharacter) >>= return . B.conc
 
 t_longString  :: GenParser ByteString ParseState ByteString
 t_longString =
-  between tripleQuote (try tripleQuote) (many longString_char) >>= return . B.concat
+  do
+    try tripleQuote
+    strVal <- many longString_char >>= return . B.concat
+    tripleQuote
+    return strVal
   where
     tripleQuote = count 3 (char '"')
 
@@ -256,7 +262,7 @@ t_comment =
 
 t_ws  :: GenParser ByteString ParseState ()
 t_ws =
-    ((try (char '\x000A' <|> char '\x000D' <|> char '\x0020') >> return ())
+    ((try (char '\x0009' <|> char '\x000A' <|> char '\x000D' <|> char '\x0020') >> return ())
     <|> try t_comment)
    <?> "whitespace-or-comment"
 
@@ -437,6 +443,7 @@ popPred :: GenParser ByteString ParseState (Predicate)
 popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
+                  -- trace (show ps) (return ()) >>
                   return (head ps)
 
 isInColl :: GenParser ByteString ParseState Bool
