@@ -1,0 +1,2 @@
+<http://protempore.net/~calvins/me> <http://example.com/firstname> "Calvin"^^<http://www.w3.org/2001/XMLSchema#string> .
+<file:///home/calvins/rdf4h/data/ttl/example4.ttl> <http://example.com/written> "2003-01-26T16:52"^^<http://www.w3.org/2001/XMLSchema#dateTime> .

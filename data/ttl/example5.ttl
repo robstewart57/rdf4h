@@ -1,0 +1,13 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L>
+    <http://xmlns.com/foaf/0.1/maker> [
+        a <http://xmlns.com/foaf/0.1/Person> ;
+        <http://xmlns.com/foaf/0.1/name> "Martin Wyldeck"
+    ], [
+        a <http://xmlns.com/foaf/0.1/Person> ;
+        <http://xmlns.com/foaf/0.1/name> "Lionel Wheeler"
+    ], [
+        a <http://xmlns.com/foaf/0.1/Person> ;
+        <http://xmlns.com/foaf/0.1/name> "David Simeon"
+    ] .
