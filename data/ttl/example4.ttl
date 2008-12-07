@@ -1,5 +1,0 @@
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-<http://protempore.net/~calvins/me> <http://example.com/firstname> "Calvin"^^xsd:string .
-<>                                  <http://example.com/written>   "2003-01-26T16:52"^^xsd:dateTime .
-
