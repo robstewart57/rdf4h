@@ -43,9 +43,9 @@ writeLValue h lv =
                             hPutStr h "@" >>
                             BL.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
-                            hPutStr h "^^\"" >>
+                            hPutStr h "^^<" >>
                             hPutStrRev h (value dtype) >>
-                            hPutStr h "\""
+                            hPutStr h ">"
 
 writeLiteralString:: Handle -> ByteString -> IO ()
 writeLiteralString h bs =
