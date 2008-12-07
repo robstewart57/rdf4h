@@ -17,11 +17,22 @@ import qualified Test.HUnit as T
 
 import qualified Data.ByteString.Lazy.Char8 as B
 
+import Debug.Trace(trace)
+
 main :: IO ()
 main = putStrLn "Running TurtleParser_ConformanceTest..." >> runAllCTests >>= putStrLn . show
 
+
+_debug = trace
+
 -- A list of other tests to run, each entry of which is (directory, fname_without_ext).
-otherTestFiles = [("data/ttl", "example1"), ("data/ttl", "example3")]
+otherTestFiles = [("data/ttl", "example1"),
+                  ("data/ttl", "example2"),
+                  ("data/ttl", "example3"),
+                  ("data/ttl", "example5"),
+                  ("data/ttl", "example6"),
+                  ("data/ttl", "fawlty1")
+                 ]
 
 -- The Base URI to be used for all conformance tests:
 testBaseUri :: String
@@ -78,7 +89,7 @@ checkBadConformanceTest i =
 equivalent :: Graph gr => Either ParseFailure gr -> Either ParseFailure gr -> Maybe String
 equivalent (Left _) _                = Nothing
 equivalent _        (Left _)         = Nothing
-equivalent (Right gr1) (Right gr2) = test $! zip gr1ts gr2ts
+equivalent (Right gr1) (Right gr2)   = {- _debug (show (length gr1ts, length gr2ts)) -} (test $! zip gr1ts gr2ts)
   where
     gr1ts = uordered $ triplesOf $ gr1
     gr2ts = uordered $ triplesOf $ gr2
