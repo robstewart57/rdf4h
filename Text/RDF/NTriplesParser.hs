@@ -10,36 +10,29 @@ import Text.RDF.Core
 import Text.RDF.Namespace
 import Text.RDF.ParserUtils
 
-import Data.Char(isHexDigit, isLetter, isDigit, isLower)
+import Data.Char(isLetter, isDigit, isLower)
 import qualified Data.Map as Map
 
---import Text.Parsec
---import Text.Parsec.ByteString.Lazy
-
-import Data.ParserCombinators.Attoparsec.Char8
+import Text.Parsec
+import Text.Parsec.ByteString.Lazy
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
-
-import Control.Applicative
-import Control.Monad(when)
-
-import Prelude hiding (takeWhile)
 
 -- We define or redefine all here using same names as the spec, but with an
 -- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
 -- nt_ntripleDoc).
 
 -- |nt_ntripleDoc is simply zero or more lines.
-nt_ntripleDoc :: Parser [Maybe Triple]
+nt_ntripleDoc :: GenParser ByteString () [Maybe Triple]
 nt_ntripleDoc = manyTill nt_line eof
 
---many :: Parser a -> Parser [a]
+--many :: GenParser ByteString () a -> GenParser ByteString () [a]
 --many p =
 --  do{ x <- p; xs <- many p; return (x:xs) }
 
 
-nt_line :: Parser (Maybe Triple)
+nt_line :: GenParser ByteString () (Maybe Triple)
 nt_line       = 
     skipMany nt_space >>
      (nt_comment <|> nt_triple <|> nt_empty) >>=
@@ -51,13 +44,13 @@ nt_line       =
 -- is already defined as the range #x0020-#x007E, so cr #x000D and
 -- lf #x000A are both already excluded. This returns Nothing as we are
 -- ignoring comments for now.
-nt_comment :: Parser (Maybe Triple)
+nt_comment :: GenParser ByteString () (Maybe Triple)
 nt_comment   = (char '#') >> skipMany nt_character >> return Nothing
 
 -- A triple consists of whitespace-delimited subject, predicate, and object,
 -- followed by optional whitespace and a period, and possibly more
 -- whitespace.
-nt_triple :: Parser (Maybe Triple)
+nt_triple :: GenParser ByteString () (Maybe Triple)
 nt_triple    =
   do
     subj <- nt_subject
@@ -76,7 +69,7 @@ nt_triple    =
 -- quotes. A language literal may have '@' after the closing quote,
 -- followed by a language specifier. A datatype literal follows
 -- the closing quote with ^^ followed by the URI of the datatype.
-nt_literal :: Parser LValue
+nt_literal :: GenParser ByteString () LValue
 nt_literal = 
   do lit_str <- between_chars '"' '"' inner_literal 
      (char '@' >> nt_language >>=  return . plainLL lit_str) <|>
@@ -87,64 +80,58 @@ nt_literal =
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
 -- by one or more lowercase letters or digits.
-nt_language :: Parser ByteString
+nt_language :: GenParser ByteString () ByteString
 nt_language =
-  do str <- takeWhile (\c -> c == '-' || isLower c)
+  do str <- many (satisfy (\c -> c == '-' || isLower c)) >>= return . B.pack
      if B.null str || B.last str == '-' || B.head str == '-'
         then fail ("Invalid language string: '" ++ B.unpack str ++ "'")
         else return str
 
---combine :: (a -> b -> c) -> Parser a -> Parser b -> Parser c
---combine f parser1 parser2 = 
---  do p1 <- parser1
---     p2 <- parser2
---     return $ f p1 p2
-
 -- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
-nt_empty :: Parser (Maybe Triple)
+nt_empty :: GenParser ByteString () (Maybe Triple)
 nt_empty     = skipMany nt_space >> return Nothing
 
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
-nt_subject :: Parser Node
+nt_subject :: GenParser ByteString () Node
 nt_subject   =
   (nt_uriref >>= return . unode) <|>
   (nt_nodeID >>= return . bnode)
 
 -- A predicate may only be a URI reference to a resource.
-nt_predicate :: Parser Node
+nt_predicate :: GenParser ByteString () Node
 nt_predicate = nt_uriref >>= return . unode
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
-nt_object :: Parser (Node)
+nt_object :: GenParser ByteString () (Node)
 nt_object =
   (nt_uriref >>=  return . unode) <|>
   (nt_nodeID >>=  return . bnode) <|>
   (nt_literal >>= return . LNode)
 
 -- A URI reference is one or more nrab_character inside angle brackets.
-nt_uriref :: Parser ByteString
-nt_uriref = between_chars '<' '>' (takeWhile1 (\c -> c /= '>'))
+nt_uriref :: GenParser ByteString () ByteString
+nt_uriref = between_chars '<' '>' (many (satisfy (\c -> c /= '>')) >>= return . B.pack)
 
 -- A node id is "_:" followed by a name.
-nt_nodeID :: Parser ByteString
+nt_nodeID :: GenParser ByteString () ByteString
 nt_nodeID = char '_' >> char ':' >> nt_name >>= \n -> 
                 return ('_' `B.cons'` (':' `B.cons'` n))
 
 -- A name is a letter followed by any number of alpha-numeric characters.
-nt_name :: Parser ByteString
+nt_name :: GenParser ByteString () ByteString
 nt_name =
   do init <- letter
-     rest <- takeWhile isLetterOrDigit
-     return (init `B.cons'` rest)
+     rest <- many (satisfy isLetterOrDigit)
+     return $ B.pack (init:rest)
 
 isLetterOrDigit :: Char -> Bool
 isLetterOrDigit c = isLetter c || isDigit c
 
 -- An nt_character is any character except a double quote character.
-nt_character :: Parser Char
+nt_character :: GenParser ByteString () Char
 nt_character   =   satisfy is_nonquote_char
 
 -- A character is any Unicode value from ASCII space to decimal 126 (tilde).
@@ -157,26 +144,25 @@ is_nonquote_char c = is_character c && c/= '"'
 
 -- End-of-line consists of either lf or crlf.
 -- We also test for eof and consider that to match as well.
-nt_eoln :: Parser ()
+nt_eoln :: GenParser ByteString () ()
 nt_eoln = 
  do eof <|> (nt_cr >> nt_lf >> return ()) <|> (nt_lf >> return ())
--- try (nt_cr >> nt_lf >> return ()) <|> try (nt_lf >> return ()) <|> eof
 
 -- Whitespace is either a space or tab character. We must avoid using the
 -- built-in space combinator here, because it includes newline.
-nt_space :: Parser Char
+nt_space :: GenParser ByteString () Char
 nt_space = char ' ' <|> nt_tab
 
 -- Carriage return is \r.
-nt_cr :: Parser Char
+nt_cr :: GenParser ByteString () Char
 nt_cr          =   char '\r'
 
 -- Line feed is \n.
-nt_lf :: Parser Char
+nt_lf :: GenParser ByteString () Char
 nt_lf          =   char '\n'
 
 -- Tab is \t.
-nt_tab :: Parser Char
+nt_tab :: GenParser ByteString () Char
 nt_tab         =   char '\t'
 
 -- An inner_string is a fragment of a string (this is used inside double
@@ -185,7 +171,7 @@ nt_tab         =   char '\t'
 -- a newline (\n), a double-quote (\"), a 4-digit Unicode escape (\uxxxx
 -- where x is a hexadecimal digit), and an 8-digit Unicode escape
 -- (\Uxxxxxxxx where x is a hexadecimaldigit).
-inner_string :: Parser ByteString
+inner_string :: GenParser ByteString () ByteString
 inner_string =
   try (char '\\' >>
          ((char 't' >> return b_tab)  <|>
@@ -195,7 +181,7 @@ inner_string =
           (char '"' >> return b_quote)   <|>
           (char 'u' >> count 4 hexDigit >>= \cs -> return $ B.pack ('\\':'u':cs)) <|>
           (char 'U' >> count 8 hexDigit >>= \cs -> return $ B.pack ('\\':'U':cs))))
-  <|> (takeWhile (\c -> is_nonquote_char c && c /= '\\'))
+  <|> (many (satisfy (\c -> is_nonquote_char c && c /= '\\')) >>= return . B.pack)
 
 b_tab = B.singleton '\t'
 b_ret = B.singleton '\r'
@@ -203,41 +189,36 @@ b_nl  = B.singleton '\n'
 b_slash = B.singleton '\\'
 b_quote = B.singleton '"'
 
-hexDigit :: Parser Char
-hexDigit = satisfy isHexDigit
-
-between_chars :: Char -> Char -> Parser ByteString -> Parser ByteString
+between_chars :: Char -> Char -> GenParser ByteString () ByteString -> GenParser ByteString () ByteString
 between_chars start end parser = char start >> parser >>= \res -> char end >> return res
 
 parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
 parseURL url = _parseURL parseString url
 
 parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
-parseFile path = B.readFile path >>= return . parse nt_ntripleDoc >>= return . handleParse mkGraph
+parseFile path = B.readFile path >>= return . runParser nt_ntripleDoc () path >>= return . handleParse mkGraph
 
 parseString :: Graph gr => ByteString -> Either ParseFailure gr
-parseString bs = handleParse mkGraph (parse nt_ntripleDoc bs)
+parseString bs = handleParse mkGraph (runParser nt_ntripleDoc () "" bs)
 
 handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
-                           (ByteString, Either ParseError [Maybe Triple]) ->
+                           Either ParseError [Maybe Triple] ->
                            (Either ParseFailure gr)
-handleParse _mkGraph (rem, result)
-  | B.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ B.unpack rem)
+handleParse _mkGraph result
+--  | B.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ B.unpack rem)
   | otherwise          = 
       case result of
-        Left err -> Left  $ ParseFailure $ "Parse failure: " ++ err
+        Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
         Right ts -> Right $ _mkGraph (conv ts) Nothing (PrefixMappings Map.empty)
   where
     conv []            = []
     conv (Nothing:ts)  = conv ts
     conv ((Just t):ts) = t : conv ts
 
-_test :: Parser a -> String -> IO a
+_test :: GenParser ByteString () a -> String -> IO a
 _test p str =
   do
-    when (not $ B.null rest)
-      (putStr "Remainder: '" >> B.putStr rest >> putStr "\n")
     case result of
-      (Left err) -> putStr "ParseError: '" >> putStr err >> putStr "\n" >> error ""
+      (Left err) -> putStr "ParseError: '" >> putStr (show err) >> putStr "\n" >> error ""
       (Right a)  -> return a
-  where (rest, result) = parse p (B.pack str)
+  where result = runParser p () "" (B.pack str)
