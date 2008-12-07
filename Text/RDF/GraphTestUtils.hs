@@ -42,7 +42,7 @@ p_mkGraph_no_dupes :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> 
 p_mkGraph_no_dupes _triplesOf _mkGraph ts bUrl pms =
   case null ts of
     True  -> True
-    False -> uordered result == uordered ts
+    False -> result == uordered ts
   where
     tsWithDupe = head ts : ts
     result = _triplesOf $ _mkGraph tsWithDupe bUrl pms
@@ -64,6 +64,19 @@ p_query_matched_spo _triplesOf gr =
     f t = case t of
             Nothing   ->  True
             (Just t') ->  [t'] == queryT gr t'
+
+-- query as in p_query_matched_spo after duplicating a triple in the
+-- graph, so that we can verify that the results just have 1, even
+-- if the graph itself doesn't ensure that there are no dupes internally.
+p_query_matched_spo_no_dupes :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> g -> Property
+p_query_matched_spo_no_dupes _triplesOf _mkGraph gr =
+  classify (null ts) "trivial" $
+    forAll (tripleFromGen _triplesOf gr) f
+  where
+    ts = _triplesOf gr
+    f t = case t of
+            Nothing   -> True
+            Just t'   -> [t'] == queryT (mkGraphWithDupe _triplesOf _mkGraph gr t') t'
 
 -- query with no wildcard and a triple no in the graph should yield []
 p_query_unmatched_spo :: Graph g => (g -> Triples) -> g -> Triple -> Property
@@ -129,7 +142,7 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf gr =
         all (not . tripleCompareFn t) notResults
 
 p_select_match_none :: Graph g => g -> Bool
-p_select_match_none gr = select gr Nothing Nothing Nothing == triplesOf gr
+p_select_match_none gr = select gr Nothing Nothing Nothing == removeDupes (triplesOf gr)
 
 p_select_match_s :: Graph g => (g -> Triples) -> g -> Property
 p_select_match_s =
@@ -208,6 +221,11 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf gr =
       in
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
+
+mkGraphWithDupe :: Graph g => (g -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> g) -> g -> Triple -> g
+mkGraphWithDupe _triplesOf _mkGraph gr t = _mkGraph ts (baseUrl gr) (prefixMappings gr)
+  where ts = t : _triplesOf gr
+
 
 -- Utility functions and test data ... --
 
