@@ -3,6 +3,11 @@
 -- It maintains the triples in the order that they are given in, and is
 -- especially useful for holding N-Triples, where it is often desirable
 -- to preserve the order of the triples when they were originally parsed.
+-- Duplicate triples are not filtered. If you might have duplicate triples,
+-- use @MGraph@ instead, which is also more efficient. However, the query
+-- functions of this graph (select, query) remove duplicates from their
+-- result triples (but triplesOf does not) since it is usually cheap
+-- to do so.
 module Text.RDF.TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
@@ -53,8 +58,10 @@ baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 
--- We no longer remove duplicates here, as it is very time consuming, and raptor does not
--- seem to remove dupes, so we follow suit.
+-- We no longer remove duplicates here, as it is very time consuming and is often not
+-- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes
+-- from the results of the select' and query' functions, since it is cheap to do
+-- there in most cases, but not when triplesOf' is called.
 mkGraph' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
 mkGraph' ts baseUrl pms = TriplesGraph (ts, baseUrl, pms)
 
@@ -62,10 +69,10 @@ triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
 
 select' :: TriplesGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (TriplesGraph (ts, _, _)) s p o = filter (matchSelect s p o) ts
+select' (TriplesGraph (ts, _, _)) s p o = removeDupes $ filter (matchSelect s p o) ts
 
 query' :: TriplesGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (TriplesGraph (ts, _, _)) s p o = filter (matchPattern s p o) ts
+query' (TriplesGraph (ts, _, _)) s p o = removeDupes $ filter (matchPattern s p o) ts
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
 matchSelect s p o t =
