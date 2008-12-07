@@ -25,6 +25,9 @@ import Control.Monad
 
 import Debug.Trace(trace)
 
+-- To avoid compiler warnings when not being used.
+_trace = trace
+
 -- http://www.w3.org/TeamSubmission/turtle/
 
 type ParseState =
@@ -443,7 +446,7 @@ popPred :: GenParser ByteString ParseState (Predicate)
 popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
-                  -- trace (show ps) (return ()) >>
+                  -- _trace (show ps) (return ()) >>
                   return (head ps)
 
 isInColl :: GenParser ByteString ParseState Bool
