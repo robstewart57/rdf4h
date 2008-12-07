@@ -13,7 +13,7 @@ module Text.RDF.Core (
   FastString(uniq,value),mkFastString,
   s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
-  fromEither, maybeHead
+  fromEither, maybeHead, removeDupes
 )
 where
 
@@ -398,3 +398,9 @@ fromEither res =
   case res of
     (Left err) -> error (show err)
     (Right gr) -> gr
+
+-- |Remove duplicate triples, returning unique triples. This 
+-- function may return the triples in a different order than 
+-- given.
+removeDupes :: Triples -> Triples
+removeDupes =  map head . group . sort
