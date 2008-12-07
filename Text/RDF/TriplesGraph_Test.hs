@@ -46,6 +46,9 @@ prop_tg_query_match_none = p_query_match_none _mkGraph
 prop_tg_query_matched_spo :: TriplesGraph -> Property
 prop_tg_query_matched_spo = p_query_matched_spo _triplesOf
 
+prop_tg_query_matched_spo_no_dupes :: TriplesGraph -> Property
+prop_tg_query_matched_spo_no_dupes = p_query_matched_spo_no_dupes _triplesOf _mkGraph
+
 prop_tg_query_unmatched_spo :: TriplesGraph -> Triple -> Property
 prop_tg_query_unmatched_spo = p_query_unmatched_spo _triplesOf
 

@@ -46,6 +46,9 @@ prop_mg_query_match_none = p_query_match_none _mkGraph
 prop_mg_query_matched_spo :: MGraph -> Property
 prop_mg_query_matched_spo = p_query_matched_spo _triplesOf
 
+prop_mg_query_matched_spo_no_dupes :: MGraph -> Property
+prop_mg_query_matched_spo_no_dupes = p_query_matched_spo_no_dupes _triplesOf _mkGraph
+
 prop_mg_query_unmatched_spo :: MGraph -> Triple -> Property
 prop_mg_query_unmatched_spo = p_query_unmatched_spo _triplesOf
 
