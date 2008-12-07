@@ -31,7 +31,7 @@ library
     build-depends: base >= 3, bytestring, directory, containers
   else
     build-depends: base < 3
-  build-depends:   attoparsec >= 0.4, parsec >= 3, network, HTTP >= 3001
+  build-depends:   parsec >= 3, network, HTTP >= 3001
   other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
@@ -42,7 +42,7 @@ executable rdf4h
     build-depends: base >= 3, bytestring
   else
     build-depends: base < 3
-  build-depends:   attoparsec >= 0.4, parsec >= 3, network, HTTP >= 3001
+  build-depends:   parsec >= 3, network, HTTP >= 3001
   hs-source-dirs:  .
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
