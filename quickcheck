@@ -41,7 +41,8 @@ process opts file =
 	                       [(if namesOpt=="+names" then 
 			           "putStr \""++p++": \" >> "
 				 else "") ++
-				"Test.QuickCheck.quickCheck "++p | p<-names])
+                                -- The stdArgs settings here are actually those defined by stdArgs, but they're here for easy changing.
+				"Test.QuickCheck.quickCheckWith (stdArgs { maxSuccess = 100, maxDiscard = 500, maxSize = 100}) "++p | p<-names])
 	            system ("ghci -v0 "++options opts'++" <hugsin")
 	            return ()
 
