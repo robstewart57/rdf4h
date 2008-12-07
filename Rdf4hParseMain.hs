@@ -30,7 +30,7 @@ main =
        (putStrLn version >> exitWith ExitSuccess)
      when (null args)
        (ioError (userError ("\n\n" ++ "INPUT-URI required\n\n" ++ usageInfo header options)))
-     let quiet         = elem Quiet opts
+     let debug         = elem Debug opts
          inputUri      = head args
          inputFormat   = getWithDefault (InputFormat "turtle") opts
          outputFormat  = getWithDefault (OutputFormat "ntriples") opts
@@ -38,7 +38,7 @@ main =
          outputBaseUri = getWithDefault (OutputBaseUri inputBaseUri) opts
      unless (outputFormat == "ntriples" || outputFormat == "turtle")
        (hPrintf stderr ("'" ++ outputFormat ++ "' is not a valid output format. Supported output formats are: ntriples, turtle\n") >> exitWith (ExitFailure 1))
-     when (not quiet)
+     when debug
        (hPrintf stderr "      INPUT-URI:  %s\n\n" inputUri     >>
         hPrintf stderr "   INPUT-FORMAT:  %s\n"   inputFormat  >>
         hPrintf stderr " INPUT-BASE-URI:  %s\n\n" inputBaseUri >>
@@ -111,7 +111,7 @@ strValue flag              = error $ "No string value for flag: " ++ show flag
 
 -- The commandline arguments we accept. None are required.
 data Flag
- = Help | Quiet | Version
+ = Help | Debug | Version
  | InputFormat String | InputBaseUri String
  | OutputFormat String | OutputBaseUri String
  deriving (Show)
@@ -121,7 +121,7 @@ data Flag
 -- them.
 instance Eq Flag where
   Help            == Help            = True
-  Quiet           == Quiet           = True
+  Debug           == Debug           = True
   Version         == Version         = True
   InputFormat _   == InputFormat _   = True
   InputBaseUri _  == InputBaseUri _  = True
@@ -147,7 +147,7 @@ version = "0.5"
 options :: [OptDescr Flag]
 options =
  [ Option ['h']  ["help"]                           (NoArg Help)   "Display this help, then exit"
- , Option ['q']  ["quiet"]                         (NoArg Quiet)   "No extra information messages to stderr"
+ , Option ['d']  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
  , Option ['v']  ["version"]                     (NoArg Version)   "Show version number\n\n"
 
  , Option ['i']  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
@@ -157,8 +157,8 @@ options =
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
  , Option ['o']  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" ++
-                                                                   "  ntriples    N-Triples (default)\n" -- ++
-                                                                   --"  turtle      Turtle"
+                                                                   "  ntriples    N-Triples (default)\n" ++
+                                                                   "  turtle      Turtle"
  , Option ['O'] ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" ++
                                                                    "  Default is input/parser base URI."
  ]
