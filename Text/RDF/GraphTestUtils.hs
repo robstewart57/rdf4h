@@ -242,6 +242,7 @@ samePred t1 t2 = predicateOf t1 == predicateOf t2
 sameObj :: Triple -> Triple -> Bool
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
+-- Convert a list of triples into a sorted list of unique triples.
 uordered :: Triples -> Triples
 uordered  =  map head . group . sortTriples
 
