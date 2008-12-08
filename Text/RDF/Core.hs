@@ -3,7 +3,7 @@
 module Text.RDF.Core (
   Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings, addPrefixMappings),
   RdfParser(parseString, parseFile, parseURL),
-  RdfSerializer(hWriteG, writeG, hWriteTs, writeTs, hWriteT, writeT, hWriteN, writeN),
+  RdfSerializer(hWriteG, writeG, hWriteH, writeH, hWriteTs, writeTs, hWriteT, writeT, hWriteN, writeN),
   BaseUrl(BaseUrl),
   PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
   Triple(Triple), triple, Triples, sortTriples,
@@ -129,15 +129,50 @@ class RdfParser p where
   -- yielding a failure with error message or the resultant graph in the IO monad.
   parseURL    :: forall gr. (Graph gr) => p -> String     -> IO (Either ParseFailure gr)
 
-
+-- |An RdfSerializer is a serializer of RDF to some particular output format, such as
+-- NTriples or Turtle.
 class RdfSerializer s where
+  -- |Write the graph to a file handle using whatever configuration is specified by
+  -- the first argument.
   hWriteG     :: forall gr. (Graph gr) => s -> Handle -> gr -> IO ()
+
+  -- |Write the graph to stdout; equivalent to @'hWriteG' stdout@.
   writeG      :: forall gr. (Graph gr) => s -> gr -> IO ()
+
+  -- |Write to the file handle whatever header information is required based on
+  -- the output format. For example, if serializing to Turtle, this method would
+  -- write the necessary @prefix declarations and possibly a @baseUrl declaration,
+  -- whereas for NTriples, there is no header section at all, so this would be a no-op.
+  hWriteH     :: forall gr. (Graph gr) => s -> Handle -> gr -> IO ()
+
+  -- |Write header information to stdout; equivalent to @'hWriteH' stdout@.
+  writeH      :: forall gr. (Graph gr) => s -> gr -> IO ()
+
+  -- |Write some triples to a file handle using whatever configuration is specified
+  -- by the first argument. 
+  -- 
+  -- WARNING: if the serialization format has header-level information 
+  -- that should be output (e.g., @prefix declarations for Turtle), then you should
+  -- use 'hWriteG' instead of this method unless you're sure this is safe to use, since
+  -- otherwise the resultant document will be missing the header information and 
+  -- will not be valid.
   hWriteTs    :: s -> Handle  -> Triples -> IO ()
+
+  -- |Write some triples to stdout; equivalent to @'hWriteTs' stdout@.
   writeTs     :: s -> Triples -> IO ()
+
+  -- |Write a single triple to the file handle using whatever configuration is 
+  -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
   hWriteT     :: s -> Handle  -> Triple  -> IO ()
+
+  -- |Write a single triple to stdout; equivalent to @'hWriteT' stdout@.
   writeT      :: s -> Triple  -> IO ()
+
+  -- |Write a single node to the file handle using whatever configuration is 
+  -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
   hWriteN     :: s -> Handle  -> Node    -> IO ()
+
+  -- |Write a single node to sdout; equivalent to @'hWriteN' stdout@.
   writeN      :: s -> Node    -> IO ()
 
 -- |An RDF node, which may be either a URIRef node ('UNode'), a blank

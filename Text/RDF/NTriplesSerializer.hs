@@ -18,14 +18,16 @@ import Control.Monad
 data NTriplesSerializer = NTriplesSerializer
 
 instance RdfSerializer NTriplesSerializer where
-  hWriteG _  = writeGraph
-  writeG _   = writeGraph stdout
-  hWriteTs _ = writeTriples
-  writeTs  _ = writeTriples stdout
-  hWriteT  _ = writeTriple
-  writeT   _ = writeTriple stdout
-  hWriteN  _ = writeNode
-  writeN   _ = writeNode stdout
+  hWriteG _     = writeGraph
+  writeG  _     = writeGraph stdout
+  hWriteH _ _ _ = return ()
+  writeH  _   _ = return ()
+  hWriteTs _    = writeTriples
+  writeTs  _    = writeTriples stdout
+  hWriteT  _    = writeTriple
+  writeT   _    = writeTriple stdout
+  hWriteN  _    = writeNode
+  writeN   _    = writeNode stdout
 
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h = writeTriples h . triplesOf
