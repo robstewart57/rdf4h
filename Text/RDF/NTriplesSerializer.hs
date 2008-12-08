@@ -1,6 +1,7 @@
 module Text.RDF.NTriplesSerializer(
   writeGraph, writeTriples, writeTriple,
-  writeNode, writeLValue, writeLiteralString
+  writeNode, writeLValue, writeLiteralString,
+  NTriplesSerializer(NTriplesSerializer)
 ) where
 
 import Text.RDF.Core
@@ -12,6 +13,19 @@ import qualified Data.ByteString.Lazy as BL
 
 import System.IO
 import Control.Monad
+
+
+data NTriplesSerializer = NTriplesSerializer
+
+instance RdfSerializer NTriplesSerializer where
+  hWriteG _  = writeGraph
+  writeG _   = writeGraph stdout
+  hWriteTs _ = writeTriples
+  writeTs  _ = writeTriples stdout
+  hWriteT  _ = writeTriple
+  writeT   _ = writeTriple stdout
+  hWriteN  _ = writeNode
+  writeN   _ = writeNode stdout
 
 writeGraph :: Graph gr => Handle -> gr -> IO ()
 writeGraph h = writeTriples h . triplesOf

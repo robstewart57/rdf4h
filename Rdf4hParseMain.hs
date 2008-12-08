@@ -3,9 +3,9 @@ module Main where
 import Text.RDF.Core
 import Text.RDF.TriplesGraph
 import Text.RDF.NTriplesParser
-import qualified Text.RDF.NTriplesSerializer as NS
+import Text.RDF.NTriplesSerializer
 import Text.RDF.TurtleParser
-import qualified Text.RDF.TurtleSerializer   as TS
+import Text.RDF.TurtleSerializer
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
@@ -18,6 +18,7 @@ import System.Console.GetOpt
 import Control.Monad
 
 import Data.List
+import qualified Data.Map as Map
 import Data.Char(isLetter)
 import Text.Printf(hPrintf)
 
@@ -45,32 +46,29 @@ main =
         hPrintf stderr "  OUTPUT-FORMAT:  %s\n"   outputFormat >>
         hPrintf stderr "OUTPUT-BASE-URI:  %s\n\n" outputBaseUri)
      let mInputUri  = if inputBaseUri == "-" then Nothing else Just (BaseUrl $ s2b inputBaseUri)
-         docUri     = Just inputUri
+         docUri  = Just $ s2b inputUri
+         emptyPms   = PrefixMappings Map.empty
      case (inputFormat, isUri $ s2b inputUri) of
        -- we use TriplesGraph in all cases, since it preserves the ordering of triples
        ("turtle",    True) -> parseURL (TurtleParser mInputUri docUri) inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write (TurtleSerializer docUri emptyPms) res
        ("turtle",   False) -> (if inputUri /= "-"
                                   then parseFile (TurtleParser mInputUri docUri) inputUri
                                   else B.getContents >>= return . parseString (TurtleParser mInputUri docUri))
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write (TurtleSerializer docUri emptyPms) res
        ("ntriples",  True) -> parseURL NTriplesParser inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write NTriplesSerializer res
        ("ntriples", False) -> (if inputUri /= "-"
                                   then parseFile NTriplesParser inputUri
                                   else B.getContents >>= return . parseString NTriplesParser)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
+                                >>= \(res :: Either ParseFailure TriplesGraph) -> write NTriplesSerializer res
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: Graph gr => Either ParseFailure gr -> String -> IO ()
-write res format =
+write :: forall gr r. (Graph gr, RdfSerializer r) => r -> Either ParseFailure gr -> IO ()
+write serializer res =
   case res of
     (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
-    (Right gr)                ->
-      case format of
-        "ntriples" -> NS.writeTriples stdout (triplesOf gr)
-        "turtle"   -> TS.writeGraph stdout gr
-        _          -> putStr "Invalid output format: " >> putStrLn format >> exitWith (ExitFailure 1)
+    (Right gr)                -> writeG serializer gr
 
 -- Get the input base URI from the argument list or flags, using the
 -- first string arg as the default if not found in string args (as

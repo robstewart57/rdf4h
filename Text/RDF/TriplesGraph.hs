@@ -41,17 +41,23 @@ import Data.List
 newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
 
 instance Graph TriplesGraph where
-  baseUrl         = baseUrl'
-  prefixMappings  = prefixMappings'
-  empty           = empty'
-  mkGraph         = mkGraph'
-  triplesOf       = triplesOf'
-  select          = select'
-  query           = query'
+  baseUrl           = baseUrl'
+  prefixMappings    = prefixMappings'
+  addPrefixMappings = addPrefixMappings'
+  empty             = empty'
+  mkGraph           = mkGraph'
+  triplesOf         = triplesOf'
+  select            = select'
+  query             = query'
 
 prefixMappings' :: TriplesGraph -> PrefixMappings
 prefixMappings' (TriplesGraph (_, _, pms)) = pms
 
+addPrefixMappings' :: TriplesGraph -> PrefixMappings -> Bool -> TriplesGraph
+addPrefixMappings' (TriplesGraph (ts, baseUrl, pms)) pms' replace =
+  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  in  TriplesGraph (ts, baseUrl, merge pms pms')
+  
 baseUrl' :: TriplesGraph -> Maybe BaseUrl
 baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
 

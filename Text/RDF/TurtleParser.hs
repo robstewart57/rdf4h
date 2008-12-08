@@ -39,7 +39,7 @@ _trace = trace
 -- To use this parser, pass a 'TurtleParser' value as the first argument to any of
 -- the 'parseString', 'parseFile', or 'parseURL' methods of the 'RdfParser' type
 -- class.
-data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe String)
+data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe ByteString)
 
 -- |'TurtleParser' is an instance of 'RdfParser'.
 instance RdfParser TurtleParser where
@@ -555,12 +555,12 @@ addTripleForObject obj =
 --p
 -- Returns either a @ParseFailure@ or a new graph containing the parsed triples.
 parseURL' :: forall gr. (Graph gr) => 
-                 Maybe BaseUrl   -- ^ The optional base URI of the document.
-                 -> Maybe String -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
-                 -> String       -- ^ The location URI from which to retrieve the Turtle document.
+                 Maybe BaseUrl       -- ^ The optional base URI of the document.
+                 -> Maybe ByteString -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> String           -- ^ The location URI from which to retrieve the Turtle document.
                  -> IO (Either ParseFailure gr)
-                                 -- ^ The parse result, which is either a @ParseFailure@ or the graph
-                                 --   corresponding to the Turtle document.
+                                     -- ^ The parse result, which is either a @ParseFailure@ or the graph
+                                     --   corresponding to the Turtle document.
 parseURL' bUrl docUrl locUrl = _parseURL (parseString' bUrl docUrl) locUrl
 
 -- |Parse the given file as a Turtle document. The arguments and return type have the same semantics
@@ -568,17 +568,17 @@ parseURL' bUrl docUrl locUrl = _parseURL (parseString' bUrl docUrl) locUrl
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new graph containing the parsed triples.
-parseFile' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe String -> String -> IO (Either ParseFailure gr)
+parseFile' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe ByteString -> String -> IO (Either ParseFailure gr)
 parseFile' bUrl docUrl fpath =
-  B.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" id docUrl) bs)
-  where initialState = (bUrl, (maybe Nothing (Just . B.pack) docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
+  B.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" B.unpack docUrl) bs)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a a string rather than a location URI.
-parseString' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe String -> ByteString -> Either ParseFailure gr
+parseString' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe ByteString -> ByteString -> Either ParseFailure gr
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (ttlStr))
-  where initialState = (bUrl, (maybe Nothing (Just . B.pack) docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure gr
 handleResult bUrl result =

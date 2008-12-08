@@ -1,4 +1,4 @@
-module Text.RDF.TurtleSerializer(writeGraph)
+module Text.RDF.TurtleSerializer(TurtleSerializer(TurtleSerializer))
 
  where
 
@@ -24,6 +24,20 @@ import Debug.Trace(trace)
 -- Defined so that there are no compiler warnings when trace is not used.
 _debug = trace
 
+
+data TurtleSerializer = TurtleSerializer (Maybe ByteString) PrefixMappings
+
+instance RdfSerializer TurtleSerializer where
+  hWriteG  (TurtleSerializer docUrl pms) h gr = writeGraph h docUrl (addPrefixMappings gr pms False)
+  writeG   s = hWriteG s stdout
+  -- TODO: should use mdUrl to render <> where appropriate
+  hWriteTs (TurtleSerializer docUrl pms) h = writeTriples h docUrl pms
+  writeTs s   = hWriteTs s stdout
+  hWriteT  (TurtleSerializer docUrl pms) h = writeTriple h docUrl pms
+  writeT  s   = hWriteT s stdout
+  hWriteN  (TurtleSerializer docUrl (PrefixMappings pms)) h n = writeNode h docUrl n pms
+  writeN  s   = hWriteN s stdout 
+
 -- TODO: writeGraph currently merges standard namespace prefix mappings with
 -- the ones that the graph already contains, so that if the graph has none
 -- (e.g., was parsed from ntriples RDF) the output still uses prefix for
@@ -31,9 +45,9 @@ _debug = trace
 -- configurable somehow, so that if the user really doesn't want any extra
 -- prefix declarations added, that is possible.
 
-writeGraph :: Graph gr => Handle -> gr -> IO ()
-writeGraph h gr =
-  writeHeader h bUrl pms' >> writeTriples h bUrl pms' ts >> hPutChar h '\n'
+writeGraph :: Graph gr => Handle -> Maybe ByteString -> gr -> IO ()
+writeGraph h mdUrl gr =
+  writeHeader h bUrl pms' >> writeTriples h mdUrl pms' ts >> hPutChar h '\n'
   where
     bUrl   = baseUrl gr
     -- a merged set of prefix mappings using those from the standard_ns_mappings
@@ -63,20 +77,28 @@ writePrefix h (pre, uri) =
 -- it maps from uri to prefix rather than the usual prefix to uri, since we never need
 -- to look anything up by prefix, where as we do use the uri for determining which
 -- prefix to use.
-writeTriples :: Handle -> Maybe BaseUrl -> PrefixMappings -> Triples -> IO ()
-writeTriples h bUrl (PrefixMappings pms) ts =
-  mapM_ (writeSubjGroup h bUrl revPms) (groupBy equalSubjects ts)
+writeTriples :: Handle -> Maybe ByteString -> PrefixMappings -> Triples -> IO ()
+writeTriples h mdUrl (PrefixMappings pms) ts =
+  mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
   where
     revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
 
+writeTriple :: Handle -> Maybe ByteString -> PrefixMappings -> Triple -> IO ()
+writeTriple h mdUrl (PrefixMappings pms) t = 
+  w subjectOf >> space >> w predicateOf >> space >> w objectOf
+  where
+    w :: (Triple -> Node) -> IO ()
+    w f = writeNode h mdUrl (f t) pms
+    space = hPutChar h ' '
+
 -- Write a group of triples that all have the same subject, with the subject only
 -- being output once, and comma or semi-colon used as appropriate.
-writeSubjGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
+writeSubjGroup :: Handle -> Maybe ByteString -> Map ByteString ByteString -> Triples -> IO ()
 writeSubjGroup _ _    _   []     = return ()
-writeSubjGroup h bUrl pms ts@(t:_) =
-  writeNode h (subjectOf t) pms >> hPutChar h ' ' >>
-  writePredGroup h bUrl pms (head ts') >>
-  mapM_ (\t -> hPutStr h ";\n\t" >> writePredGroup h bUrl pms t) (tail ts') >>
+writeSubjGroup h dUrl pms ts@(t:_) =
+  writeNode h dUrl (subjectOf t) pms >> hPutChar h ' ' >>
+  writePredGroup h dUrl pms (head ts') >>
+  mapM_ (\t -> hPutStr h ";\n\t" >> writePredGroup h dUrl pms t) (tail ts') >>
   hPutStrLn h " ."
   where
     ts' = groupBy equalPredicates ts
@@ -84,16 +106,22 @@ writeSubjGroup h bUrl pms ts@(t:_) =
 -- Write a group of triples that all have the same subject and the same predicate,
 -- assuming the subject has already been output and only the predicate and objects
 -- need to be written.
-writePredGroup :: Handle -> Maybe BaseUrl -> Map ByteString ByteString -> Triples -> IO ()
-writePredGroup _ _ _   []     = return ()
-writePredGroup h _ pms (t:ts) =
-  writeNode h (predicateOf t) pms >> hPutChar h ' ' >> writeNode h (objectOf t) pms >>
-  mapM_ (\t -> hPutStr h ", " >> writeNode h (objectOf t) pms) ts
+writePredGroup :: Handle -> Maybe ByteString -> Map ByteString ByteString -> Triples -> IO ()
+writePredGroup _  _       _   []     = return ()
+writePredGroup h  docUrl pms (t:ts) =
+  -- The doesn't rule out <> in either the predicate or object (as well as subject), 
+  -- so we pass the docUrl through to writeNode in all cases.
+  writeNode h docUrl (predicateOf t) pms >> hPutChar h ' ' >> 
+  writeNode h docUrl (objectOf t) pms >>
+  mapM_ (\t -> hPutStr h ", " >> writeNode h docUrl (objectOf t) pms) ts
 
-writeNode :: Handle -> Node -> Map ByteString ByteString -> IO ()
-writeNode h node prefixes =
+writeNode :: Handle -> Maybe ByteString -> Node -> Map ByteString ByteString -> IO ()
+writeNode h mdUrl node prefixes =
   case node of
-    (UNode fs)  -> writeUNodeUri h (B.reverse $ value fs) prefixes
+    (UNode fs)  -> let currUri = B.reverse $ value fs
+                   in case mdUrl of
+                        Nothing  -> writeUNodeUri h currUri prefixes
+                        Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
     (BNode gId) -> hPutStrRev h (value gId)
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n prefixes

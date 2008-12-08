@@ -1,8 +1,9 @@
 {- LANGUAGE EmptyDataDecls -}
 
 module Text.RDF.Core (
-  Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
+  Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings, addPrefixMappings),
   RdfParser(parseString, parseFile, parseURL),
+  RdfSerializer(hWriteG, writeG, hWriteTs, writeTs, hWriteT, writeT, hWriteN, writeN),
   BaseUrl(BaseUrl),
   PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
   Triple(Triple), triple, Triples, sortTriples,
@@ -26,6 +27,8 @@ import Text.RDF.Utils
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List
+
+import System.IO
 
 import Text.Printf
 
@@ -57,6 +60,12 @@ class Graph gr where
 
   -- |Return the prefix mappings defined for this graph, if any.
   prefixMappings :: gr -> PrefixMappings
+
+  -- |Return a graph with the specified prefix mappings merged with
+  -- the existing mappings. If the Bool arg is True, then a new mapping
+  -- for an existing prefix will replace the old mapping; otherwise,
+  -- the new mapping is ignored.
+  addPrefixMappings :: gr -> PrefixMappings -> Bool -> gr
 
   -- |Return an empty graph.
   empty  :: gr
@@ -119,6 +128,17 @@ class RdfParser p where
   -- |Parse RDF from the remote file with the given HTTP URL (https is not supported),
   -- yielding a failure with error message or the resultant graph in the IO monad.
   parseURL    :: forall gr. (Graph gr) => p -> String     -> IO (Either ParseFailure gr)
+
+
+class RdfSerializer s where
+  hWriteG     :: forall gr. (Graph gr) => s -> Handle -> gr -> IO ()
+  writeG      :: forall gr. (Graph gr) => s -> gr -> IO ()
+  hWriteTs    :: s -> Handle  -> Triples -> IO ()
+  writeTs     :: s -> Triples -> IO ()
+  hWriteT     :: s -> Handle  -> Triple  -> IO ()
+  writeT      :: s -> Triple  -> IO ()
+  hWriteN     :: s -> Handle  -> Node    -> IO ()
+  writeN      :: s -> Node    -> IO ()
 
 -- |An RDF node, which may be either a URIRef node ('UNode'), a blank
 -- node ('BNode'), or a literal node ('LNode').

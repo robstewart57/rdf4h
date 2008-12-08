@@ -15,6 +15,7 @@ import Control.Monad
 
 import qualified Test.HUnit as T
 
+import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
 import Debug.Trace(trace)
@@ -166,11 +167,11 @@ _test testGood testNum = B.readFile fpath >>= f
                (Left err) -> putStrLn $ "ERROR:" ++ show err
                (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
 
-mkDocUrl :: String -> String -> Int -> Maybe String
-mkDocUrl baseDocUrl fname testNum = Just $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
+mkDocUrl :: String -> String -> Int -> Maybe ByteString
+mkDocUrl baseDocUrl fname testNum = Just $ s2b $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
 
-mkDocUrl1 :: String -> String -> Maybe String
-mkDocUrl1 baseDocUrl fname        = Just $ printf "%s%s.ttl" baseDocUrl fname
+mkDocUrl1 :: String -> String -> Maybe ByteString
+mkDocUrl1 baseDocUrl fname        = Just $ s2b $ printf "%s%s.ttl" baseDocUrl fname
 
 doTest :: Bool -> Int -> IO (T.Counts, Int)
 doTest True  testNum = checkGoodConformanceTest testNum  >>= T.runTestText (T.putTextToHandle stdout True)

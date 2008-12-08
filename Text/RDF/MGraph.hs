@@ -31,13 +31,14 @@ import Data.List
 newtype MGraph = MGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
 
 instance Graph MGraph where
-  baseUrl         = baseUrl'
-  prefixMappings  = prefixMappings'
-  empty           = empty'
-  mkGraph         = mkGraph'
-  triplesOf       = triplesOf'
-  select          = select'
-  query           = query'
+  baseUrl           = baseUrl'
+  prefixMappings    = prefixMappings'
+  addPrefixMappings = addPrefixMappings'
+  empty             = empty'
+  mkGraph           = mkGraph'
+  triplesOf         = triplesOf'
+  select            = select'
+  query             = query'
 
 -- some convenience type alias for readability
 
@@ -54,6 +55,11 @@ baseUrl' (MGraph (_, baseUrl, _)) = baseUrl
 
 prefixMappings' :: MGraph -> PrefixMappings
 prefixMappings' (MGraph (_, _, pms)) = pms
+
+addPrefixMappings' :: MGraph -> PrefixMappings -> Bool -> MGraph
+addPrefixMappings' (MGraph (ts, baseUrl, pms)) pms' replace = 
+  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  in  MGraph (ts, baseUrl, merge pms pms')
 
 empty' :: MGraph
 empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)

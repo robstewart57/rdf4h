@@ -1,6 +1,7 @@
 module Text.RDF.Namespace(
   Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
   PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
+  mergePrefixMappings,
   makeUri,
   prefixOf, uriOf,
   rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2, standard_ns_mappings
@@ -66,6 +67,11 @@ ex2   =   makePrefixedNS'  "ex2"   "http://www2.example.org/"
 -- |An alias for a set of prefix mappings.
 newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
   deriving (Eq, Ord, Show)
+
+-- |Perform a left-biased merge of the two sets of prefix mappings.
+mergePrefixMappings :: PrefixMappings -> PrefixMappings -> PrefixMappings
+mergePrefixMappings (PrefixMappings p1s) (PrefixMappings p2s) = 
+  PrefixMappings $ Map.union p1s p2s
 
 -- |View the prefix mappings as a list of key-value pairs. The PM in
 -- in the name is to reduce name clashes if used without qualifying.
