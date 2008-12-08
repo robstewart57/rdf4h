@@ -1,5 +1,5 @@
 module Text.RDF.TurtleParser(
-  parseFile, parseURL, parseString, ParseFailure
+  TurtleParser(TurtleParser), ParseFailure
 )
 
 where
@@ -11,6 +11,7 @@ import Text.RDF.ParserUtils
 import Text.Parsec
 import Text.Parsec.ByteString.Lazy
 
+--import Data.Map(Map)
 import qualified Data.Map as Map
 
 import Data.ByteString.Lazy.Char8(ByteString)
@@ -30,9 +31,25 @@ _trace = trace
 
 -- http://www.w3.org/TeamSubmission/turtle/
 
+-- |TurtleParser is an 'RdfParser' implementation for parsing RDF in the 
+-- Turtle format. It takes optional arguments representing the base URL to use
+-- for resolving relative URLs in the document (may be overridden in the document
+-- itself using the @base directive), and the URL to use for the document itself
+-- for resolving references to <> in the document.
+-- To use this parser, pass a 'TurtleParser' value as the first argument to any of
+-- the 'parseString', 'parseFile', or 'parseURL' methods of the 'RdfParser' type
+-- class.
+data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe String)
+
+-- |'TurtleParser' is an instance of 'RdfParser'.
+instance RdfParser TurtleParser where
+  parseString (TurtleParser bUrl dUrl)  = parseString' bUrl dUrl 
+  parseFile   (TurtleParser bUrl dUrl)  = parseFile' bUrl dUrl
+  parseURL    (TurtleParser bUrl dUrl)  = parseURL'  bUrl dUrl
+
 type ParseState =
   (Maybe BaseUrl,    -- the current BaseUrl, may be Nothing initially, but not after it is once set
-   Maybe ByteString, -- the docUrl, which never changes but may or may not be used
+   Maybe ByteString, -- the docUrl, which never changes and is used to resolve <> in the document.
    Int,              -- the id counter, containing the value of the next id to be used
    PrefixMappings,   -- the mappings from prefix to URI that are encountered while parsing
    [Subject],        -- stack of current subject nodes, if we have parsed a subject but not finished the triple
@@ -535,34 +552,33 @@ addTripleForObject obj =
 -- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is 
 -- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
 -- base URI against which the relative URI is resolved.
---
+--p
 -- Returns either a @ParseFailure@ or a new graph containing the parsed triples.
-parseURL :: Graph gr => 
-                 Maybe BaseUrl -- ^ The optional base URI of the document.
-                 -> String     -- ^ The document URI (i.e., the URI of the document itself).
-                 -> String     -- ^ The location URI from which to retrieve the Turtle document.
+parseURL' :: forall gr. (Graph gr) => 
+                 Maybe BaseUrl   -- ^ The optional base URI of the document.
+                 -> Maybe String -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> String       -- ^ The location URI from which to retrieve the Turtle document.
                  -> IO (Either ParseFailure gr)
-                               -- ^ The parse result, which is either a @ParseFailure@ or the graph
-                               --   corresponding to the Turtle document.
-parseURL bUrl docUrl locUrl = _parseURL (parseString bUrl docUrl) locUrl
+                                 -- ^ The parse result, which is either a @ParseFailure@ or the graph
+                                 --   corresponding to the Turtle document.
+parseURL' bUrl docUrl locUrl = _parseURL (parseString' bUrl docUrl) locUrl
 
 -- |Parse the given file as a Turtle document. The arguments and return type have the same semantics
 -- as 'parseURL', except that the last @String@ argument corresponds to a filesystem location rather
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new graph containing the parsed triples.
-parseFile :: Graph gr => Maybe BaseUrl -> String -> String -> IO (Either ParseFailure gr)
-parseFile bUrl docUrl fpath =
-  B.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState docUrl bs)
-  where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
+parseFile' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe String -> String -> IO (Either ParseFailure gr)
+parseFile' bUrl docUrl fpath =
+  B.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" id docUrl) bs)
+  where initialState = (bUrl, (maybe Nothing (Just . B.pack) docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a a string rather than a location URI.
-parseString :: Graph gr => Maybe BaseUrl -> String -> ByteString -> Either ParseFailure gr
-parseString bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (ttlStr))
-  where initialState = (bUrl, Just (s2b docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
-
+parseString' :: forall gr. (Graph gr) => Maybe BaseUrl -> Maybe String -> ByteString -> Either ParseFailure gr
+parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" (ttlStr))
+  where initialState = (bUrl, (maybe Nothing (Just . B.pack) docUrl), 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 handleResult :: Graph gr => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure gr
 handleResult bUrl result =

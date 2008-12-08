@@ -1,5 +1,8 @@
+{- LANGUAGE EmptyDataDecls -}
+
 module Text.RDF.Core (
   Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings),
+  RdfParser(parseString, parseFile, parseURL),
   BaseUrl(BaseUrl),
   PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
   Triple(Triple), triple, Triples, sortTriples,
@@ -58,9 +61,8 @@ class Graph gr where
   -- |Return an empty graph.
   empty  :: gr
 
-  -- |Return a graph containing all the given triples. Duplicate triples
-  -- are permitted in the input, but the resultant graph will contains only
-  -- unique triples.
+  -- |Return a graph containing all the given triples. Handling of duplicates
+  -- in the input depend on the particular graph implementation.
   mkGraph :: Triples -> Maybe BaseUrl -> PrefixMappings -> gr
 
   -- |Return all triples in the graph, as a list.
@@ -100,6 +102,23 @@ class Graph gr where
   -- and only the triples that have @n1@ as subject and @n2@ as object,
   -- regardless of the predicate of the triple.
   query         :: gr -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+
+-- |An RdfParser is a parser that knows how to parse 1 format of RDF and
+-- can parse an RDF document of that type from a string, a file, or a URL.
+-- Required configuration options will vary from instance to instance.
+class RdfParser p where
+
+  -- |Parse RDF from the given bytestring, yielding a failure with error message or
+  -- the resultant graph.
+  parseString :: forall gr. (Graph gr) => p -> ByteString -> (Either ParseFailure gr)
+
+  -- |Parse RDF from the local file with the given path, yielding a failure with error
+  -- message or the resultant graph in the IO monad.
+  parseFile   :: forall gr. (Graph gr) => p -> String     -> IO (Either ParseFailure gr)
+
+  -- |Parse RDF from the remote file with the given HTTP URL (https is not supported),
+  -- yielding a failure with error message or the resultant graph in the IO monad.
+  parseURL    :: forall gr. (Graph gr) => p -> String     -> IO (Either ParseFailure gr)
 
 -- |An RDF node, which may be either a URIRef node ('UNode'), a blank
 -- node ('BNode'), or a literal node ('LNode').

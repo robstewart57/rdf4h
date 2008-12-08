@@ -2,9 +2,9 @@ module Main where
 
 import Text.RDF.Core
 import Text.RDF.TriplesGraph
-import qualified Text.RDF.NTriplesParser     as NP
+import Text.RDF.NTriplesParser
 import qualified Text.RDF.NTriplesSerializer as NS
-import qualified Text.RDF.TurtleParser       as TP
+import Text.RDF.TurtleParser
 import qualified Text.RDF.TurtleSerializer   as TS
 
 import Data.ByteString.Lazy.Char8(ByteString)
@@ -45,20 +45,20 @@ main =
         hPrintf stderr "  OUTPUT-FORMAT:  %s\n"   outputFormat >>
         hPrintf stderr "OUTPUT-BASE-URI:  %s\n\n" outputBaseUri)
      let mInputUri  = if inputBaseUri == "-" then Nothing else Just (BaseUrl $ s2b inputBaseUri)
-         docUri     = inputUri
+         docUri     = Just inputUri
      case (inputFormat, isUri $ s2b inputUri) of
        -- we use TriplesGraph in all cases, since it preserves the ordering of triples
-       ("turtle",    True) -> TP.parseURL mInputUri docUri inputUri
+       ("turtle",    True) -> parseURL (TurtleParser mInputUri docUri) inputUri
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("turtle",   False) -> (if inputUri /= "-"
-                                  then TP.parseFile mInputUri docUri inputUri
-                                  else B.getContents >>= return . TP.parseString mInputUri docUri)
+                                  then parseFile (TurtleParser mInputUri docUri) inputUri
+                                  else B.getContents >>= return . parseString (TurtleParser mInputUri docUri))
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
-       ("ntriples",  True) -> NP.parseURL inputUri
+       ("ntriples",  True) -> parseURL NTriplesParser inputUri
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        ("ntriples", False) -> (if inputUri /= "-"
-                                  then NP.parseFile inputUri
-                                  else B.getContents >>= return . NP.parseString)
+                                  then parseFile NTriplesParser inputUri
+                                  else B.getContents >>= return . parseString NTriplesParser)
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write res outputFormat
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 

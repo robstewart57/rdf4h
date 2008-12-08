@@ -3,7 +3,7 @@ module Main where
 
 import Text.RDF.Core
 import Text.RDF.TurtleParser
-import qualified Text.RDF.NTriplesParser as NT
+import Text.RDF.NTriplesParser
 import Text.RDF.TriplesGraph
 import Text.RDF.GraphTestUtils
 
@@ -114,11 +114,11 @@ equivalent (Right gr1) (Right gr2)   = {- _debug (show (length gr1ts, length gr2
 loadInputGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 loadInputGraph name n =
   B.readFile (fpath name n "ttl") >>=
-    return . parseString mtestBaseUri (mkDocUrl testBaseUri name n) >>= return . handleLoad
+    return . parseString (TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)) >>= return . handleLoad
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure TriplesGraph)
 loadInputGraph1 dir fname =
   B.readFile (printf "%s/%s.ttl" dir fname :: String) >>=
-    return . parseString mtestBaseUri (mkDocUrl1 testBaseUri fname) >>= return . handleLoad
+    return . parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
 
 handleLoad :: Either ParseFailure TriplesGraph -> Either ParseFailure TriplesGraph
 handleLoad res =
@@ -138,7 +138,7 @@ normalizeN n            = n
 loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")
 loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesGraph)
-loadExpectedGraph1 filename = B.readFile filename >>= return . NT.parseString 
+loadExpectedGraph1 filename = B.readFile filename >>= return . parseString NTriplesParser
 
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left (ParseFailure err)) = T.assertFailure $ idStr  ++ err
@@ -161,16 +161,16 @@ _test testGood testNum = B.readFile fpath >>= f
     name = if testGood then "test" else "bad" :: String
     docUrl = mkDocUrl testBaseUri name testNum
     f :: B.ByteString -> IO ()
-    f s = let result = parseString mtestBaseUri docUrl s
+    f s = let result = parseString (TurtleParser mtestBaseUri docUrl) s
           in case result of
                (Left err) -> putStrLn $ "ERROR:" ++ show err
                (Right gr) -> mapM_ (putStrLn . show) (triplesOf (gr :: TriplesGraph))
 
-mkDocUrl :: String -> String -> Int -> String
-mkDocUrl baseDocUrl fname testNum = printf "%s%s-%02d.ttl" baseDocUrl fname testNum
+mkDocUrl :: String -> String -> Int -> Maybe String
+mkDocUrl baseDocUrl fname testNum = Just $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
 
-mkDocUrl1 :: String -> String -> String
-mkDocUrl1 baseDocUrl fname        = printf "%s%s.ttl" baseDocUrl fname
+mkDocUrl1 :: String -> String -> Maybe String
+mkDocUrl1 baseDocUrl fname        = Just $ printf "%s%s.ttl" baseDocUrl fname
 
 doTest :: Bool -> Int -> IO (T.Counts, Int)
 doTest True  testNum = checkGoodConformanceTest testNum  >>= T.runTestText (T.putTextToHandle stdout True)

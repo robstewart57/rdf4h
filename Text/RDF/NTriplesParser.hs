@@ -1,5 +1,5 @@
 module Text.RDF.NTriplesParser(
-  parseFile, parseURL, parseString, ParseFailure
+  NTriplesParser(NTriplesParser), ParseFailure
 )
 
 where
@@ -19,6 +19,19 @@ import Text.Parsec.ByteString.Lazy
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
+-- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
+-- NTriples format. It requires no configuration options. To use this parser,
+-- pass an 'NTriplesParser' value as the first argument to any of the 
+-- 'parseString', 'parseFile', or 'parseURL' methods of the 'RdfParser' type
+-- class.
+data NTriplesParser = NTriplesParser
+
+-- |'NTriplesParser' is an instance of 'RdfParser'.
+instance RdfParser NTriplesParser where
+  parseString _  = parseString'
+  parseFile   _  = parseFile'
+  parseURL    _  = parseURL'
+
 -- We define or redefine all here using same names as the spec, but with an
 -- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
 -- nt_ntripleDoc).
@@ -26,11 +39,6 @@ import qualified Data.ByteString.Lazy.Char8 as B
 -- |nt_ntripleDoc is simply zero or more lines.
 nt_ntripleDoc :: GenParser ByteString () [Maybe Triple]
 nt_ntripleDoc = manyTill nt_line eof
-
---many :: GenParser ByteString () a -> GenParser ByteString () [a]
---many p =
---  do{ x <- p; xs <- many p; return (x:xs) }
-
 
 nt_line :: GenParser ByteString () (Maybe Triple)
 nt_line       = 
@@ -192,18 +200,18 @@ b_quote = B.singleton '"'
 between_chars :: Char -> Char -> GenParser ByteString () ByteString -> GenParser ByteString () ByteString
 between_chars start end parser = char start >> parser >>= \res -> char end >> return res
 
-parseURL :: Graph gr => String -> IO (Either ParseFailure gr)
-parseURL url = _parseURL parseString url
+parseString' :: forall gr. (Graph gr) => ByteString -> Either ParseFailure gr
+parseString' bs = handleParse mkGraph (runParser nt_ntripleDoc () "" bs)
 
-parseFile :: Graph gr => String -> IO (Either ParseFailure gr)
-parseFile path = B.readFile path >>= return . runParser nt_ntripleDoc () path >>= return . handleParse mkGraph
+parseURL' :: forall gr. (Graph gr) => String -> IO (Either ParseFailure gr)
+parseURL' url = _parseURL parseString' url
 
-parseString :: Graph gr => ByteString -> Either ParseFailure gr
-parseString bs = handleParse mkGraph (runParser nt_ntripleDoc () "" bs)
+parseFile' :: forall gr. (Graph gr) => String -> IO (Either ParseFailure gr)
+parseFile' path = B.readFile path >>= return . runParser nt_ntripleDoc () path >>= return . handleParse mkGraph
 
-handleParse :: Graph gr => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
-                           Either ParseError [Maybe Triple] ->
-                           (Either ParseFailure gr)
+handleParse :: forall gr. (Graph gr) => (Triples -> Maybe BaseUrl -> PrefixMappings -> gr) ->
+                                        Either ParseError [Maybe Triple] ->
+                                        (Either ParseFailure gr)
 handleParse _mkGraph result
 --  | B.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ B.unpack rem)
   | otherwise          = 
