@@ -33,11 +33,11 @@ _parseURL parseFunc url =
         case resp of
           (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url ++ " [" ++ show e ++ "]")
           (Right res) -> case rspCode res of
-                           (2, 0, 0) -> return $ parseFunc (B.pack $ rspBody res)
+                           (2, 0, 0) -> return $ parseFunc (rspBody res)
                            _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
 
-request :: URI -> Request
+request :: URI -> HTTPRequest ByteString
 request uri = Request { rqURI = uri,
                         rqMethod = GET,
                         rqHeaders = [Header HdrConnection "close"],
-                        rqBody = "" }
+                        rqBody = B.empty }

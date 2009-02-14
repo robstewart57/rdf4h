@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         0.6.0
+version:         0.6.1
 synopsis:        A library for RDF processing in Haskell.
 description:     
   rdf4h is the beginnings of a RDF library for Haskell. It
@@ -31,7 +31,7 @@ library
     build-depends: base >= 3, bytestring, directory, containers
   else
     build-depends: base < 3
-  build-depends:   parsec >= 3, network, HTTP >= 3001
+  build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
   other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
@@ -42,7 +42,7 @@ executable rdf4h
     build-depends: base >= 3, bytestring
   else
     build-depends: base < 3
-  build-depends:   parsec >= 3, network, HTTP >= 3001
+  build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
   hs-source-dirs:  .
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
