@@ -141,7 +141,7 @@ class RdfSerializer s where
 
   -- |Write to the file handle whatever header information is required based on
   -- the output format. For example, if serializing to Turtle, this method would
-  -- write the necessary @prefix declarations and possibly a @baseUrl declaration,
+  -- write the necessary \@prefix declarations and possibly a \@baseUrl declaration,
   -- whereas for NTriples, there is no header section at all, so this would be a no-op.
   hWriteH     :: forall gr. (Graph gr) => s -> Handle -> gr -> IO ()
 
@@ -152,7 +152,7 @@ class RdfSerializer s where
   -- by the first argument. 
   -- 
   -- WARNING: if the serialization format has header-level information 
-  -- that should be output (e.g., @prefix declarations for Turtle), then you should
+  -- that should be output (e.g., \@prefix declarations for Turtle), then you should
   -- use 'hWriteG' instead of this method unless you're sure this is safe to use, since
   -- otherwise the resultant document will be missing the header information and 
   -- will not be valid.

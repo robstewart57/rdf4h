@@ -34,7 +34,7 @@ _trace = trace
 -- |TurtleParser is an 'RdfParser' implementation for parsing RDF in the 
 -- Turtle format. It takes optional arguments representing the base URL to use
 -- for resolving relative URLs in the document (may be overridden in the document
--- itself using the @base directive), and the URL to use for the document itself
+-- itself using the \@base directive), and the URL to use for the document itself
 -- for resolving references to <> in the document.
 -- To use this parser, pass a 'TurtleParser' value as the first argument to any of
 -- the 'parseString', 'parseFile', or 'parseURL' methods of the 'RdfParser' type
