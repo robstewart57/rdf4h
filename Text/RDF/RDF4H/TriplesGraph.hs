@@ -8,12 +8,12 @@
 -- functions of this graph (select, query) remove duplicates from their
 -- result triples (but triplesOf does not) since it is usually cheap
 -- to do so.
-module Text.RDF.TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
+module Text.RDF.RDF4H.TriplesGraph(TriplesGraph, empty, mkGraph, triplesOf, select, query)
 
 where
 
-import Text.RDF.Core
-import Text.RDF.Namespace
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
 
 import qualified Data.Map as Map
 

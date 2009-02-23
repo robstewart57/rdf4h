@@ -1,4 +1,4 @@
-module Text.RDF.NTriplesParser(
+module Text.RDF.RDF4H.NTriplesParser(
   NTriplesParser(NTriplesParser), ParseFailure
 )
 
@@ -6,9 +6,9 @@ where
 
 -- TODO: switch to OverloadedStrings and use ByteString literals
 
-import Text.RDF.Core
-import Text.RDF.Namespace
-import Text.RDF.ParserUtils
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
+import Text.RDF.RDF4H.ParserUtils
 
 import Data.Char(isLetter, isDigit, isLower)
 import qualified Data.Map as Map

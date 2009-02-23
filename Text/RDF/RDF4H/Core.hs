@@ -1,6 +1,6 @@
 {- LANGUAGE EmptyDataDecls -}
 
-module Text.RDF.Core (
+module Text.RDF.RDF4H.Core (
   Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings, addPrefixMappings),
   RdfParser(parseString, parseFile, parseURL),
   RdfSerializer(hWriteG, writeG, hWriteH, writeH, hWriteTs, writeTs, hWriteT, writeT, hWriteN, writeN),
@@ -21,8 +21,8 @@ module Text.RDF.Core (
 )
 where
 
-import Text.RDF.Namespace
-import Text.RDF.Utils
+import Text.RDF.RDF4H.Namespace
+import Text.RDF.RDF4H.Utils
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B

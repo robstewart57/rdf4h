@@ -1,7 +1,7 @@
-module Text.RDF.GraphTestUtils where
+module Text.RDF.RDF4H.GraphTestUtils where
 
-import Text.RDF.Core
-import Text.RDF.Namespace
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B

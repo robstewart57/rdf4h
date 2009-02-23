@@ -1,11 +1,11 @@
 module Main where
 
-import Text.RDF.Core
-import Text.RDF.TriplesGraph
-import Text.RDF.NTriplesParser
-import Text.RDF.NTriplesSerializer
-import Text.RDF.TurtleParser
-import Text.RDF.TurtleSerializer
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.TriplesGraph
+import Text.RDF.RDF4H.NTriplesParser
+import Text.RDF.RDF4H.NTriplesSerializer
+import Text.RDF.RDF4H.TurtleParser
+import Text.RDF.RDF4H.TurtleSerializer
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B

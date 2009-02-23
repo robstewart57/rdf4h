@@ -1,6 +1,6 @@
-module Text.RDF.ParserUtils(_parseURL, justTriples) where
+module Text.RDF.RDF4H.ParserUtils(_parseURL, justTriples) where
 
-import Text.RDF.Core
+import Text.RDF.RDF4H.Core
 
 import Network.URI
 import Network.HTTP

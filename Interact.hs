@@ -17,16 +17,16 @@ module Interact where
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
-import Text.RDF.Core
-import Text.RDF.Utils
-import Text.RDF.TriplesGraph(TriplesGraph)
-import Text.RDF.MGraph(MGraph)
-import Text.RDF.TriplesGraph
-import Text.RDF.MGraph
-import Text.RDF.NTriplesParser
-import Text.RDF.TurtleParser
-import Text.RDF.NTriplesSerializer
-import Text.RDF.TurtleSerializer
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Utils
+import Text.RDF.RDF4H.TriplesGraph(TriplesGraph)
+import Text.RDF.RDF4H.MGraph(MGraph)
+import Text.RDF.RDF4H.TriplesGraph
+import Text.RDF.RDF4H.MGraph
+import Text.RDF.RDF4H.NTriplesParser
+import Text.RDF.RDF4H.TurtleParser
+import Text.RDF.RDF4H.NTriplesSerializer
+import Text.RDF.RDF4H.TurtleSerializer
 
 -- |Load a Turtle file from the filesystem using the optional base URL 
 -- (used to resolve relative URI fragments) and optional document URI
@@ -47,7 +47,7 @@ parseTurtleString :: forall gr. (Graph gr) => Maybe String -> Maybe String -> By
 parseTurtleString baseUrl docUri = _parse parseString (mkTurtleParser baseUrl docUri)
 
 mkTurtleParser :: Maybe String -> Maybe String -> TurtleParser
-mkTurtleParser b d = TurtleParser ((BaseUrl . B.pack) `fmap` b) d
+mkTurtleParser b d = TurtleParser ((BaseUrl . B.pack) `fmap` b) (B.pack `fmap` d)
 
 -- |Load an NTriples file from the filesystem.
 -- 

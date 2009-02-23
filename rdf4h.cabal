@@ -26,13 +26,13 @@ flag small_base
   description: Choose the new smaller, split-up base package.
 
 library
-  exposed-modules: Text.RDF.Core, Text.RDF.Namespace, Text.RDF.MGraph, Text.RDF.TriplesGraph, Text.RDF.NTriplesParser, Text.RDF.NTriplesSerializer, Text.RDF.TurtleParser, Text.RDF.TurtleSerializer
+  exposed-modules: Text.RDF.RDF4H.Core, Text.RDF.RDF4H.Namespace, Text.RDF.RDF4H.MGraph, Text.RDF.RDF4H.TriplesGraph, Text.RDF.RDF4H.NTriplesParser, Text.RDF.RDF4H.NTriplesSerializer, Text.RDF.RDF4H.TurtleParser, Text.RDF.RDF4H.TurtleSerializer
   if flag(small_base)
     build-depends: base >= 3, bytestring, directory, containers
   else
     build-depends: base < 3
   build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
-  other-modules:   Text.RDF.Utils, Text.RDF.ParserUtils
+  other-modules:   Text.RDF.RDF4H.Utils, Text.RDF.RDF4H.ParserUtils
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
 

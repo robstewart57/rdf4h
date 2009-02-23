@@ -1,10 +1,10 @@
-module Text.RDF.TurtleSerializer(TurtleSerializer(TurtleSerializer))
+module Text.RDF.RDF4H.TurtleSerializer(TurtleSerializer(TurtleSerializer))
 
  where
 
-import Text.RDF.Core
-import Text.RDF.Namespace
-import Text.RDF.Utils
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
+import Text.RDF.RDF4H.Utils
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B

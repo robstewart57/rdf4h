@@ -1,4 +1,4 @@
-module Text.RDF.Namespace(
+module Text.RDF.RDF4H.Namespace(
   Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
   PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
   mergePrefixMappings,

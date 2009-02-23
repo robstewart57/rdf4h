@@ -1,11 +1,11 @@
-module Text.RDF.NTriplesSerializer(
+module Text.RDF.RDF4H.NTriplesSerializer(
   writeGraph, writeTriples, writeTriple,
   writeNode, writeLValue, writeLiteralString,
   NTriplesSerializer(NTriplesSerializer)
 ) where
 
-import Text.RDF.Core
-import Text.RDF.Utils
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Utils
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B

@@ -1,12 +1,12 @@
-module Text.RDF.TurtleParser(
+module Text.RDF.RDF4H.TurtleParser(
   TurtleParser(TurtleParser), ParseFailure
 )
 
 where
 
-import Text.RDF.Core
-import Text.RDF.Namespace
-import Text.RDF.ParserUtils
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
+import Text.RDF.RDF4H.ParserUtils
 
 import Text.Parsec
 import Text.Parsec.ByteString.Lazy

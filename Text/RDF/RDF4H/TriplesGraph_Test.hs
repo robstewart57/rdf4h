@@ -1,7 +1,7 @@
-import Text.RDF.Core
-import Text.RDF.Namespace
-import Text.RDF.TriplesGraph
-import Text.RDF.GraphTestUtils
+import Text.RDF.RDF4H.Core
+import Text.RDF.RDF4H.Namespace
+import Text.RDF.RDF4H.TriplesGraph
+import Text.RDF.RDF4H.GraphTestUtils
 
 --import Data.Map(Map)
 import qualified Data.Map as Map
