@@ -232,7 +232,7 @@ type Triples = [Triple]
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
--- |Return a'Triple' for the given subject, predicate, and object.
+-- |Return a 'Triple' for the given subject, predicate, and object.
 {-# INLINE triple #-}
 triple :: Subject -> Predicate -> Object -> Triple
 triple subj pred obj
