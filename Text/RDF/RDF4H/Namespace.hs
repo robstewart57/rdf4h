@@ -8,8 +8,12 @@ module Text.RDF.RDF4H.Namespace(
 )
 where
 
+import Text.RDF.RDF4H.Utils
+
+import Text.Printf
 import Data.Map(Map)
 import qualified Data.Map as Map
+import qualified Data.List as List
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
@@ -66,7 +70,13 @@ ex2   =   makePrefixedNS'  "ex2"   "http://www2.example.org/"
 
 -- |An alias for a set of prefix mappings.
 newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+instance Show PrefixMappings where
+  -- This is really inefficient, but it's not used much so not what
+  -- worth optimizing yet.
+  show (PrefixMappings pmap) = printf "PrefixMappings [%s]" mappingsStr
+    where showPM      = show . PrefixMapping
+          mappingsStr = concat $ List.intersperse ", " $ map showPM (Map.toList pmap)
 
 -- |Perform a left-biased merge of the two sets of prefix mappings.
 mergePrefixMappings :: PrefixMappings -> PrefixMappings -> PrefixMappings
@@ -80,7 +90,9 @@ toPMList (PrefixMappings m) = Map.toList m
 
 -- |A mapping of a prefix to the URI for that prefix.
 newtype PrefixMapping = PrefixMapping (ByteString, ByteString)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+instance Show PrefixMapping where
+  show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (b2s prefix) (b2s uri)
 
 -- |Make a URI consisting of the given namespace and the given localname.
 makeUri :: Namespace -> ByteString -> ByteString
@@ -113,8 +125,8 @@ instance Eq Namespace where
   (PlainNS      u1) == (PrefixedNS _ u2)  = u1 == u2
 
 instance Show Namespace where
-  show (PlainNS           uri)  =  show uri
-  show (PrefixedNS prefix uri)  =  show (prefix, uri)
+  show (PlainNS           uri)  =  B.unpack uri
+  show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (B.unpack prefix) (B.unpack uri)
 
 -- |Determine the URI of the given namespace.
 uriOf     ::  Namespace -> ByteString
