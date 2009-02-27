@@ -12,21 +12,19 @@
 -- to be used when interactively exploring via ghci, and should not otherwise
 -- be used.
 
-module Interact where
+module Text.RDF.RDF4H.Interact where
 
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
 import Text.RDF.RDF4H.Core
-import Text.RDF.RDF4H.Utils
-import Text.RDF.RDF4H.TriplesGraph(TriplesGraph)
-import Text.RDF.RDF4H.MGraph(MGraph)
-import Text.RDF.RDF4H.TriplesGraph
-import Text.RDF.RDF4H.MGraph
+import Text.RDF.RDF4H.Utils()
+import Text.RDF.RDF4H.TriplesGraph()
+import Text.RDF.RDF4H.MGraph()
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.TurtleParser
-import Text.RDF.RDF4H.NTriplesSerializer
-import Text.RDF.RDF4H.TurtleSerializer
+import Text.RDF.RDF4H.NTriplesSerializer()
+import Text.RDF.RDF4H.TurtleSerializer()
 
 -- |Load a Turtle file from the filesystem using the optional base URL 
 -- (used to resolve relative URI fragments) and optional document URI
@@ -64,6 +62,10 @@ loadNTriplesURL  = _load parseURL  NTriplesParser
 -- from a file.
 parseNTriplesString :: forall gr. (Graph gr) => ByteString -> gr
 parseNTriplesString = _parse parseString NTriplesParser
+
+-- |Print a list of triples to stdout; useful for debugging and interactive use.
+printTriples :: Triples -> IO ()
+printTriples  = mapM_ (putStrLn . show)
 
 -- Load a graph using the given parseFunc, parser, and the location (filesystem path
 -- or HTTP URL), calling error with the 'ParseFailure' message if unable to load

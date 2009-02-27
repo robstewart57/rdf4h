@@ -32,7 +32,7 @@ library
   else
     build-depends: base < 3
   build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
-  other-modules:   Text.RDF.RDF4H.Utils, Text.RDF.RDF4H.ParserUtils
+  other-modules:   Text.RDF.RDF4H.Utils, Text.RDF.RDF4H.ParserUtils, Text.RDF.RDF4H.Interact
   extensions:      BangPatterns
   ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
 
