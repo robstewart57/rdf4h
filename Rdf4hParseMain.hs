@@ -66,7 +66,7 @@ main =
                                 >>= \(res :: Either ParseFailure TriplesGraph) -> write outputFormat Nothing emptyPms res
        (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: forall gr r. (Graph gr) => String -> Maybe ByteString -> PrefixMappings -> Either ParseFailure gr -> IO ()
+write :: forall gr. (Graph gr) => String -> Maybe ByteString -> PrefixMappings -> Either ParseFailure gr -> IO ()
 write format docUri pms res =
   case res of
     (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
@@ -74,6 +74,7 @@ write format docUri pms res =
   where doWriteG gr = case format of 
                         "turtle"   -> writeG (TurtleSerializer docUri pms) gr
                         "ntriples" -> writeG NTriplesSerializer gr
+                        unknown    -> error $ "Unknown output format: " ++ unknown
 
 -- Get the input base URI from the argument list or flags, using the
 -- first string arg as the default if not found in string args (as
