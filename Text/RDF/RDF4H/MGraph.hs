@@ -1,4 +1,5 @@
--- |"MGraph" contains a graph implementation backed by a 'Data.Map'.
+-- |A simple graph implementation backed by 'Data.Map'.
+
 module Text.RDF.RDF4H.MGraph(MGraph, empty, mkGraph, triplesOf, select, query)
 
 where
@@ -103,12 +104,12 @@ tripsSubj s adjMap = concatMap (uncurry (tfsp s)) (Map.toList adjMap)
   where tfsp = tripsForSubjPred
 
 tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
-tripsForSubjPred s p adjs = map (triple s p) (Set.elems adjs)
+tripsForSubjPred s p adjs = map (Triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: MGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' (MGraph (spoMap,_,_)) subjFn predFn objFn =
-  map (\(s,p,o) -> triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
+  map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
 sel1 (Just subjFn) p o spoMap =
@@ -137,7 +138,7 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 -- support query
 query' :: MGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
 query' (MGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
-  where f (s, p, o) = triple s p o
+  where f (s, p, o) = Triple s p o
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> SPOMap -> Set (Node, Node, Node)
 q1 (Just s) p o spoMap = q2 p o (s, Map.findWithDefault Map.empty s spoMap)

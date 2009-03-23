@@ -1,14 +1,24 @@
 {- LANGUAGE EmptyDataDecls -}
 
+-- |The Core module provides the fundamental types, type classes, and functions 
+-- of the library.
+--
+
 module Text.RDF.RDF4H.Core (
-  Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings, addPrefixMappings),
+  -- * Parsing RDF
   RdfParser(parseString, parseFile, parseURL),
+  -- * Serializing RDF
   RdfSerializer(hWriteG, writeG, hWriteH, writeH, hWriteTs, writeTs, hWriteT, writeT, hWriteN, writeN),
-  BaseUrl(BaseUrl),
-  PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
+  -- * RDF graph 
+  Graph(empty, mkGraph, triplesOf, select, query, baseUrl, prefixMappings, addPrefixMappings),
+  -- * RDF triples, nodes, and literals
   Triple(Triple), triple, Triples, sortTriples,
   Node(UNode, BNode, BNodeGen, LNode),
   LValue(PlainL, PlainLL, TypedL),
+
+  -- * Supporting types and functions
+  BaseUrl(BaseUrl),
+  PrefixMappings(PrefixMappings), toPMList, PrefixMapping(PrefixMapping),
   NodeSelector, isUNode, isBNode, isLNode,
   equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf,
@@ -226,14 +236,13 @@ type Triples = [Triple]
 -- |An RDF triple is a statement consisting of a subject, predicate,
 -- and object, respectively.
 --
--- To create a 'Triple', use the 'triple' function.
---
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple {-# UNPACK #-} !Node {-# UNPACK #-} !Node {-# UNPACK #-} !Node
 
--- |Return a 'Triple' for the given subject, predicate, and object.
-{-# INLINE triple #-}
+-- |A smart constructor function for 'Triple' that verifies the node arguments
+-- are of the correct type and creates the new 'Triple' if so or calls 'error'.
+-- /subj/ must be a 'UNode' or 'BNode', and /pred/ must be a 'UNode'.
 triple :: Subject -> Predicate -> Object -> Triple
 triple subj pred obj
   | isLNode subj     =  error $ "subject must be UNode or BNode: "     ++ show subj
@@ -347,7 +356,7 @@ compareNode (LNode (TypedL bs1 fs1))         (LNode (TypedL bs2 fs2))         =
 compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
 compareNode (LNode _)                        _                                = GT
 
--- |Two triples are equal iff the their respective subjects, predicates, and objects
+-- |Two triples are equal iff their respective subjects, predicates, and objects
 -- are equal.
 instance Eq Triple where
   (Triple s1 p1 o1) == (Triple s2 p2 o2) = s1 == s2 && p1 == p2 && o1 == o2

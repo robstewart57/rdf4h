@@ -1,3 +1,6 @@
+-- |A serializer for RDF as N-Triples
+-- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
+
 module Text.RDF.RDF4H.NTriplesSerializer(
   writeGraph, writeTriples, writeTriple,
   writeNode, writeLValue, writeLiteralString,

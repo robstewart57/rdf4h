@@ -1,9 +1,15 @@
+-- |Defines types and utility functions related to namespaces, and
+-- some predefined values for commonly used namespaces, such as
+-- rdf, xsd, dublin core, etc.
+
 module Text.RDF.RDF4H.Namespace(
-  Namespace, makePlainNS, makePrefixedNS, makePrefixedNS',
+  -- * Namespace types and functions
+  Namespace, mkPlainNS, mkPrefixedNS, mkPrefixedNS',
   PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
   mergePrefixMappings,
-  makeUri,
+  mkUri,
   prefixOf, uriOf,
+  -- * Predefined namespace values
   rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2, standard_ns_mappings
 )
 where
@@ -17,58 +23,56 @@ import qualified Data.List as List
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 
+
 standard_namespaces :: [Namespace]
 standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
 
+-- |The set of common predefined namespaces as a 'PrefixMappings' value.
 standard_ns_mappings  :: PrefixMappings
 standard_ns_mappings  =  PrefixMappings $ Map.fromList $ 
                          map (\(PrefixedNS pre uri) -> (pre, uri)) standard_namespaces
 
-p :: String -> ByteString
-p = B.pack
-
--- Standard namespaces defined here for convenience:
 -- |The RDF namespace.
 rdf  :: Namespace
-rdf   =   makePrefixedNS' "rdf" "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdf   =   mkPrefixedNS' "rdf" "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 
 -- |The RDF Schema namespace.
 rdfs :: Namespace
-rdfs  =   makePrefixedNS'  "rdfs"  "http://www.w3.org/2000/01/rdf-schema#"
+rdfs  =   mkPrefixedNS'  "rdfs"  "http://www.w3.org/2000/01/rdf-schema#"
 
 -- |The Dublic Core namespace.
 dc   :: Namespace
-dc    =   makePrefixedNS'  "dc"    "http://purl.org/dc/elements/1.1/"
+dc    =   mkPrefixedNS'  "dc"    "http://purl.org/dc/elements/1.1/"
 
 -- |The Dublin Core terms namespace.
 dct  :: Namespace
-dct   =   makePrefixedNS'  "dct"    "http://purl.org/dc/terms/"
+dct   =   mkPrefixedNS'  "dct"    "http://purl.org/dc/terms/"
 
 -- |The OWL namespace.
 owl  :: Namespace
-owl   =   makePrefixedNS'  "owl"   "http://www.w3.org/2002/07/owl#"
+owl   =   mkPrefixedNS'  "owl"   "http://www.w3.org/2002/07/owl#"
 
 -- |The XML Schema namespace.
 xsd  :: Namespace
-xsd   =   makePrefixedNS'  "xsd"   "http://www.w3.org/2001/XMLSchema#"
+xsd   =   mkPrefixedNS'  "xsd"   "http://www.w3.org/2001/XMLSchema#"
 
 -- |The SKOS namespace.
 skos :: Namespace
-skos  =   makePrefixedNS'  "skos"  "http://www.w3.org/2004/02/skos/core#"
+skos  =   mkPrefixedNS'  "skos"  "http://www.w3.org/2004/02/skos/core#"
 
 -- |The friend of a friend namespace.
 foaf :: Namespace
-foaf  =   makePrefixedNS'  "foaf"  "http://xmlns.com/foaf/0.1/"
+foaf  =   mkPrefixedNS'  "foaf"  "http://xmlns.com/foaf/0.1/"
 
 -- |Example namespace #1.
 ex   :: Namespace
-ex    =   makePrefixedNS'  "ex"    "http://www.example.org/"
+ex    =   mkPrefixedNS'  "ex"    "http://www.example.org/"
 
 -- |Example namespace #2.
 ex2  :: Namespace
-ex2   =   makePrefixedNS'  "ex2"   "http://www2.example.org/"
+ex2   =   mkPrefixedNS'  "ex2"   "http://www2.example.org/"
 
--- |An alias for a set of prefix mappings.
+-- |An alias for a map from prefix to namespace URI.
 newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
   deriving (Eq, Ord)
 instance Show PrefixMappings where
@@ -95,28 +99,28 @@ instance Show PrefixMapping where
   show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (b2s prefix) (b2s uri)
 
 -- |Make a URI consisting of the given namespace and the given localname.
-makeUri :: Namespace -> ByteString -> ByteString
-makeUri ns local = uriOf ns `B.append` local
+mkUri :: Namespace -> ByteString -> ByteString
+mkUri ns local = uriOf ns `B.append` local
 
 -- |Represents a namespace as either a prefix and uri, respectively,
 --  or just a uri.
 data Namespace = PrefixedNS  ByteString ByteString -- prefix and ns uri
-               | PlainNS     ByteString        -- ns uri alone
+               | PlainNS     ByteString            -- ns uri alone
 
 -- |Make a namespace for the given URI reference.
-makePlainNS     ::  ByteString -> Namespace
-makePlainNS       =  PlainNS
+mkPlainNS     ::  ByteString -> Namespace
+mkPlainNS       =  PlainNS
 
 -- |Make a namespace having the given prefix for the given URI reference,
 -- respectively.
-makePrefixedNS  :: ByteString -> ByteString -> Namespace
-makePrefixedNS    =  PrefixedNS
+mkPrefixedNS  :: ByteString -> ByteString -> Namespace
+mkPrefixedNS    =  PrefixedNS
 
 -- |Make a namespace having the given prefix for the given URI reference,
 -- respectively, using strings which will be converted to bytestrings
 -- automatically.
-makePrefixedNS' :: String -> String -> Namespace
-makePrefixedNS' s1 s2 = makePrefixedNS (p s1) (p s2)
+mkPrefixedNS' :: String -> String -> Namespace
+mkPrefixedNS' s1 s2 = mkPrefixedNS (B.pack s1) (B.pack s2)
 
 instance Eq Namespace where
   (PrefixedNS _ u1) == (PrefixedNS _ u2)  = u1 == u2

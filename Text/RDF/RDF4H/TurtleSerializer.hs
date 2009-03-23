@@ -1,6 +1,11 @@
-module Text.RDF.RDF4H.TurtleSerializer(TurtleSerializer(TurtleSerializer))
+-- |An RDF serializer for Turtle 
+-- <http://www.w3.org/TeamSubmission/turtle/>.
 
- where
+module Text.RDF.RDF4H.TurtleSerializer(
+  TurtleSerializer(TurtleSerializer)
+)
+
+where
 
 import Text.RDF.RDF4H.Core
 import Text.RDF.RDF4H.Namespace
@@ -23,7 +28,6 @@ import Debug.Trace(trace)
 
 -- Defined so that there are no compiler warnings when trace is not used.
 _debug = trace
-
 
 data TurtleSerializer = TurtleSerializer (Maybe ByteString) PrefixMappings
 
@@ -184,5 +188,3 @@ writeLiteralString h bs =
 --subj1 = unode $ s2b "http://example.com/subj"
 --pred1 = unode $ s2b "http://example.com/pred"
 --obj1  = typedL (s2b "hello, world") (mkFastString $ makeUri xsd $ s2b "")
---  writeGraph, writeTriples, writeTriple,
---  writeNode, writeLValue, writeLiteralString

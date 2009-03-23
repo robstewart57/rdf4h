@@ -278,10 +278,10 @@ languages :: [ByteString]
 languages = [s2b "fr", s2b "en"]
 
 datatypes :: [ByteString]
-datatypes = map (makeUri xsd . s2b) ["string", "int", "token"]
+datatypes = map (mkUri xsd . s2b) ["string", "int", "token"]
 
 uris :: [ByteString]
-uris = map (makeUri ex) [s2b n `B.append` (s2b $ show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
+uris = map (mkUri ex) [s2b n `B.append` (s2b $ show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]

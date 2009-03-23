@@ -1,10 +1,13 @@
+-- |A parser for RDF in N-Triples format 
+-- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
+
 module Text.RDF.RDF4H.NTriplesParser(
   NTriplesParser(NTriplesParser), ParseFailure
 )
 
 where
 
--- TODO: switch to OverloadedStrings and use ByteString literals
+-- TODO: switch to OverloadedStrings and use ByteString literals (?).
 
 import Text.RDF.RDF4H.Core
 import Text.RDF.RDF4H.Namespace
@@ -69,7 +72,7 @@ nt_triple    =
     skipMany nt_space
     char '.'
     many nt_space
-    return $ Just (triple subj pred obj)
+    return $ Just (Triple subj pred obj)
 
 -- A literal is either a language literal (with optional language
 -- specified) or a datatype literal (with required datatype

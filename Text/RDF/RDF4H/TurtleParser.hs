@@ -1,5 +1,8 @@
+-- |An 'RdfParser' implementation for the Turtle format 
+-- <http://www.w3.org/TeamSubmission/turtle/>.
+
 module Text.RDF.RDF4H.TurtleParser(
-  TurtleParser(TurtleParser), ParseFailure
+  TurtleParser(TurtleParser)
 )
 
 where
@@ -29,9 +32,7 @@ import Debug.Trace(trace)
 -- To avoid compiler warnings when not being used.
 _trace = trace
 
--- http://www.w3.org/TeamSubmission/turtle/
-
--- |TurtleParser is an 'RdfParser' implementation for parsing RDF in the 
+-- |An 'RdfParser' implementation for parsing RDF in the 
 -- Turtle format. It takes optional arguments representing the base URL to use
 -- for resolving relative URLs in the document (may be overridden in the document
 -- itself using the \@base directive), and the URL to use for the document itself
@@ -190,16 +191,16 @@ blank_as_obj =
                  t_predicateObjectList >> popSubj >> many t_ws >> return () -- process polist, which uses bnode as subj, then pop bnode
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkFastString $ makeUri rdf $ s2b "type"
-rdfNilNode    = UNode $ mkFastString $ makeUri rdf $ s2b "nil"
-rdfFirstNode  = UNode $ mkFastString $ makeUri rdf $ s2b "first"
-rdfRestNode   = UNode $ mkFastString $ makeUri rdf $ s2b "rest"
+rdfTypeNode   = UNode $ mkFastString $ mkUri rdf $ s2b "type"
+rdfNilNode    = UNode $ mkFastString $ mkUri rdf $ s2b "nil"
+rdfFirstNode  = UNode $ mkFastString $ mkUri rdf $ s2b "first"
+rdfRestNode   = UNode $ mkFastString $ mkUri rdf $ s2b "rest"
 
 xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: FastString
-xsdIntUri     =  mkFastString $! makeUri xsd $! s2b "integer"
-xsdDoubleUri  =  mkFastString $! makeUri xsd $! s2b "double"
-xsdDecimalUri =  mkFastString $! makeUri xsd $! s2b "decimal"
-xsdBooleanUri =  mkFastString $! makeUri xsd $! s2b "boolean"
+xsdIntUri     =  mkFastString $! mkUri xsd $! s2b "integer"
+xsdDoubleUri  =  mkFastString $! mkUri xsd $! s2b "double"
+xsdDecimalUri =  mkFastString $! mkUri xsd $! s2b "decimal"
+xsdBooleanUri =  mkFastString $! mkUri xsd $! s2b "boolean"
 
 t_literal :: GenParser ByteString ParseState Node
 t_literal =
@@ -535,7 +536,7 @@ addTripleForObject obj =
        error $ "No Subject with which to create triple for: " ++ show obj
      when (null ps) $
        error $ "No Predicate with which to create triple for: " ++ show obj
-     setState (bUrl, dUrl, i, pms, ss, ps, cs, ts |> (triple (head ss) (head ps) obj))
+     setState (bUrl, dUrl, i, pms, ss, ps, cs, ts |> (Triple (head ss) (head ps) obj))
 
 -- |Parse the document at the given location URL as a Turtle document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the Turtle document itself.
