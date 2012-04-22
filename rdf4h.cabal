@@ -34,7 +34,8 @@ library
   build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
   other-modules:   Text.RDF.RDF4H.Utils, Text.RDF.RDF4H.ParserUtils, Text.RDF.RDF4H.Interact
   extensions:      BangPatterns
-  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
+  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures -fno-warn-unused-do-bind
+
 
 executable rdf4h
   main-is:         Rdf4hParseMain.hs 
@@ -45,7 +46,7 @@ executable rdf4h
   build-depends:   parsec >= 3, network >= 2.2.0.0, HTTP >= 4000.0.0
   hs-source-dirs:  .
   extensions:      BangPatterns
-  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures
+  ghc-options:     -O2 -Wall -fglasgow-exts -fno-warn-name-shadowing -fno-warn-missing-signatures -fno-warn-unused-do-bind
 
 --executable rdf4h_query
 --  main-is:         Rdf4hQueryMain.hs
