@@ -4,7 +4,7 @@
 
 module Text.RDF.RDF4H.Namespace(
   -- * Namespace types and functions
-  Namespace, mkPlainNS, mkPrefixedNS, mkPrefixedNS',
+  Namespace(..), mkPlainNS, mkPrefixedNS, mkPrefixedNS',
   PrefixMapping(PrefixMapping), PrefixMappings(PrefixMappings), toPMList,
   mergePrefixMappings,
   mkUri,
