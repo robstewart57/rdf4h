@@ -5,10 +5,11 @@ clean:
 	runhaskell Setup clean
 
 configure: Setup.hs rdf4h.cabal *.hs
-	runhaskell Setup configure --user --prefix=${HOME} \
+	runhaskell Setup configure -fno-warn-unused-do-bind --user --prefix=${HOME} \
 		--docdir=dist/doc \
 		--haddock-options="-v \
-		--source-module=http://protempore.net/rdf4h/doc/src/%{MODULE/./-}.html"
+		--source-module=http://protempore.net/rdf4h/doc/src/%{MODULE/./-}.html" \
+	    --enable-tests
 
 build: configure
 	runhaskell Setup build

@@ -5,8 +5,10 @@ import System.Exit
 import Control.Monad
 import System.Process
 
-main :: IO ()
-main = defaultMainWithHooks (simpleUserHooks { runTests = test })
+main = defaultMain
+
+--main :: IO ()
+--main = defaultMainWithHooks (simpleUserHooks { runTests = test })
 
 -- TODO: there should be a better way of doing this.
 -- The conformance tests would take too long if interpreted, which is
@@ -17,6 +19,6 @@ test _ _ _ _ =
     runCommand compileConformanceTests >>= waitForProcess >> 
     runCommand runConformanceTests >>= waitForProcess >> return ()
   where 
-    runQuickCheckTests = "./quickcheck +names Text/RDF/RDF4H/TriplesGraph_Test.hs Text/RDF/RDF4H/MGraph_Test.hs"
-    compileConformanceTests = "ghc -O -fglasgow-exts -odir dist/build -hidir dist/build -o test --make Text/RDF/RDF4H/TurtleParser_ConformanceTest.hs"
+    runQuickCheckTests = "./quickcheck +names -i.:src:testsuite/tests testsuite/tests/Data/RDF/TriplesGraph_Test.hs testsuite/tests/Data/RDF/MGraph_Test.hs"
+    compileConformanceTests = "ghc -O -fglasgow-exts -odir dist/build -hidir dist/build -isrc:testsuite/tests -o test --make testsuite/tests/Text/RDF/RDF4H/TurtleParser_ConformanceTest.hs"
     runConformanceTests = "./test"
