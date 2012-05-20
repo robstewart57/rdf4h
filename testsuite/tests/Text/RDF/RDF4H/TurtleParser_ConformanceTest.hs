@@ -1,5 +1,8 @@
 module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 
+--import Test.Framework (defaultMain, testGroup)
+--import Test.Framework.Providers.HUnit
+--import Test.Framework.Providers.QuickCheck (testProperty)
 
 import Data.RDF
 import Data.RDF.TriplesGraph
@@ -21,6 +24,11 @@ import qualified Data.ByteString.Lazy.Char8 as B
 
 import Debug.Trace(trace)
 
+
+tests = [ testGroup "TurtleParser"
+             [
+             ]
+]
 --main :: IO ()
 --main = putStrLn "Running TurtleParser_ConformanceTest..." >> runAllCTests >>= putStrLn . show
 
