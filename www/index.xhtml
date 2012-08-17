@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML+RDFa 1.0//EN' 'http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd'>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+
+    <head>
+        <meta http-equiv="Content-Type" content="application/xhtml+xml;charset=utf-8" />
+        <meta http-equiv="Content-Script-Type" content="text/javascript" />
+        <meta name='description' content='rdf4h: an early-stage, work-in-progress library for RDF in Haskell.' />
+        <link href='/~calvins/styles/main.css' rel='stylesheet' type='text/css' />
+
+        <title>rdf4h: RDF for Haskell</title>
+    </head>
+
+    <body>
+        <div>
+            <div><a id='top'></a></div>
+            <h1>rdf4h: RDF for Haskell</h1>
+            <div id="crumbs">
+                <p><a href='/~calvins/' title='Calvin’s Home'>Home</a> » <a href='/~calvins/code/' title='Code'>Code</a> » <a href='' title='rdf4h'>rdf4h</a></p>
+            </div>
+            <p><acronym title="RDF for Haskell">rdf4h</acronym> is a library for working with RDF in Haskell. At present it includes parsers and serializers for RDF in the <a href='http://www.w3.org/TR/rdf-testcases/#ntriples' title='N-Triples specification'>N-Triples</a> and <a href='http://www.dajobe.org/2004/01/turtle/' title="Turtle specification">Turtle</a> formats. The core graph provides some basic query abilities such as querying for triples containing a particular subject, predicate, or object, or selecting triples that satisfy an arbitrary predicate function.</p>
+            <p>There is a source tarball <a href='rdf4h-0.6.1.tar.gz' title='Source Tarball for rdf4h.'>available here</a>, and API documentation is <a href="doc/" title="API documentation for rdf4h">available here</a>. You can pull the <a href='http://darcs.net/' title="Darcs Homepage">Darcs</a> repository from the URL of <em>this page</em> if you want the latest and greatest. Patches are welcome.</p>
+            <p>The library requires Cabal &gt;= 1.2, and should build for GHC 6.6 or higher. The following will build and install the library, registering it as a user library (which does <em>not</em> require superuser privileges).</p>
+
+            <pre class="howto-code">runhaskell Setup.hs configure --user --prefix=$HOME
+runhaskell Setup.hs build
+runhaskell Setup.hs install</pre>
+
+<p>The executable is named <tt>rdf4h</tt> and is installed to <tt>$HOME/bin</tt>, and the usual <tt>rdf4h --help</tt> will show you the command-line options. If you wish to use <acronym title="RDF for Haskell">rdf4h</acronym> as a library, there are several modules available under the <tt>Text.RDF.RDF4H</tt> namespace.</p>
+
+            <h3>History</h3>
+            <ul>
+                <li>Feb. 13, 2009: version 0.6.1; introduced type classes for RdfSerializer and RdfParser; updated to exploit improvements in newer versions of parsec and other dependent libraries</li>
+                <li>Nov. 21, 2007: version 0.4; added Turtle serializer; now supports input/output in either of Turtle or N-Triples</li>
+                <li>Nov. 11, 2007: version 0.3; added Turtle parser; improved performance of N-Triples parser; minimum Cabal version bumped to 1.2; supports GHC 6.8</li>
+                <li>Oct. 06, 2007: version 0.2; first public release, new graph implementation providing more efficient querying</li>
+                <li>Sep. 23, 2007: version 0.1; initial implementation of list-backed graph and N-Triples parser</li>
+            </ul>
+
+
+        </div>
+        <p class='isvalid'>This site is valid <a href='http://validator.w3.org/check?uri=referer' title='Validate XHTML'>XHTML+RDFa</a>, <a href='http://jigsaw.w3.org/css-validator/check/referer' title='Validate CSS'>CSS</a>.</p>
+        <script src='http://www.google-analytics.com/ga.js' type='text/javascript'></script>
+        <script type="text/javascript">
+            var pageTracker = _gat._getTracker("UA-4037560-6");
+            pageTracker._initData();
+            pageTracker._trackPageview();
+        </script>
+    </body>
+
+</html>
+

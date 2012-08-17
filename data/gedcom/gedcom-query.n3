@@ -1,0 +1,15 @@
+# PxButton | test   | java euler.EulerRunner gedcom-relations.n3 gedcom-facts.n3 rpo-rules.n3 --think gedcom-query.n3
+# PxButton | test#  | Euler gedcom-relations.n3 gedcom-facts.n3 rpo-rules.n3 --think gedcom-query.n3
+# PxButton | test#m | mono /sfcvs/2004/01swap/bin/Release/Euler.exe gedcom-relations.n3 gedcom-facts.n3 rpo-rules.n3 --think gedcom-query.n3
+# PxButton | test.i | ikvm euler.EulerRunner gedcom-relations.n3 gedcom-facts.n3 rpo-rules.n3 --think gedcom-query.n3
+# PxButton | cwm    | cwm gedcom-relations.n3 gedcom-facts.n3 rpo-rules.n3 --think > gedcom.all.n3
+
+@prefix log: <http://www.w3.org/2000/10/swap/log#>.
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix gc: <http://www.daml.org/2001/01/gedcom/gedcom#>.
+@prefix : <http://www.agfa.com/w3c/euler/gedcom-facts#>.
+
+_:A gc:mother _:M.
+_:M gc:daughter _:D.
+_:D gc:son _:S.
+_:S gc:uncle _:A.

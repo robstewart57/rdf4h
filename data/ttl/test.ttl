@@ -1,0 +1,22 @@
+@prefix rel: <http://example.com/relation/> .
+@prefix verb: <http://example.com/verb/> .
+@prefix p:   <http://example.com/person/> .
+@prefix ex:   <http://example.com/> .
+@prefix exp:  <http://example.com/person/> .
+
+<http://example.com/person/alice> <http://example.com/moniker> "Alice the Sender" .
+exp:alice  ex:hasMessage  "true" ;
+           ex:sendsTo     exp:bob .
+exp:bob    ex:moniker        "Bob the Recipient" ;
+           ex:hasMessage  "false" ;
+           ex:receivesFrom exp:alice .
+<http://example.com/person/alice> ex:knows <http://example.com/person/bob> .
+exp:eve    ex:moniker "Eve the Eavesdropper" ;
+           ex:hasMessage  "false" ;
+           ex:convictions  [ ex:title "Trespassing" ; ex:title "Fraud" ] .
+# the following three express the same triples:
+#[ex:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ]] .
+#[] ex:firstname "Ora" ; dc:wrote [dc:title "Moby Dick" ] .
+#[ :firstname "Ora" ] dc:wrote [ dc:title "Moby Dick" ] .
+#[ exp:firstname  "Ora" ] dc:wrote [ dc:title  "Moby Dick" ] . 
+#           ex:spiesOn     (exp:alice, exp:bob) ;

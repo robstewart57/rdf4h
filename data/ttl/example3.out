@@ -1,0 +1,2 @@
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> <http://purl.org/dc/elements/1.1/subject> "situation_comedy_programmes_genre"^^<http://www.w3.org/2001/XMLSchema#string> .
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> <http://bbc.co.uk/ns#channel> "BBC 2" .

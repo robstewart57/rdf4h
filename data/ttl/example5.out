@@ -1,0 +1,9 @@
+_:genid1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:genid1 <http://xmlns.com/foaf/0.1/name> "Martin Wyldeck" .
+_:genid2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:genid2 <http://xmlns.com/foaf/0.1/name> "Lionel Wheeler" .
+_:genid3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> .
+_:genid3 <http://xmlns.com/foaf/0.1/name> "David Simeon" .
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> <http://xmlns.com/foaf/0.1/maker> _:genid1 .
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> <http://xmlns.com/foaf/0.1/maker> _:genid2 .
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> <http://xmlns.com/foaf/0.1/maker> _:genid3 .

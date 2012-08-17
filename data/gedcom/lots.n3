@@ -1,0 +1,1170 @@
+#Processed by Id: cwm.py,v 1.29 2001/02/28 20:45:26 timbl Exp 
+#    using base file:/devel/WWW/2000/10/swap/test/gedcom/
+        
+#  Notation3 generation by
+#       notation3.py,v 1.54 2001/02/12 18:38:31 timbl Exp
+
+#   Base was: file:/devel/WWW/2000/10/swap/test/gedcom/
+     @prefix log: <http://www.w3.org/2000/10/swap/log#> .
+     @prefix ont: <http://www.daml.org/2001/03/daml+oil#> .
+     @prefix : <gedcom-relations.n3#> .
+     @prefix ex: <http://www.daml.org/2000/10/daml-ex#> .
+     @prefix gc: <http://www.daml.org/2001/01/gedcom/gedcom#> .
+    
+    <>     log:forAll <gedcom-damlex.n3#p>,
+                <gedcom-damlex.n3#q>,
+                <gedcom-damlex.n3#x>,
+                <gedcom-damlex.n3#y>,
+                <gedcom-damlex.n3#z> .
+    {
+        <gedcom-damlex.n3#p>     = <gedcom-damlex.n3#q> .
+        <gedcom-damlex.n3#x>     <gedcom-damlex.n3#p> <gedcom-damlex.n3#y> .
+        
+        }     log:implies {<gedcom-damlex.n3#x>     <gedcom-damlex.n3#q> <gedcom-damlex.n3#y> .
+        } .
+    {
+        <gedcom-damlex.n3#p>     = <gedcom-damlex.n3#q> .
+        
+        }     log:implies {<gedcom-damlex.n3#q>     = <gedcom-damlex.n3#p> .
+        } .
+    
+    :Ann     :gender :F;
+         ex:father :Paul;
+         ex:mother :Rita;
+         ex:parent :Paul,
+                :Rita;
+         gc:ancestor :Frans,
+                :Maria,
+                :Paul,
+                :Rita;
+         gc:childIn :gd;
+         gc:father :Paul;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Rita;
+         gc:parent :Paul,
+                :Rita;
+         gc:sex :F .
+    
+    :Ann_Sophie     :gender :F;
+         ex:father :Geert;
+         ex:mother :Christine;
+         ex:parent :Christine,
+                :Geert;
+         gc:ancestor :Christine,
+                :Frans,
+                :Geert,
+                :Maria;
+         gc:childIn :dv;
+         gc:father :Geert;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Christine;
+         gc:parent :Christine,
+                :Geert;
+         gc:sex :F .
+    
+    :Bart     :gender :M;
+         ex:father :Paul;
+         ex:mother :Rita;
+         ex:parent :Paul,
+                :Rita;
+         gc:ancestor :Frans,
+                :Maria,
+                :Paul,
+                :Rita;
+         gc:childIn :gd;
+         gc:father :Paul;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Rita;
+         gc:parent :Paul,
+                :Rita;
+         gc:sex :M .
+    
+    :Bieke     :gender :F;
+         ex:father :Hendrik;
+         ex:mother :Caroline;
+         ex:parent :Caroline,
+                :Hendrik;
+         gc:ancestor :Caroline,
+                :Frans,
+                :Hendrik,
+                :Maria;
+         gc:childIn :cd;
+         gc:father :Hendrik;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Caroline;
+         gc:parent :Caroline,
+                :Hendrik;
+         gc:sex :F .
+    
+    :Caroline     :gender :F;
+         ex:child :Bieke,
+                :Tineke;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Bieke,
+                :Tineke;
+         gc:childIn :dp;
+         gc:daughter :Bieke,
+                :Tineke;
+         gc:descendent :Bieke,
+                :Tineke;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :F;
+         gc:spouseIn :cd .
+    
+    :Christine     :gender :F;
+         ex:child :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:child :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:daughter :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:descendent :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:sex :F;
+         gc:spouseIn :dv .
+    
+    :Dirk     :gender :M;
+         ex:child :Frederik,
+                :Stefanie,
+                :Stijn;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Frederik,
+                :Stefanie,
+                :Stijn;
+         gc:childIn :dp;
+         gc:daughter :Stefanie;
+         gc:descendent :Frederik,
+                :Stefanie,
+                :Stijn;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :M;
+         gc:son :Frederik,
+                :Stijn;
+         gc:spouseIn :dc .
+    
+    :Frans     :gender :M;
+         ex:child :Caroline,
+                :Dirk,
+                :Geert,
+                :Greta,
+                :Jos,
+                :Rita;
+         gc:child :Caroline,
+                :Dirk,
+                :Geert,
+                :Greta,
+                :Jos,
+                :Rita;
+         gc:daughter :Caroline,
+                :Greta,
+                :Rita;
+         gc:descendent :Ann,
+                :Ann_Sophie,
+                :Bart,
+                :Bieke,
+                :Caroline,
+                :Dirk,
+                :Frederik,
+                :Geert,
+                :Goedele,
+                :Greta,
+                :Jos,
+                :Karel,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Rita,
+                :Stefanie,
+                :Stephanie,
+                :Stijn,
+                :Tineke,
+                :Tom,
+                :Valerie,
+                :Veerle;
+         gc:grandchild :Ann,
+                :Ann_Sophie,
+                :Bart,
+                :Bieke,
+                :Frederik,
+                :Goedele,
+                :Karel,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Stefanie,
+                :Stephanie,
+                :Stijn,
+                :Tineke,
+                :Tom,
+                :Valerie,
+                :Veerle;
+         gc:granddaughter :Ann,
+                :Ann_Sophie,
+                :Bieke,
+                :Goedele,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Stefanie,
+                :Stephanie,
+                :Tineke,
+                :Valerie,
+                :Veerle;
+         gc:grandson :Bart,
+                :Frederik,
+                :Karel,
+                :Stijn,
+                :Tom;
+         gc:sex :M;
+         gc:son :Dirk,
+                :Geert,
+                :Jos;
+         gc:spouseIn :dp .
+    
+    :Frederik     :gender :M;
+         ex:father :Dirk;
+         ex:mother :Karolien;
+         ex:parent :Dirk,
+                :Karolien;
+         gc:ancestor :Dirk,
+                :Frans,
+                :Karolien,
+                :Maria;
+         gc:childIn :dc;
+         gc:father :Dirk;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Karolien;
+         gc:parent :Dirk,
+                :Karolien;
+         gc:sex :M .
+    
+    :Geert     :gender :M;
+         ex:child :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:childIn :dp;
+         gc:daughter :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:descendent :Ann_Sophie,
+                :Louise,
+                :Stephanie,
+                :Valerie;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :M;
+         gc:spouseIn :dv .
+    
+    :Goedele     :gender :F;
+         ex:father :Jos;
+         ex:mother :Maaike;
+         ex:parent :Jos,
+                :Maaike;
+         gc:ancestor :Frans,
+                :Jos,
+                :Maaike,
+                :Maria;
+         gc:childIn :dt;
+         gc:father :Jos;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Maaike;
+         gc:parent :Jos,
+                :Maaike;
+         gc:sex :F .
+    
+    :Greta     :gender :F;
+         ex:child :Lynn,
+                :Tom;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Lynn,
+                :Tom;
+         gc:childIn :dp;
+         gc:daughter :Lynn;
+         gc:descendent :Lynn,
+                :Tom;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :F;
+         gc:son :Tom;
+         gc:spouseIn :sd .
+    
+    :Hendrik     :gender :M;
+         ex:child :Bieke,
+                :Tineke;
+         gc:child :Bieke,
+                :Tineke;
+         gc:daughter :Bieke,
+                :Tineke;
+         gc:descendent :Bieke,
+                :Tineke;
+         gc:sex :M;
+         gc:spouseIn :cd .
+    
+    :Jos     :gender :M;
+         ex:child :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         gc:childIn :dp;
+         gc:daughter :Goedele,
+                :Nele,
+                :Veerle;
+         gc:descendent :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :M;
+         gc:son :Karel;
+         gc:spouseIn :dt .
+    
+    :Karel     :gender :M;
+         ex:father :Jos;
+         ex:mother :Maaike;
+         ex:parent :Jos,
+                :Maaike;
+         gc:ancestor :Frans,
+                :Jos,
+                :Maaike,
+                :Maria;
+         gc:childIn :dt;
+         gc:father :Jos;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Maaike;
+         gc:parent :Jos,
+                :Maaike;
+         gc:sex :M .
+    
+    :Karolien     :gender :F;
+         ex:child :Frederik,
+                :Stefanie,
+                :Stijn;
+         gc:child :Frederik,
+                :Stefanie,
+                :Stijn;
+         gc:daughter :Stefanie;
+         gc:descendent :Frederik,
+                :Stefanie,
+                :Stijn;
+         gc:sex :F;
+         gc:son :Frederik,
+                :Stijn;
+         gc:spouseIn :dc .
+    
+    :Louise     :gender :F;
+         ex:father :Geert;
+         ex:mother :Christine;
+         ex:parent :Christine,
+                :Geert;
+         gc:ancestor :Christine,
+                :Frans,
+                :Geert,
+                :Maria;
+         gc:childIn :dv;
+         gc:father :Geert;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Christine;
+         gc:parent :Christine,
+                :Geert;
+         gc:sex :F .
+    
+    :Lynn     :gender :F;
+         ex:father :Marc;
+         ex:mother :Greta;
+         ex:parent :Greta,
+                :Marc;
+         gc:ancestor :Frans,
+                :Greta,
+                :Marc,
+                :Maria;
+         gc:childIn :sd;
+         gc:father :Marc;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Greta;
+         gc:parent :Greta,
+                :Marc;
+         gc:sex :F .
+    
+    :Maaike     :gender :F;
+         ex:child :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         gc:child :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         gc:daughter :Goedele,
+                :Nele,
+                :Veerle;
+         gc:descendent :Goedele,
+                :Karel,
+                :Nele,
+                :Veerle;
+         gc:sex :F;
+         gc:son :Karel;
+         gc:spouseIn :dt .
+    
+    :Marc     :gender :M;
+         ex:child :Lynn,
+                :Tom;
+         gc:child :Lynn,
+                :Tom;
+         gc:daughter :Lynn;
+         gc:descendent :Lynn,
+                :Tom;
+         gc:sex :M;
+         gc:son :Tom;
+         gc:spouseIn :sd .
+    
+    :Maria     :gender :F;
+         ex:child :Caroline,
+                :Dirk,
+                :Geert,
+                :Greta,
+                :Jos,
+                :Rita;
+         gc:child :Caroline,
+                :Dirk,
+                :Geert,
+                :Greta,
+                :Jos,
+                :Rita;
+         gc:daughter :Caroline,
+                :Greta,
+                :Rita;
+         gc:descendent :Ann,
+                :Ann_Sophie,
+                :Bart,
+                :Bieke,
+                :Caroline,
+                :Dirk,
+                :Frederik,
+                :Geert,
+                :Goedele,
+                :Greta,
+                :Jos,
+                :Karel,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Rita,
+                :Stefanie,
+                :Stephanie,
+                :Stijn,
+                :Tineke,
+                :Tom,
+                :Valerie,
+                :Veerle;
+         gc:grandchild :Ann,
+                :Ann_Sophie,
+                :Bart,
+                :Bieke,
+                :Frederik,
+                :Goedele,
+                :Karel,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Stefanie,
+                :Stephanie,
+                :Stijn,
+                :Tineke,
+                :Tom,
+                :Valerie,
+                :Veerle;
+         gc:granddaughter :Ann,
+                :Ann_Sophie,
+                :Bieke,
+                :Goedele,
+                :Louise,
+                :Lynn,
+                :Nele,
+                :Stefanie,
+                :Stephanie,
+                :Tineke,
+                :Valerie,
+                :Veerle;
+         gc:grandson :Bart,
+                :Frederik,
+                :Karel,
+                :Stijn,
+                :Tom;
+         gc:sex :F;
+         gc:son :Dirk,
+                :Geert,
+                :Jos;
+         gc:spouseIn :dp .
+    
+    :Nele     :gender :F;
+         ex:father :Jos;
+         ex:mother :Maaike;
+         ex:parent :Jos,
+                :Maaike;
+         gc:ancestor :Frans,
+                :Jos,
+                :Maaike,
+                :Maria;
+         gc:childIn :dt;
+         gc:father :Jos;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Maaike;
+         gc:parent :Jos,
+                :Maaike;
+         gc:sex :F .
+    
+    :Paul     :gender :M;
+         ex:child :Ann,
+                :Bart;
+         gc:child :Ann,
+                :Bart;
+         gc:daughter :Ann;
+         gc:descendent :Ann,
+                :Bart;
+         gc:sex :M;
+         gc:son :Bart;
+         gc:spouseIn :gd .
+    
+    :Rita     :gender :F;
+         ex:child :Ann,
+                :Bart;
+         ex:father :Frans;
+         ex:mother :Maria;
+         ex:parent :Frans,
+                :Maria;
+         gc:ancestor :Frans,
+                :Maria;
+         gc:child :Ann,
+                :Bart;
+         gc:childIn :dp;
+         gc:daughter :Ann;
+         gc:descendent :Ann,
+                :Bart;
+         gc:father :Frans;
+         gc:mother :Maria;
+         gc:parent :Frans,
+                :Maria;
+         gc:sex :F;
+         gc:son :Bart;
+         gc:spouseIn :gd .
+    
+    :Stefanie     :gender :F;
+         ex:father :Dirk;
+         ex:mother :Karolien;
+         ex:parent :Dirk,
+                :Karolien;
+         gc:ancestor :Dirk,
+                :Frans,
+                :Karolien,
+                :Maria;
+         gc:childIn :dc;
+         gc:father :Dirk;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Karolien;
+         gc:parent :Dirk,
+                :Karolien;
+         gc:sex :F .
+    
+    :Stephanie     :gender :F;
+         ex:father :Geert;
+         ex:mother :Christine;
+         ex:parent :Christine,
+                :Geert;
+         gc:ancestor :Christine,
+                :Frans,
+                :Geert,
+                :Maria;
+         gc:childIn :dv;
+         gc:father :Geert;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Christine;
+         gc:parent :Christine,
+                :Geert;
+         gc:sex :F .
+    
+    :Stijn     :gender :M;
+         ex:father :Dirk;
+         ex:mother :Karolien;
+         ex:parent :Dirk,
+                :Karolien;
+         gc:ancestor :Dirk,
+                :Frans,
+                :Karolien,
+                :Maria;
+         gc:childIn :dc;
+         gc:father :Dirk;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Karolien;
+         gc:parent :Dirk,
+                :Karolien;
+         gc:sex :M .
+    
+    :Tineke     :gender :F;
+         ex:father :Hendrik;
+         ex:mother :Caroline;
+         ex:parent :Caroline,
+                :Hendrik;
+         gc:ancestor :Caroline,
+                :Frans,
+                :Hendrik,
+                :Maria;
+         gc:childIn :cd;
+         gc:father :Hendrik;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Caroline;
+         gc:parent :Caroline,
+                :Hendrik;
+         gc:sex :F .
+    
+    :Tom     :gender :M;
+         ex:father :Marc;
+         ex:mother :Greta;
+         ex:parent :Greta,
+                :Marc;
+         gc:ancestor :Frans,
+                :Greta,
+                :Marc,
+                :Maria;
+         gc:childIn :sd;
+         gc:father :Marc;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Greta;
+         gc:parent :Greta,
+                :Marc;
+         gc:sex :M .
+    
+    :Valerie     :gender :F;
+         ex:father :Geert;
+         ex:mother :Christine;
+         ex:parent :Christine,
+                :Geert;
+         gc:ancestor :Christine,
+                :Frans,
+                :Geert,
+                :Maria;
+         gc:childIn :dv;
+         gc:father :Geert;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Christine;
+         gc:parent :Christine,
+                :Geert;
+         gc:sex :F .
+    
+    :Veerle     :gender :F;
+         ex:father :Jos;
+         ex:mother :Maaike;
+         ex:parent :Jos,
+                :Maaike;
+         gc:ancestor :Frans,
+                :Jos,
+                :Maaike,
+                :Maria;
+         gc:childIn :dt;
+         gc:father :Jos;
+         gc:grandfather :Frans;
+         gc:grandmother :Maria;
+         gc:grandparent :Frans,
+                :Maria;
+         gc:mother :Maaike;
+         gc:parent :Jos,
+                :Maaike;
+         gc:sex :F .
+    {
+        {
+            :child     gc:childIn :family .
+            :parent     gc:spouseIn :family .
+            
+            }     log:implies {:child     gc:parent :parent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :family,
+                :parent .
+    {
+        {
+            :child     :gender :M;
+                 gc:parent :parent .
+            
+            }     log:implies {:parent     gc:son :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    {
+        {
+            :child     :gender :F;
+                 gc:parent :parent .
+            
+            }     log:implies {:parent     gc:daughter :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     gc:parent :grandparent .
+            
+            }     log:implies {:child     gc:grandparent :grandparent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent,
+                :parent .
+    {
+        {
+            :child     gc:grandparent :grandparent .
+            :grandparent     :gender :M .
+            
+            }     log:implies {:child     gc:grandfather :grandparent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent,
+                :parent .
+    {
+        {
+            :child     gc:grandparent :grandparent .
+            :grandparent     :gender :F .
+            
+            }     log:implies {:child     gc:grandmother :grandparent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent,
+                :parent .
+    {
+        {
+            :child     gc:grandparent :grandparent .
+            
+            }     log:implies {:grandparent     gc:grandchild :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent .
+    {
+        {
+            :child     :gender :M;
+                 gc:grandparent :grandparent .
+            
+            }     log:implies {:grandparent     gc:grandson :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent .
+    {
+        {
+            :child     :gender :F;
+                 gc:grandparent :grandparent .
+            
+            }     log:implies {:grandparent     gc:granddaughter :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :grandparent .
+    {
+        {
+            {
+                :child1     :equals :child2 .
+                
+                }     log:implies <data:,> .
+            :child1     gc:childIn :family .
+            :child2     gc:childIn :family .
+            
+            }     log:implies {:child1     gc:sibling :child2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child1,
+                :child2,
+                :family .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     :gender :M .
+            
+            }     log:implies {:child     gc:father :parent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    {
+        {
+            :child2     gc:sibling :child1 .
+            
+            }     log:implies {:child1     gc:sibling :child2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child1,
+                :child2 .
+    {
+        {
+            :child     gc:sibling :sibling .
+            :sibling     :gender :M .
+            
+            }     log:implies {:child     gc:brother :sibling .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :sibling .
+    {
+        {
+            :child     gc:sibling :sibling .
+            :sibling     :gender :F .
+            
+            }     log:implies {:child     gc:sister :sibling .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :sibling .
+    {
+        {
+            {
+                :spouse1     :equals :spouse2 .
+                
+                }     log:implies <data:,> .
+            :spouse1     gc:spouseIn :family .
+            :spouse2     gc:spouseIn :family .
+            
+            }     log:implies {:spouse1     gc:spouse :spouse2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :family,
+                :spouse1,
+                :spouse2 .
+    {
+        {
+            :spouse2     gc:spouse :spouse1 .
+            
+            }     log:implies {:spouse1     gc:spouse :spouse2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :spouse1,
+                :spouse2 .
+    {
+        {
+            :husband     :gender :M .
+            :spouse     gc:spouse :husband .
+            
+            }     log:implies {:spouse     gc:husband :husband .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :husband,
+                :spouse .
+    {
+        {
+            :spouse     gc:spouse :wife .
+            :wife     :gender :F .
+            
+            }     log:implies {:spouse     gc:wife :wife .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :spouse,
+                :wife .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     gc:brother :uncle .
+            
+            }     log:implies {:child     gc:uncle :uncle .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent,
+                :uncle .
+    {
+        {
+            :aunt     gc:spouse :uncle .
+            :child     gc:aunt :aunt .
+            
+            }     log:implies {:child     gc:uncle :uncle .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :aunt,
+                :child,
+                :uncle .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     gc:sister :aunt .
+            
+            }     log:implies {:child     gc:aunt :aunt .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :aunt,
+                :child,
+                :parent .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     :gender :F .
+            
+            }     log:implies {:child     gc:mother :parent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    {
+        {
+            :child     gc:uncle :uncle .
+            :uncle     gc:spouse :aunt .
+            
+            }     log:implies {:child     gc:aunt :aunt .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :aunt,
+                :child,
+                :uncle .
+    {
+        {
+            :parent     gc:daughter :child;
+                 gc:sibling :sibling .
+            
+            }     log:implies {:sibling     gc:niece :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent,
+                :sibling .
+    {
+        {
+            :parent     gc:sibling :sibling;
+                 gc:son :child .
+            
+            }     log:implies {:sibling     gc:nephew :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent,
+                :sibling .
+    {
+        {
+            :cousin1     gc:parent :sibling1 .
+            :cousin2     gc:parent :sibling2 .
+            :sibling1     gc:sibling :sibling2 .
+            
+            }     log:implies {:cousin1     gc:firstCousin :cousin2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :cousin1,
+                :cousin2,
+                :sibling1,
+                :sibling2 .
+    {
+        {
+            :child     gc:parent :parent .
+            
+            }     log:implies {:child     gc:ancestor :parent .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    {
+        {
+            :child     gc:parent :parent .
+            :parent     gc:ancestor :ancestor .
+            
+            }     log:implies {:child     gc:ancestor :ancestor .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :ancestor,
+                :child,
+                :parent .
+    {
+        {
+            :child     gc:ancestor :ancestor .
+            
+            }     log:implies {:ancestor     gc:descendent :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :ancestor,
+                :child .
+    {
+        {
+            :sibling1     gc:descendent :descendent1;
+                 gc:sibling :sibling2 .
+            :sibling2     gc:descendent :descendent2 .
+            
+            }     log:implies {:descendent1     gc:cousin :descendent2 .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :descendent1,
+                :descendent2,
+                :sibling1,
+                :sibling2 .
+    {
+        :x     :equals :x .
+        
+        }     a log:Truth;
+         log:forAll :x .
+    {
+        {
+            :child     gc:parent :parent .
+            
+            }     log:implies {:parent     gc:child :child .
+            } .
+        
+        }     a log:Truth;
+         log:forAll :child,
+                :parent .
+    
+    :gender     = gc:sex .
+    
+    ex:ancestor     = gc:ancenstor .
+    
+    ex:child     = gc:child .
+    
+    ex:father     = gc:father .
+    
+    ex:mother     = gc:mother .
+    
+    ex:parent     = gc:parent .
+    
+    gc:ancenstor     = ex:ancestor .
+    
+    gc:child     = ex:child .
+    
+    gc:father     = ex:father .
+    
+    gc:mother     = ex:mother .
+    
+    gc:parent     = ex:parent .
+    
+    gc:sex     = :gender .
+    
+ #ENDS

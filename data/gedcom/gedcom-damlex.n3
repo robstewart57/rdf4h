@@ -1,0 +1,25 @@
+#  Relationships between the gedcom example and the daml-ex example
+
+@prefix gc: <http://www.daml.org/2001/01/gedcom/gedcom#>.
+@prefix log: <http://www.w3.org/2000/10/swap/log#>.
+@prefix ont:  <http://www.daml.org/2001/03/daml+oil#> .
+@prefix ex: <http://www.daml.org/2000/10/daml-ex#> .
+@prefix : <#>.
+
+# Obvious ones:
+ex:parent	=	gc:parent .
+ex:child	=	gc:child .
+ex:mother	=	gc:mother .
+ex:father	=	gc:father .
+ex:ancestor =	gc:ancenstor .
+
+#################################
+
+#minimum necessary logic:
+
+<> log:forAll :p, :q, :x, :y, :z.
+{ :x :p :y.  :p = :q } log:implies { :x :q :y }.
+
+{:p = :q } log:implies { :q = :p  }.
+
+# ends

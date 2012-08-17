@@ -1,0 +1,8 @@
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://catalogue.bbc.co.uk/catalogue/infax/programme/LLCR001L> 
+  <http://purl.org/dc/elements/1.1/subject> "situation_comedy_programmes_genre"^^xsd:string ;
+  <http://bbc.co.uk/ns#channel> "BBC 2".
+# TODO: when working, switch back to dc:subject

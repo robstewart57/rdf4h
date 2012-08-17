@@ -1,0 +1,57 @@
+# Test @prefix and qnames (test-01.ttl)                                                      
+@prefix :  <http://example.org/base1#> .            
+@prefix a: <http://example.org/base2#> .            
+@prefix b: <http://example.org/base3#> .
+:a :b :c .                                  <http://example.org/base1#a> <http://example.org/base1#b> <http://example.org/base1#c> .      
+a:a a:b a:c .                               <http://example.org/base2#a> <http://example.org/base2#b> <http://example.org/base2#c> .
+:a a:a b:a .                                <http://example.org/base1#a> <http://example.org/base2#a> <http://example.org/base3#a> .
+
+# Test , operator (test-02.ttl)
+@prefix : <http://example.org/base#> .
+:a :b :c,                                   <http://example.org/base#a> <http://example.org/base#b> <http://example.org/base#c> .
+      :d,                                   <http://example.org/base#a> <http://example.org/base#b> <http://example.org/base#d> .
+      :e .                                  <http://example.org/base#a> <http://example.org/base#b> <http://example.org/base#e> .
+
+# Test ; operator (test-03.ttl)
+@prefix : <http://example.org/base#> .
+:a :b :c ;                                  <http://example.org/base#a> <http://example.org/base#b> <http://example.org/base#c> .
+   :d :e ;                                  <http://example.org/base#a> <http://example.org/base#d> <http://example.org/base#e> .
+   :f :g .                                  <http://example.org/base#a> <http://example.org/base#f> <http://example.org/base#g> .
+
+# Test empty [] operator; (test-04.ttl)
+# not allowed as predicate 
+@prefix : <http://example.org/base#> .
+[] :a :b .                                  _:genid1 <http://example.org/base#a> <http://example.org/base#b> .
+:c :d [] .                                  <http://example.org/base#c> <http://example.org/base#d> _:genid2 .
+
+# Test non empty [] operator; 
+# not allowed as predicate (test-05.ttl)
+@prefix : <http://example.org/base#> .
+[ :a :b ] :c :d .                           _:genid1 <http://example.org/base#a> <http://example.org/base#b> .
+                                            _:genid1 <http://example.org/base#c> <http://example.org/base#d> .
+:e :f [ :g :h ] .                           <http://example.org/base#e> <http://example.org/base#f> _:genid2 .
+                                            _:genid2 <http://example.org/base#g> <http://example.org/base#h> .
+
+# 'a' only allowed as a predicate
+# (test-06.ttl)
+@prefix : <http://example.org/base#> .
+:a a :b .                                   <http://example.org/base#a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/base#b> .
+
+# (test-07.ttl)
+@prefix : <http://example.org/stuff/1.0/> .
+:a :b ( "apple" "banana" ) .                <http://example.org/stuff/1.0/a> <http://example.org/stuff/1.0/b> _:genid1 .
+                                            _:genid1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "apple" .
+                                            _:genid1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:genid2 .
+                                            _:genid2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> "banana" .
+                                            _:genid2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+
+# (test-08.ttl)
+@prefix : <http://example.org/stuff/1.0/> . <http://example.org/stuff/1.0/a> <http://example.org/stuff/1.0/b> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+:a :b ( ) .
+
+
+
+
+
+
+
