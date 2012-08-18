@@ -27,45 +27,59 @@ import Text.Printf(hPrintf)
 
 main :: IO ()
 main =
-  do (opts, args) <- (getArgs >>= compilerOpts)
-     when (elem Help opts)
-       (putStrLn (usageInfo header options) >> exitWith ExitSuccess)
-     when (elem Version opts)
-       (putStrLn version >> exitWith ExitSuccess)
+  do (opts, args) <- getArgs >>= compilerOpts
+     when (Help `elem` opts)
+      (putStrLn (usageInfo header options) >> exitSuccess)
+     when (Version `elem` opts) (putStrLn version >> exitSuccess)
      when (null args)
-       (ioError (userError ("\n\n" ++ "INPUT-URI required\n\n" ++ usageInfo header options)))
-     let debug         = elem Debug opts
-         inputUri      = head args
-         inputFormat   = getWithDefault (InputFormat "turtle") opts
-         outputFormat  = getWithDefault (OutputFormat "ntriples") opts
-         inputBaseUri  = getInputBaseUri inputUri args opts
+      (ioError
+        (userError
+           ("\n\n" ++ "INPUT-URI required\n\n" ++ usageInfo header options)))
+     let debug = Debug `elem` opts
+         inputUri = head args
+         inputFormat = getWithDefault (InputFormat "turtle") opts
+         outputFormat = getWithDefault (OutputFormat "ntriples") opts
+         inputBaseUri = getInputBaseUri inputUri args opts
          outputBaseUri = getWithDefault (OutputBaseUri inputBaseUri) opts
      unless (outputFormat == "ntriples" || outputFormat == "turtle")
-       (hPrintf stderr ("'" ++ outputFormat ++ "' is not a valid output format. Supported output formats are: ntriples, turtle\n") >> exitWith (ExitFailure 1))
+       (hPrintf stderr
+          ("'" ++
+             outputFormat ++
+               "' is not a valid output format. Supported output formats are: ntriples, turtle\n")
+          >> exitWith (ExitFailure 1))
      when debug
-       (hPrintf stderr "      INPUT-URI:  %s\n\n" inputUri     >>
-        hPrintf stderr "   INPUT-FORMAT:  %s\n"   inputFormat  >>
-        hPrintf stderr " INPUT-BASE-URI:  %s\n\n" inputBaseUri >>
-        hPrintf stderr "  OUTPUT-FORMAT:  %s\n"   outputFormat >>
-        hPrintf stderr "OUTPUT-BASE-URI:  %s\n\n" outputBaseUri)
-     let mInputUri  = if inputBaseUri == "-" then Nothing else Just (BaseUrl $ s2b inputBaseUri)
-         docUri     = Just $ s2b inputUri
-         emptyPms   = PrefixMappings Map.empty
+       (hPrintf stderr "      INPUT-URI:  %s\n\n" inputUri >>
+          hPrintf stderr "   INPUT-FORMAT:  %s\n" inputFormat
+          >> hPrintf stderr " INPUT-BASE-URI:  %s\n\n" inputBaseUri
+          >> hPrintf stderr "  OUTPUT-FORMAT:  %s\n" outputFormat
+          >> hPrintf stderr "OUTPUT-BASE-URI:  %s\n\n" outputBaseUri)
+     let mInputUri
+           = if inputBaseUri == "-" then Nothing else
+               Just (BaseUrl $ s2b inputBaseUri)
+         docUri = Just $ s2b inputUri
+         emptyPms = PrefixMappings Map.empty
      case (inputFormat, isUri $ s2b inputUri) of
-       -- we use TriplesGraph in all cases, since it preserves the ordering of triples
-       ("turtle",    True) -> parseURL (TurtleParser mInputUri docUri) inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write outputFormat docUri emptyPms res
-       ("turtle",   False) -> (if inputUri /= "-"
-                                  then parseFile (TurtleParser mInputUri docUri) inputUri
-                                  else B.getContents >>= return . parseString (TurtleParser mInputUri docUri))
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write outputFormat docUri emptyPms res
-       ("ntriples",  True) -> parseURL NTriplesParser inputUri
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write outputFormat Nothing emptyPms res
-       ("ntriples", False) -> (if inputUri /= "-"
-                                  then parseFile NTriplesParser inputUri
-                                  else B.getContents >>= return . parseString NTriplesParser)
-                                >>= \(res :: Either ParseFailure TriplesGraph) -> write outputFormat Nothing emptyPms res
-       (str     ,   _    ) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
+         ("turtle", True) -> parseURL (TurtleParser mInputUri docUri)
+                               inputUri
+                               >>=
+                               \ (res :: Either ParseFailure TriplesGraph) ->
+                                 write outputFormat docUri emptyPms res
+         ("turtle", False) -> (if inputUri /= "-" then
+                                 parseFile (TurtleParser mInputUri docUri) inputUri else
+                                 liftM (parseString (TurtleParser mInputUri docUri)) B.getContents)
+                                >>=
+                                \ (res :: Either ParseFailure TriplesGraph) ->
+                                  write outputFormat docUri emptyPms res
+         ("ntriples", True) -> parseURL NTriplesParser inputUri >>=
+                                 \ (res :: Either ParseFailure TriplesGraph) ->
+                                   write outputFormat Nothing emptyPms res
+         ("ntriples", False) -> (if inputUri /= "-" then
+                                   parseFile NTriplesParser inputUri else
+                                   liftM (parseString NTriplesParser) B.getContents)
+                                  >>=
+                                  \ (res :: Either ParseFailure TriplesGraph) ->
+                                    write outputFormat Nothing emptyPms res
+         (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
 write :: forall rdf. (RDF rdf) => String -> Maybe ByteString -> PrefixMappings -> Either ParseFailure rdf -> IO ()
 write format docUri pms res =
@@ -86,9 +100,9 @@ write format docUri pms res =
 -- arg is silently discarded.
 getInputBaseUri :: String -> [String] -> [Flag] -> String
 getInputBaseUri inputUri args flags =
-  case (null $ tail args) of
-    True  -> getWithDefault (InputBaseUri inputUri) flags
-    False -> getWithDefault (InputBaseUri (head $ tail args)) flags
+  if null $ tail args then
+  getWithDefault (InputBaseUri inputUri) flags else
+  getWithDefault (InputBaseUri (head $ tail args)) flags
 
 -- Determine if the bytestring represents a URI, which is currently
 -- decided solely by checking for a colon in the string.
@@ -152,20 +166,20 @@ version = "0.7"
 
 options :: [OptDescr Flag]
 options =
- [ Option ['h']  ["help"]                           (NoArg Help)   "Display this help, then exit"
- , Option ['d']  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
- , Option ['v']  ["version"]                     (NoArg Version)   "Show version number\n\n"
+ [ Option "h"  ["help"]                           (NoArg Help)   "Display this help, then exit"
+ , Option "d"  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
+ , Option "v"  ["version"]                     (NoArg Version)   "Show version number\n\n"
 
- , Option ['i']  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
+ , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
                                                                    "  ntriples    N-Triples"
- , Option ['I']  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
+ , Option "I"  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
- , Option ['o']  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" ++
+ , Option "o"  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" ++
                                                                    "  ntriples    N-Triples (default)\n" ++
                                                                    "  turtle      Turtle"
- , Option ['O'] ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" ++
+ , Option "O" ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" ++
                                                                    "  Default is input/parser base URI."
  ]
 

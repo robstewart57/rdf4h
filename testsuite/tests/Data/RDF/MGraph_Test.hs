@@ -1,17 +1,15 @@
 module Data.RDF.MGraph_Test where
 
 import Data.RDF
---import Data.RDF.Namespace
 import Data.RDF.MGraph
 import Data.RDF.GraphTestUtils
-
 import qualified Data.Map as Map
 import Control.Monad
 
 -- Testing imports
 import Test.QuickCheck
 import Test.Framework (testGroup)
-import Test.Framework.Providers.QuickCheck (testProperty)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 tests = [ testGroup "MGraph"
             [ testProperty "empty"                      (p_empty _triplesOf _empty)

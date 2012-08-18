@@ -14,16 +14,11 @@ import Data.RDF.Utils
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import qualified Data.ByteString.Lazy as BL
-
 import Data.Map(Map)
 import qualified Data.Map as Map
-
 import Data.List
-
 import Control.Monad
-
 import System.IO
-
 import Debug.Trace(trace)
 
 -- Defined so that there are no compiler warnings when trace is not used.
@@ -152,7 +147,7 @@ findMapping :: Map ByteString ByteString -> ByteString -> Maybe (ByteString, Byt
 findMapping pms uri =
   case mapping of
     Nothing     -> Nothing
-    Just (u, p) -> Just $ (p, B.drop (B.length u) uri) -- empty localName is permitted
+    Just (u, p) -> Just (p, B.drop (B.length u) uri) -- empty localName is permitted
   where
     mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
 
@@ -175,7 +170,7 @@ writeLiteralString h bs =
      B.foldl' writeChar (return True) bs
      hPutChar h '"'
   where
-    writeChar :: IO (Bool) -> Char -> IO (Bool)
+    writeChar :: IO Bool -> Char -> IO Bool
     writeChar b c =
       case c of
         '\n' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h 'n')  >> return True

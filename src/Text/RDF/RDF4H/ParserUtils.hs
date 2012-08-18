@@ -1,14 +1,15 @@
-module Text.RDF.RDF4H.ParserUtils(_parseURL, justTriples) where
+module Text.RDF.RDF4H.ParserUtils(
+  _parseURL, justTriples
+) where
 
 import Data.RDF
 
 import Network.URI
 import Network.HTTP
---import Network.HTTP.Headers
-
 import Data.Char(intToDigit)
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
+import Data.Maybe (fromMaybe)
 
 -- A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.
@@ -17,14 +18,16 @@ errResult msg = Left (ParseFailure msg)
 
 -- Keep the (Just t) triples (eliminating the Nothing comments), and unbox the
 -- triples, leaving a list of triples.
-justTriples :: [Maybe(Triple)] -> [Triple]
-justTriples = map (maybe (error "ParserUtils.justTriples") id) .
+justTriples :: [Maybe Triple] -> [Triple]
+justTriples = map (fromMaybe (error "ParserUtils.justTriples")) .
               filter (/= Nothing)
 
 _parseURL :: RDF rdf => (ByteString -> Either ParseFailure rdf)  -> String -> IO (Either ParseFailure rdf)
 _parseURL parseFunc url =
-  return (parseURI url) >>=
-    maybe (return (Left (ParseFailure $ "Unable to parse URL: " ++ url))) p
+  maybe
+    (return (Left (ParseFailure $ "Unable to parse URL: " ++ url)))
+    p
+    (parseURI url)
   where
     showRspCode (a, b, c) = map intToDigit [a, b, c]
     httpError resp = showRspCode (rspCode resp) ++ " " ++ rspReason resp

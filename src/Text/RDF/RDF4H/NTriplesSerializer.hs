@@ -5,17 +5,12 @@ module Text.RDF.RDF4H.NTriplesSerializer(
   NTriplesSerializer(NTriplesSerializer)
 ) where
 
---import Data.RDF(RDF(triplesOf), 
---                RdfSerializer(..), Triples, Triple,
---                Node(UNode, BNode, BNodeGen, LNode),
---                LValue(PlainL, PlainLL, TypedL))
 import Data.RDF
 import Data.RDF.Utils
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import qualified Data.ByteString.Lazy as BL
-
+import Control.Monad (void)
 import System.IO
 
 
@@ -79,12 +74,12 @@ _writeLiteralString h bs =
     writeChar :: IO () -> Char -> IO ()
     writeChar b c = b >>= \b' -> b' `seq`
       case c of
-        '\n' ->  hPutChar h '\\' >> hPutChar h 'n'  >> return ()
-        '\t' ->  hPutChar h '\\' >> hPutChar h 't'  >> return ()
-        '\r' ->  hPutChar h '\\' >> hPutChar h 'r'  >> return ()
-        '"'  ->  hPutChar h '\\' >> hPutChar h '"'  >> return ()
-        '\\' ->  hPutChar h '\\' >> hPutChar h '\\' >> return ()
-        _    ->  hPutChar  h c                      >> return ()
+        '\n' ->  void (hPutChar h '\\' >> hPutChar h 'n')
+        '\t' ->  void (hPutChar h '\\' >> hPutChar h 't')
+        '\r' ->  void (hPutChar h '\\' >> hPutChar h 'r')
+        '"'  ->  void (hPutChar h '\\' >> hPutChar h '"')
+        '\\' ->  void (hPutChar h '\\' >> hPutChar h '\\')
+        _    ->  void (hPutChar h c)
 
 _bs1, _bs2 :: ByteString
 _bs1 = B.pack "\nthis \ris a \\U00015678long\t\nliteral\\uABCD\n"

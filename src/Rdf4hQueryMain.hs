@@ -21,14 +21,14 @@ header =
 
 options :: [OptDescr Flag]
 options =
- [ Option ['h']  ["help"]                           (NoArg Help)   "Display this help, then exit"
- , Option ['v']  ["verbose"]                     (NoArg Verbose)   "Display extra information messages to stderr"
- , Option ['V']  ["version"]                     (NoArg Version)   "Show version number\n\n"
+ [ Option "h"  ["help"]                           (NoArg Help)   "Display this help, then exit"
+ , Option "v"  ["verbose"]                     (NoArg Verbose)   "Display extra information messages to stderr"
+ , Option "V"  ["version"]                     (NoArg Version)   "Show version number\n\n"
 
- , Option ['i']  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
+ , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
                                                                    "  ntriples    N-Triples"
- , Option ['I']  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
+ , Option "I"  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
  ]

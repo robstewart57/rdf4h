@@ -1,7 +1,5 @@
-{-# LANGUAGE RankNTypes, MultiParamTypeClasses #-}
-
--- |The Core module provides the fundamental types, type classes, and functions 
--- of the library.
+-- |The Core module provides the fundamental types,
+-- type classes, and functions of the library.
 --
 
 -- TODO: update writeT to writeTriple, etc.
@@ -36,13 +34,10 @@ where
 
 import Data.RDF.Namespace
 import Data.RDF.Utils
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Data.List
-
 import System.IO
-
 import Text.Printf
 
 -- |A type class for ADTs that expose views to clients.
@@ -132,7 +127,7 @@ class RdfParser p where
 
   -- |Parse RDF from the given bytestring, yielding a failure with error message or
   -- the resultant RDF.
-  parseString :: forall rdf. (RDF rdf) => p -> ByteString -> (Either ParseFailure rdf)
+  parseString :: forall rdf. (RDF rdf) => p -> ByteString -> Either ParseFailure rdf
 
   -- |Parse RDF from the local file with the given path, yielding a failure with error
   -- message or the resultant RDF in the IO monad.
@@ -140,7 +135,7 @@ class RdfParser p where
 
   -- |Parse RDF from the remote file with the given HTTP URL (https is not supported),
   -- yielding a failure with error message or the resultant graph in the IO monad.
-  parseURL    :: forall rdf. (RDF rdf) => p -> String     -> IO (Either ParseFailure rdf)
+  parseURL    :: forall rdf. (RDF rdf) => p -> String -> IO (Either ParseFailure rdf)
 
 -- |An RdfSerializer is a serializer of RDF to some particular output format, such as
 -- NTriples or Turtle.
@@ -331,7 +326,7 @@ instance Eq Node where
 -- of '(BNodeGen 44)' and '(BNodeGen 3)' is that of the values, or
 -- 'compare 44 3', GT.
 instance Ord Node where
-  compare n1 n2 = compareNode n1 n2
+  compare = compareNode
 
 compareNode :: Node -> Node -> Ordering
 compareNode (UNode fs1)                      (UNode fs2)                      = compareFS fs1 fs2
@@ -390,7 +385,7 @@ instance Eq LValue where
 -- literal value second, and '(TypedL literalValue datatypeUri)' being ordered
 -- by datatype first and literal value second.
 instance Ord LValue where
-  compare l1 l2 = compareLValue l1 l2
+  compare = compareLValue
 
 {-# INLINE compareLValue #-}
 compareLValue :: LValue -> LValue -> Ordering
@@ -508,6 +503,6 @@ expandTriples' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Triples -> Tripl
 expandTriples' acc _ _ [] = acc
 expandTriples' acc baseUrl prefixMappings (t:rest) = expandTriples' (normalize baseUrl prefixMappings t : acc) baseUrl prefixMappings rest
   where normalize baseUrl prefixMappings = expandPrefixes prefixMappings . expandBaseUrl baseUrl
-        expandBaseUrl (Just baseUrl) triple = triple
+        expandBaseUrl (Just _) triple = triple
         expandBaseUrl Nothing triple = triple
-        expandPrefixes prefixMappings triple = triple
+        expandPrefixes _ triple = triple

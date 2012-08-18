@@ -2,15 +2,11 @@ module Data.RDF.GraphTestUtils where
 
 import Data.RDF
 import Data.RDF.Namespace
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import Test.QuickCheck
-
---import Data.Char()
 import Data.List
 import qualified Data.Set as Set
---import Data.Map(Map)
 import qualified Data.Map as Map
 import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)

@@ -1,4 +1,3 @@
-{-# LANGUAGE Arrows, RankNTypes, FlexibleContexts #-}
 -- |An parser for the RDF/XML format 
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
 
@@ -7,13 +6,9 @@ module Text.RDF.RDF4H.XmlParser(
 ) where
 
 import Data.RDF
-
 import qualified Data.Map as Map
-
 import Control.Arrow
-
 import Text.XML.HXT.Core
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import Data.String.Utils
 
@@ -81,7 +76,7 @@ parseDescription = updateState
                    <+> (second (neg (hasName "rdf:Description")) >>> arr2A readTypeTriple))
                >>. replaceLiElems [] (1 :: Int)
   where readTypeTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
-        readTypeTriple state = getName >>> arr ((Triple (stateSubject state) rdfType) . unode . s2b)
+        readTypeTriple state = getName >>> arr (Triple (stateSubject state) rdfType . unode . s2b)
         replaceLiElems acc n (Triple s p o : rest) | p == (unode . s2b) "rdf:li" =
             replaceLiElems (Triple s ((unode . s2b) ("rdf:_" ++ show n)) o : acc) (n + 1) rest
         replaceLiElems acc n (Triple s p o : rest) = replaceLiElems (Triple s p o : acc) n rest
@@ -97,7 +92,7 @@ parseAsResource n = updateState
 -- |Read the attributes of an rdf:Description element.  These correspond to the Predicate Object pairs of the Triple
 parsePredicatesFromAttr :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
 parsePredicatesFromAttr state = getAttrl
-    >>> (getName >>> neg (isMetaAttr) >>> mkUNode) &&& (getChildren >>> getText >>> arr (lnode . plainL . s2b))
+    >>> (getName >>> neg isMetaAttr >>> mkUNode) &&& (getChildren >>> getText >>> arr (lnode . plainL . s2b))
     >>> arr (attachSubject (stateSubject state))
 
 -- | Arrow to determine if special processing is required for an attribute
@@ -120,12 +115,12 @@ parsePredicatesFromChildren = updateState
         , second (hasAttr "rdf:resource") :-> arr2A getResourceTriple
         , second (hasAttr "rdf:nodeID") :-> arr2A getNodeIdTriple
         , second (hasAttr "rdf:ID") :-> (arr2A mkRelativeNode &&& defaultA >>> arr2A reifyTriple >>> unlistA)
-        , second (hasPredicateAttr) :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
+        , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
         , this :-> defaultA
         ]
   where defaultA = proc (state, predXml) -> do
                          p <- arr(unode . s2b) <<< getName -< predXml
-                         t <- arr2A (\s -> arr2A (parseObjectsFromChildren s)) <<< second (second getChildren) -< (state, (p, predXml))
+                         t <- arr2A (arr2A . parseObjectsFromChildren) <<< second (second getChildren) -< (state, (p, predXml))
                          returnA -< t
         parsePredicateAttr n = (second getName >>> arr (\(s, p) -> Triple (stateSubject s) ((unode . s2b) p) n))
                            <+> (first (arr (\s -> s { stateSubject = n })) >>> arr2A parsePredicatesFromAttr)
@@ -134,7 +129,7 @@ parsePredicatesFromChildren = updateState
 parseObjectsFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p = choiceA
-    [ isText :-> (getText >>> arr ((Triple (stateSubject s) p) . mkLiteralNode s))
+    [ isText :-> (getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
     , isElem :-> (hasName "rdf:Description" >>> parseObjectDescription)
     ]
   where parseObjectDescription = proc desc -> do
@@ -157,14 +152,14 @@ reifyTriple node = arr (\(Triple s p o) -> [ Triple s p o
 -- |Updates the local state at a given node
 updateState :: forall a. (ArrowXml a, ArrowState GParseState a)
             => a (LParseState, XmlTree) (LParseState, XmlTree)
-updateState = (ifA (second (hasAttr "xml:lang")) (arr2A readLang) (arr id))
-          >>> (ifA (second (hasAttr "xml:base")) (arr2A readBase) (arr id))
+updateState = ifA (second (hasAttr "xml:lang")) (arr2A readLang) (arr id)
+          >>> ifA (second (hasAttr "xml:base")) (arr2A readBase) (arr id)
   where readLang state = (getAttrValue0 "xml:lang" >>> arr (\lang -> state { stateLang = Just lang } ) ) &&& arr id
         readBase state = (getAttrValue0 "xml:base" >>> arr (\base -> state { stateBaseUrl = (BaseUrl . s2b) base } ) ) &&& arr id
 
 -- |Read a Triple with an rdf:parseType of Literal
 parseAsLiteralTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
-parseAsLiteralTriple state = (nameToUNode &&& (xshow ( getChildren ) >>> arr (mkTypedLiteralNode rdfXmlLiteral)))
+parseAsLiteralTriple state = (nameToUNode &&& (xshow getChildren >>> arr (mkTypedLiteralNode rdfXmlLiteral)))
     >>> arr (attachSubject (stateSubject state))
 
 mkCollectionTriples :: forall a. (ArrowXml a, ArrowState GParseState a) => a [(Triple, Node)] Triples
@@ -234,7 +229,7 @@ mkTypedLiteralNode t content = lnode (typedL (s2b content) t)
 
 -- |Use the given state to create a literal node
 mkLiteralNode :: LParseState -> String -> Node
-mkLiteralNode (LParseState _ (Just lang) _) content = (lnode (plainLL (s2b content) (s2b lang)))
+mkLiteralNode (LParseState _ (Just lang) _) content = lnode (plainLL (s2b content) (s2b lang))
 mkLiteralNode (LParseState _ Nothing _) content = (lnode . plainL . s2b) content
 
 -- |Generate an RDF blank node with incrementing IDs from the arrow state

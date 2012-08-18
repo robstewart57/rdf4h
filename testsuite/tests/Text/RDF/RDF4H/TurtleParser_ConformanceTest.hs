@@ -1,3 +1,5 @@
+-- TODO: Implement TurtleParses `tests'
+
 module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 
 --import Test.Framework (defaultMain, testGroup)
@@ -24,13 +26,15 @@ import qualified Data.ByteString.Lazy.Char8 as B
 
 import Debug.Trace(trace)
 
-
+{-
 tests = [ testGroup "TurtleParser"
              [
              ]
 ]
---main :: IO ()
---main = putStrLn "Running TurtleParser_ConformanceTest..." >> runAllCTests >>= putStrLn . show
+-}
+
+-- main :: IO ()
+-- main = putStrLn "Running TurtleParser_ConformanceTest..." >> runAllCTests >>= putStrLn . show
 
 
 _debug = trace

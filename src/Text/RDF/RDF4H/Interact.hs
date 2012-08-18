@@ -66,7 +66,7 @@ parseNTriplesString = _parse parseString NTriplesParser
 
 -- |Print a list of triples to stdout; useful for debugging and interactive use.
 printTriples :: Triples -> IO ()
-printTriples  = mapM_ (putStrLn . show)
+printTriples  = mapM_ print
 
 -- Load an RDF using the given parseFunc, parser, and the location (filesystem path
 -- or HTTP URL), calling error with the 'ParseFailure' message if unable to load

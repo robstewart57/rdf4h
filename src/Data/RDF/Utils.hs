@@ -7,13 +7,10 @@ module Data.RDF.Utils (
 ) where
 
 import qualified Data.ByteString.Lazy as BL
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
-
 import Data.Map(Map)
 import qualified Data.Map as Map
-
 import System.IO
 import Data.IORef
 import System.IO.Unsafe(unsafePerformIO)
@@ -60,14 +57,13 @@ equalFS fs1 fs2 = uniq fs1 == uniq fs2
 -- and are otherwise ordered using the natural ordering of 'ByteString' in the
 -- internal (reversed) representation.
 instance Ord FastString where
-  compare fs1 fs2 = compareFS fs1 fs2
+  compare = compareFS
 
 {-# INLINE compareFS #-}
 compareFS :: FastString -> FastString -> Ordering
 compareFS fs1 fs2 =
-  case uniq fs1 == uniq fs2 of
-    True    ->  EQ
-    False   ->  compare (value fs1) (value fs2)
+  if uniq fs1 == uniq fs2 then EQ else
+    compare (value fs1) (value fs2)
 
 -- |A convenience function for converting from a bytestring to a string.
 {-# INLINE b2s #-}
@@ -125,7 +121,7 @@ newFastString ::  ByteString -> IO FastString
 newFastString str =
   do curr <- readIORef fsCounter
      modifyIORef fsCounter (+1)
-     return $! (FS curr ((1 :: Int) `seq` B.reverse str))
+     return $! FS curr (B.reverse str)
 
 {-# NOINLINE fsCounter #-}
 fsCounter :: IORef Int
@@ -151,11 +147,11 @@ canonicalizerTable =
     mkFsUri uri = mkFastString . s2b $! uri
 
 _integerStr, _decimalStr, _doubleStr :: ByteString -> ByteString
-_integerStr s = B.dropWhile (== '0') s
+_integerStr = B.dropWhile (== '0')
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
-_doubleStr s = B.pack $ show $ (read $ B.unpack s :: Double)
+_doubleStr s = B.pack $ show (read $ B.unpack s :: Double)
 
 -- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
 _decimalStr s =     -- haskell double parser doesn't handle '1.'..,

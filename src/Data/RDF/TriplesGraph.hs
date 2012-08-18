@@ -14,7 +14,6 @@ where
 
 import Data.RDF
 import Data.RDF.Namespace
-
 import qualified Data.Map as Map
 
 -- |A simple implementation of the 'RDF' type class that represents

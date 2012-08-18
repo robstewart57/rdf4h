@@ -6,13 +6,10 @@ where
 
 import Data.RDF
 import Data.RDF.Namespace
-
 import Data.Map(Map)
 import qualified Data.Map as Map
-
 import Data.Set(Set)
 import qualified Data.Set as Set
-
 import Data.List
 
 -- |A map-based graph implementation.
@@ -66,7 +63,7 @@ empty' :: MGraph
 empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
-mkRdf' ts baseUrl pms = MGraph ((mergeTs Map.empty ts), baseUrl, pms)
+mkRdf' ts baseUrl pms = MGraph (mergeTs Map.empty ts, baseUrl, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT
@@ -76,11 +73,10 @@ mergeTs = foldl' mergeT
 
 mergeT' :: SPOMap -> Subject -> Predicate -> Object -> SPOMap
 mergeT' m s p o =
-  case s `Map.member` m of
-    False -> Map.insert s (newPredMap p o) m
-    True  -> case p `Map.member` adjs of
-               False -> Map.insert s (addNewPredObjMap p o adjs) m
-               True  -> Map.insert s (addPredObj p o adjs) m
+  if s `Map.member` m then
+    (if p `Map.member` adjs then Map.insert s (addPredObj p o adjs) m
+       else Map.insert s (addNewPredObjMap p o adjs) m)
+    else Map.insert s (newPredMap p o) m
   where
     adjs = get s m
     newPredMap :: Predicate -> Object -> Map Predicate (Set Object)
@@ -146,10 +142,10 @@ q1 Nothing  p o spoMap = Set.unions $ map (q2 p o) $ Map.toList spoMap
 
 q2 :: Maybe Node -> Maybe Node -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
 q2 (Just p) o (s, pmap) =
-  case p `Map.member` pmap of
-    False  -> Set.empty
-    True   -> Set.map (\(p', o') -> (s, p', o')) $
-                q3 o (p, Map.findWithDefault undefined p pmap)
+  if p `Map.member` pmap then
+    Set.map (\ (p', o') -> (s, p', o')) $
+      q3 o (p, Map.findWithDefault undefined p pmap)
+    else Set.empty
 q2 Nothing o (s, pmap) = Set.map (\(x,y) -> (s,x,y)) $ Set.unions $ map (q3 o) opmaps
   where opmaps ::[(Node, Set Node)]
         opmaps = Map.toList pmap

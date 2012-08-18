@@ -1,29 +1,17 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Text.RDF.RDF4H.XmlParser_Test where
 
 -- Testing imports
-import Test.Framework (defaultMain, testGroup)
+import Test.Framework (testGroup)
 import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck (testProperty)
-
-import Test.QuickCheck
+import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.HUnit
 
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
-import Data.Char
-import Data.List
---import Data.Time
---import Data.Ranged
---import Locale
-import Network.HTTP (Request(..))
 
 import Data.RDF
-import Data.RDF.Namespace (mkPrefixedNS')
 import Data.RDF.TriplesGraph (TriplesGraph(..))
 import Data.RDF.TriplesGraph_Test
-
 import Text.RDF.RDF4H.XmlParser
 
 tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simpleStriping1
