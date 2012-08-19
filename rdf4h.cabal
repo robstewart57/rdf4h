@@ -2,9 +2,9 @@ name:            rdf4h
 version:         0.9.1
 synopsis:        A library for RDF processing in Haskell
 description:     
-  "RDF for Haskell" (rdf4h) is a library for working with RDF in Haskell.
-  At present it includes parsers and serializers for RDF in the N-Triples,
-  Turt  le and RDF/XML formats. It provides abilities such as querying
+  'RDF for Haskell' is a library for working with RDF in Haskell.
+  At present it includes parsers and serializers for RDF in the N-Triples
+  and Turtle, and parsing support for RDF/XML. It provides abilities such as querying
   for triples  containing a particular subject, predicate, or object, or
   selecting triples that satisfy an arbitrary predicate function.
 
