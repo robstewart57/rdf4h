@@ -162,7 +162,7 @@ header =
 -- the version for the library as a whole, as given in rdf4h.cabal.
 -- TODO: should get this from cabal file rather than duplicating i here.
 version :: String
-version = "0.7"
+version = "0.9.1"
 
 options :: [OptDescr Flag]
 options =

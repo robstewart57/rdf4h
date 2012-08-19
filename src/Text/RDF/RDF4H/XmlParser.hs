@@ -12,6 +12,9 @@ import Text.XML.HXT.Core
 import Data.ByteString.Lazy.Char8(ByteString)
 import Data.String.Utils
 
+-- TODO: Create instance:
+--  RdfParse XmlParser
+
 -- |Global state for the parser
 data GParseState = GParseState { stateGenId :: Int
                                }

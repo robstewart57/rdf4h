@@ -2,10 +2,6 @@
 
 module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 
---import Test.Framework (defaultMain, testGroup)
---import Test.Framework.Providers.HUnit
---import Test.Framework.Providers.QuickCheck (testProperty)
-
 import Data.RDF
 import Data.RDF.TriplesGraph
 import Data.RDF.GraphTestUtils
@@ -16,14 +12,9 @@ import Text.RDF.RDF4H.NTriplesParser
 import Text.Printf
 
 import System.IO
-
---import Control.Monad
-
 import qualified Test.HUnit as T
-
 import Data.ByteString.Lazy.Char8(ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
-
 import Debug.Trace(trace)
 
 {-

@@ -22,7 +22,9 @@ module Data.RDF (
   NodeSelector, isUNode, isBNode, isLNode,
   equalSubjects, equalPredicates, equalObjects,
   isIsomorphic,
-  subjectOf, predicateOf, objectOf,
+  subjectOf, predicateOf, objectOf, isEmpty,
+  rdfContainsNode,tripleContainsNode,
+  listSubjectsWithPredicate,listObjectsOfPredicate,
   Subject, Predicate, Object,
   ParseFailure(ParseFailure),
   FastString(uniq,value),mkFastString,
@@ -441,6 +443,19 @@ predicateOf (Triple _ p _) = p
 objectOf :: Triple -> Node
 objectOf (Triple _ _ o)   = o
 
+-- |Answer if rdf contains node.
+rdfContainsNode :: forall rdf. (RDF rdf) => rdf -> Node -> Bool
+rdfContainsNode rdf node =
+  let ts = triplesOf rdf
+      xs = map (tripleContainsNode node) ts
+  in elem True xs
+
+-- |Answer if triple contains node.
+tripleContainsNode :: Node -> Triple -> Bool
+{-# INLINE tripleContainsNode #-}
+tripleContainsNode node t = 
+ subjectOf t == node || predicateOf t == node || objectOf t == node
+
 -- |Answer if given node is a URI Ref node.
 {-# INLINE isUNode #-}
 isUNode :: Node -> Bool
@@ -471,6 +486,29 @@ equalPredicates (Triple _ p1 _) (Triple _ p2 _) = p1 == p2
 -- |Determine whether two triples have equal objects.
 equalObjects :: Triple -> Triple -> Bool
 equalObjects (Triple _ _ o1) (Triple _ _ o2) = o1 == o2
+
+-- |Determines whether the 'RDF' contains zero triples.
+isEmpty :: RDF rdf => rdf -> Bool
+isEmpty rdf =
+  let ts = triplesOf rdf
+  in null ts
+
+-- |Lists of all subjects of triples with the given predicate.
+listSubjectsWithPredicate :: RDF rdf => rdf -> Predicate -> [Subject]
+listSubjectsWithPredicate rdf pred =
+  listNodesWithPredicate rdf pred subjectOf
+
+-- |Lists of all objects of triples with the given predicate.
+listObjectsOfPredicate :: RDF rdf => rdf -> Predicate -> [Object]
+listObjectsOfPredicate rdf pred =
+  listNodesWithPredicate rdf pred objectOf
+
+listNodesWithPredicate :: RDF rdf => rdf -> Predicate -> (Triple -> Node) -> [Node]
+listNodesWithPredicate rdf pred f =
+  let ts = triplesOf rdf
+      xs = filter (\t -> predicateOf t == pred) ts
+  in map f xs
+
 
 -- |Convert a parse result into an RDF if it was successful
 -- and error and terminate if not.
