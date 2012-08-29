@@ -30,6 +30,8 @@ The `rdf4h` library is split in to two parts.
 Example
 -------
 
+    {-# LANGUAGE OverloadedStrings #-}
+
     import Data.RDF
     import Data.RDF.TriplesGraph
     import Text.RDF.RDF4H.NTriplesParser
@@ -44,7 +46,7 @@ Example
     example = do
       g1 <- rdfGraph1
       g2 <- rdfGraph2
-      let node1 = lnode $ PlainL (s2b "foo")
+      let node1 = lnode $ PlainL "foo"
       putStrLn $ "Subjects of g1: " ++ show (map subjectOf (triplesOf g1))
       putStrLn $ "RDF contains literal 'foo': " ++ show (rdfContainsNode g1 node1)
       putStrLn $ "Isomorphism test: " ++ show (isIsomorphic g1 g2)
@@ -60,9 +62,6 @@ TODOs
 * `Data.RDF` API to match that of the
 [Model](http://jena.apache.org/documentation/javadoc/jena/com/hp/hpl/jena/rdf/model/Model.html)
 class in the Jena framework (Java)
-* Switch to `OverloadedStrings` language extension for conversions
-between Strings and ByteStrings.
-* Complete QuickCheck tests for `Text.RDF.RDF4H.TurtleParser_ConformanceTest`
 
 
 Issues
