@@ -11,7 +11,7 @@ import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
 main :: IO () 
 main = defaultMain (  TriplesGraph.tests
                    ++ MGraph.tests
-                   -- ++ TurtleParser.test -- TODO: Implement TurtleParses `tests'
+                   ++ TurtleParser.tests
                    ++ XmlParser.tests
                    )
 
