@@ -22,10 +22,6 @@ import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
 import Data.Maybe (fromMaybe)
-import Debug.Trace(trace)
-
--- To avoid compiler warnings when not being used.
-_trace = trace
 
 -- |An 'RdfParser' implementation for parsing RDF in the 
 -- Turtle format. It takes optional arguments representing the base URL to use
@@ -470,7 +466,6 @@ popPred :: GenParser ByteString ParseState Predicate
 popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
-                  -- _trace (show ps) (return ()) >>
                   return (head ps)
 
 isInColl :: GenParser ByteString ParseState Bool

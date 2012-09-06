@@ -19,10 +19,6 @@ import qualified Data.Map as Map
 import Data.List
 import Control.Monad
 import System.IO
-import Debug.Trace(trace)
-
--- Defined so that there are no compiler warnings when trace is not used.
-_debug = trace
 
 data TurtleSerializer = TurtleSerializer (Maybe ByteString) PrefixMappings
 
