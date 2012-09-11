@@ -99,7 +99,7 @@ equivalent (Right gr1) (Right gr2)   = (test $! zip gr1ts gr2ts)
         (s1, p1, o1) = f t1
         (s2, p2, o2) = f t2
         f t = (subjectOf t, predicateOf t, objectOf t)
-    equalNodes (BNode fs1) (BNodeGen i) = B.reverse (value fs1) == s2b ("_:genid" ++ show i)
+    equalNodes (BNode fs1) (BNodeGen i) = B.reverse ( fs1) == s2b ("_:genid" ++ show i)
     equalNodes n1          n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
@@ -125,7 +125,7 @@ normalize t = let s' = normalizeN $ subjectOf t
                   o' = normalizeN $ objectOf t
               in  triple s' p' o'
 normalizeN :: Node -> Node
-normalizeN (BNodeGen i) = BNode $ mkFastString (s2b $ "_:genid" ++ show i)
+normalizeN (BNodeGen i) = BNode $  (s2b $ "_:genid" ++ show i)
 normalizeN n            = n
 
 loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)

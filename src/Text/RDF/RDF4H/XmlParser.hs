@@ -55,11 +55,11 @@ addMetaData bUrlM dUrlM = mkelem "/"
 -- |Arrow that translates HXT XmlTree to an RDF representation
 getRDF :: forall rdf a. (RDF rdf, ArrowXml a, ArrowState GParseState a) => a XmlTree rdf
 getRDF = proc xml -> do
-              rdf <- hasName "rdf:RDF" <<< isElem <<< getChildren         -< xml
-              bUrl <- arr (BaseUrl . s2b) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
-              prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
-              triples <- parseDescription' >. id -< (bUrl, rdf)
-              returnA -< mkRdf triples (Just bUrl) prefixMap
+            rdf <- hasName "rdf:RDF" <<< isElem <<< getChildren         -< xml
+            bUrl <- arr (BaseUrl . s2b) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
+            prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
+            triples <- parseDescription' >. id -< (bUrl, rdf)
+            returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
         toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (s2b (drop 6 n), s2b m)) . filter (startswith "xmlns:" . fst)
 
@@ -177,7 +177,7 @@ mkCollectionTriples = arr (mkCollectionTriples' [])
 
 -- |Read a Triple and it's type when rdf:datatype is available
 getTypedTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
-getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& xshow getChildren >>> arr (\(t, v) -> mkTypedLiteralNode (mkFastString (s2b t)) v))
+getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& xshow getChildren >>> arr (\(t, v) -> mkTypedLiteralNode ( (s2b t)) v))
     >>> arr (attachSubject (stateSubject state))
 
 getResourceTriple :: forall a. (ArrowXml a, ArrowState GParseState a)
@@ -199,7 +199,7 @@ mkNode state = choiceA [ hasAttr "rdf:about" :-> (attrExpandURI state "rdf:about
                        , this :-> mkBlankNode
                        ]
 
-rdfXmlLiteral = (mkFastString . s2b) "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+rdfXmlLiteral = (s2b) "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
 rdfFirst = (unode . s2b) "rdf:first"
 rdfRest = (unode . s2b) "rdf:rest"
 rdfNil = (unode . s2b) "rdf:nil"
@@ -227,7 +227,7 @@ mkRelativeNode s = (getAttrValue "rdf:ID" >>> arr (\x -> '#':x)) &&& baseUrl
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> b2s b)
 
 -- |Make a literal node with the given type and content
-mkTypedLiteralNode :: FastString -> String -> Node
+mkTypedLiteralNode :: ByteString -> String -> Node
 mkTypedLiteralNode t content = lnode (typedL (s2b content) t)
 
 -- |Use the given state to create a literal node

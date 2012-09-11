@@ -81,7 +81,7 @@ nt_literal :: GenParser ByteString () LValue
 nt_literal = 
   do lit_str <- between_chars '"' '"' inner_literal 
      liftM (plainLL lit_str) (char '@' >> nt_language) <|>
-       liftM (typedL lit_str . mkFastString) (count 2 (char '^') >> nt_uriref) <|>
+       liftM (typedL lit_str) (count 2 (char '^') >> nt_uriref) <|>
        return (plainL lit_str)
   where inner_literal = liftM B.concat (manyTill inner_string (lookAhead $ char '"'))
 

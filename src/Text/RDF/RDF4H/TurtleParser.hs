@@ -101,7 +101,7 @@ t_verb :: GenParser ByteString ParseState ()
 t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
 
 t_predicate :: GenParser ByteString ParseState Node
-t_predicate = liftM (UNode . mkFastString) (t_resource <?> "resource")
+t_predicate = liftM UNode (t_resource <?> "resource")
 
 t_nodeID  :: GenParser ByteString ParseState ByteString
 t_nodeID = do { try (string "_:"); cs <- t_name; return $! s2b "_:" `B.append` cs }
@@ -121,8 +121,8 @@ t_subject =
   nodeId <|>
   between (char '[') (char ']') poList
   where
-    resource    = liftM (UNode . mkFastString) (t_resource <?> "subject resource") >>= pushSubj
-    nodeId      = liftM (BNode . mkFastString) (t_nodeID <?> "subject nodeID") >>= pushSubj
+    resource    = liftM UNode (t_resource <?> "subject resource") >>= pushSubj
+    nodeId      = liftM BNode (t_nodeID <?> "subject nodeID") >>= pushSubj
     simpleBNode = try (string "[]") >> nextIdCounter >>=  pushSubj . BNodeGen
     poList      = void
                 (nextIdCounter >>= pushSubj . BNodeGen >> many t_ws >>
@@ -150,7 +150,7 @@ t_object =
   do inColl      <- isInColl          -- whether this object is in a collection
      onFirstItem <- onCollFirstItem   -- whether we're on the first item of the collection
      let processObject = (t_literal >>= addTripleForObject) <|>
-                          (liftM (UNode . mkFastString) t_resource >>= addTripleForObject) <|>
+                          (liftM UNode t_resource >>= addTripleForObject) <|>
                           blank_as_obj <|> t_collection
      case (inColl, onFirstItem) of
        (False, _)    -> processObject
@@ -183,7 +183,7 @@ t_collection =
 blank_as_obj :: GenParser ByteString ParseState ()
 blank_as_obj =
   -- if a node id, like _:a1, then create a BNode and add the triple
-  (liftM (BNode . mkFastString) t_nodeID >>= addTripleForObject) <|>
+  (liftM BNode t_nodeID >>= addTripleForObject) <|>
   -- if a simple blank like [], do likewise
   (genBlank >>= addTripleForObject) <|>
   -- if a blank containing a predicateObjectList, like [ :b :c; :b :d ]
@@ -199,16 +199,16 @@ blank_as_obj =
 
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkFastString $ mkUri rdf $ s2b "type"
-rdfNilNode    = UNode $ mkFastString $ mkUri rdf $ s2b "nil"
-rdfFirstNode  = UNode $ mkFastString $ mkUri rdf $ s2b "first"
-rdfRestNode   = UNode $ mkFastString $ mkUri rdf $ s2b "rest"
+rdfTypeNode   = UNode $ mkUri rdf $ s2b "type"
+rdfNilNode    = UNode $ mkUri rdf $ s2b "nil"
+rdfFirstNode  = UNode $ mkUri rdf $ s2b "first"
+rdfRestNode   = UNode $ mkUri rdf $ s2b "rest"
 
-xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: FastString
-xsdIntUri     =  mkFastString $! mkUri xsd $! s2b "integer"
-xsdDoubleUri  =  mkFastString $! mkUri xsd $! s2b "double"
-xsdDecimalUri =  mkFastString $! mkUri xsd $! s2b "decimal"
-xsdBooleanUri =  mkFastString $! mkUri xsd $! s2b "boolean"
+xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: ByteString
+xsdIntUri     =   mkUri xsd $! s2b "integer"
+xsdDoubleUri  =   mkUri xsd $! s2b "double"
+xsdDecimalUri =  mkUri xsd $! s2b "decimal"
+xsdBooleanUri =  mkUri xsd $! s2b "boolean"
 
 t_literal :: GenParser ByteString ParseState Node
 t_literal =
@@ -218,13 +218,13 @@ t_literal =
   liftM (`mkLNode` xsdDecimalUri) (try t_decimal) <|>
   liftM (`mkLNode` xsdBooleanUri) t_boolean
   where
-    mkLNode :: ByteString -> FastString -> Node
-    mkLNode bs fs = LNode (typedL bs fs)
+    mkLNode :: ByteString -> ByteString -> Node
+    mkLNode bsType bs = LNode (typedL bsType bs)
 
 str_literal :: GenParser ByteString ParseState Node
 str_literal =
   do str <- t_quotedString <?> "quotedString"
-     liftM (LNode . typedL str . mkFastString)
+     liftM (LNode . typedL str)
       (try (count 2 (char '^')) >> t_resource) <|>
       liftM (lnode . plainLL str) (char '@' >> t_language) <|>
       return (lnode $ plainL str)

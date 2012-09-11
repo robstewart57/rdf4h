@@ -43,10 +43,10 @@ _writeTriple h (Triple s p o) =
 _writeNode :: Handle -> Node -> IO ()
 _writeNode h node =
   case node of
-    (UNode fs)  -> hPutChar h '<' >>
-                     hPutStrRev h (value fs) >>
+    (UNode bs)  -> hPutChar h '<' >>
+                     hPutStrRev h bs >>
                      hPutChar h '>'
-    (BNode gId) -> hPutStrRev h (value gId)
+    (BNode gId) -> hPutStrRev h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> _writeLValue h n
 
@@ -59,7 +59,7 @@ _writeLValue h lv =
                             BL.hPutStr h lang
     (TypedL lit dtype) -> _writeLiteralString h lit >>
                             hPutStr h "^^<" >>
-                            hPutStrRev h (value dtype) >>
+                            hPutStrRev h dtype >>
                             hPutStr h ">"
 
 -- TODO: this is REALLY slow.

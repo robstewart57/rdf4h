@@ -152,10 +152,10 @@ p_select_match_p =
   p_select_match_fn same mkPattern
   where
     same = equivNode equiv predicateOf
-    equiv (UNode u1) (UNode u2) = B.last (value u1) == B.last (value u2)
+    equiv (UNode u1) (UNode u2) = B.last ( u1) == B.last ( u2)
     equiv _          _          = error $ "GraphTestUtils.p_select_match_p.equiv"
     mkPattern t = (Nothing, Just (\n -> lastChar n == lastChar (predicateOf t)) , Nothing)
-    lastChar (UNode uri) = B.last $ value uri
+    lastChar (UNode uri) = B.last $  uri
     lastChar _           = error "GraphTestUtils.p_select_match_p.lastChar"
 
 
@@ -283,16 +283,16 @@ plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
 
 typedliterals :: [LValue]
-typedliterals = [typedL lit (mkFastString dtype) | lit <- litvalues, dtype <- datatypes]
+typedliterals = [typedL lit ( dtype) | lit <- litvalues, dtype <- datatypes]
 
 litvalues :: [ByteString]
 litvalues = map B.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
 unodes :: [Node]
-unodes = map (UNode . mkFastString) uris
+unodes = map (UNode ) uris
 
 bnodes :: [ Node]
-bnodes = map (BNode . mkFastString . \i -> s2b ":_genid" `B.append` (s2b $ show (i::Int))) [1..5]
+bnodes = map (BNode . \i -> s2b ":_genid" `B.append` (s2b $ show (i::Int))) [1..5]
 
 lnodes :: [Node]
 lnodes = [(LNode lit) | lit <- plainliterals ++ typedliterals]

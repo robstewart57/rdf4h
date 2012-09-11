@@ -194,7 +194,7 @@ test_parseXmlRDF_example09 = testParse
                                            \<a:widget size=\"10\"/>\
                                            \<a:grommit id=\"23\"/>\
                                          \</a:Box>")
-                            (mkFastString (s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"))))
+                            ( (s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"))))
             ]
             Nothing
             ( PrefixMappings (Map.fromList [ (s2b "ex", s2b "http://example.org/stuff/1.0/")
@@ -212,7 +212,7 @@ test_parseXmlRDF_example10 = testParse
     ( mkRdf [ Triple ((unode . s2b) "http://example.org/item01")
                      ((unode . s2b) "ex:size")
                      (lnode (typedL (s2b "123")
-                            (mkFastString (s2b "http://www.w3.org/2001/XMLSchema#int"))))
+                            ( (s2b "http://www.w3.org/2001/XMLSchema#int"))))
             ]
             Nothing
             ( PrefixMappings (Map.fromList [ (s2b "ex", s2b "http://example.org/stuff/1.0/")
@@ -247,7 +247,7 @@ test_parseXmlRDF_example11 = testParse
                                            , (s2b "ex", s2b "http://example.org/stuff/1.0/")
                                            , (s2b "rdf", s2b "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
-  where mkBNode = BNode . mkFastString . s2b
+  where mkBNode = BNode . s2b
 
 -- * Omitting Blank Nodes: rdf:parseType="Resource"
 test_parseXmlRDF_example12 = testParse

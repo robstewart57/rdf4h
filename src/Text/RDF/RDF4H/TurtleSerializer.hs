@@ -119,11 +119,11 @@ writePredGroup h  docUrl pms (t:ts) =
 writeNode :: Handle -> Maybe ByteString -> Node -> Map ByteString ByteString -> IO ()
 writeNode h mdUrl node prefixes =
   case node of
-    (UNode fs)  -> let currUri = B.reverse $ value fs
+    (UNode bs)  -> let currUri = B.reverse bs
                    in case mdUrl of
                         Nothing  -> writeUNodeUri h currUri prefixes
                         Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
-    (BNode gId) -> hPutStrRev h (value gId)
+    (BNode gId) -> hPutStrRev h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n prefixes
 
@@ -162,7 +162,7 @@ writeLValue h lv pms =
                             BL.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^" >>
-                            writeUNodeUri h (B.reverse $ value dtype) pms
+                            writeUNodeUri h (B.reverse dtype) pms
 
 writeLiteralString:: Handle -> ByteString -> IO ()
 writeLiteralString h bs =
