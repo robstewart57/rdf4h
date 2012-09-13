@@ -10,10 +10,9 @@ where
 import Data.RDF
 import Data.RDF.Namespace
 import Data.RDF.Utils
-
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf8)
+import qualified Data.ByteString.Char8 as B
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List
@@ -24,7 +23,7 @@ import Debug.Trace(trace)
 -- Defined so that there are no compiler warnings when trace is not used.
 _debug = trace
 
-data TurtleSerializer = TurtleSerializer (Maybe ByteString) PrefixMappings
+data TurtleSerializer = TurtleSerializer (Maybe T.Text) PrefixMappings
 
 instance RdfSerializer TurtleSerializer where
   hWriteRdf  (TurtleSerializer docUrl pms) h rdf = _writeRdf h docUrl (addPrefixMappings rdf pms False)
@@ -46,7 +45,7 @@ instance RdfSerializer TurtleSerializer where
 -- configurable somehow, so that if the user really doesn't want any extra
 -- prefix declarations added, that is possible.
 
-_writeRdf :: RDF rdf => Handle -> Maybe ByteString -> rdf -> IO ()
+_writeRdf :: RDF rdf => Handle -> Maybe T.Text -> rdf -> IO ()
 _writeRdf h mdUrl rdf =
   writeHeader h bUrl pms' >> writeTriples h mdUrl pms' ts >> hPutChar h '\n'
   where
@@ -64,27 +63,27 @@ writeBase :: Handle -> Maybe BaseUrl -> IO ()
 writeBase _ Nothing               =
   return ()
 writeBase h (Just (BaseUrl bUrl)) =
-  hPutStr h "@base " >> hPutChar h '<' >> BL.hPutStr h bUrl >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@base " >> hPutChar h '<' >> B.hPutStr h (encodeUtf8 bUrl) >> hPutStr h "> ." >> hPutChar h '\n'
 
 writePrefixes :: Handle -> PrefixMappings -> IO ()
 writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 
-writePrefix :: Handle -> (ByteString, ByteString) -> IO ()
+writePrefix :: Handle -> (T.Text, T.Text) -> IO ()
 writePrefix h (pre, uri) =
-  hPutStr h "@prefix " >> BL.hPutStr h pre >> hPutStr h ": " >>
-  hPutChar h '<' >> BL.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@prefix " >> B.hPutStr h (encodeUtf8 pre) >> hPutStr h ": " >>
+  hPutChar h '<' >> B.hPutStr h (encodeUtf8 uri) >> hPutStr h "> ." >> hPutChar h '\n'
 
 -- We don't really use the map as a map yet, but we reverse the map anyway so that
 -- it maps from uri to prefix rather than the usual prefix to uri, since we never need
 -- to look anything up by prefix, where as we do use the uri for determining which
 -- prefix to use.
-writeTriples :: Handle -> Maybe ByteString -> PrefixMappings -> Triples -> IO ()
+writeTriples :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeTriples h mdUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
   where
     revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
 
-writeTriple :: Handle -> Maybe ByteString -> PrefixMappings -> Triple -> IO ()
+writeTriple :: Handle -> Maybe T.Text -> PrefixMappings -> Triple -> IO ()
 writeTriple h mdUrl (PrefixMappings pms) t = 
   w subjectOf >> space >> w predicateOf >> space >> w objectOf
   where
@@ -94,7 +93,7 @@ writeTriple h mdUrl (PrefixMappings pms) t =
 
 -- Write a group of triples that all have the same subject, with the subject only
 -- being output once, and comma or semi-colon used as appropriate.
-writeSubjGroup :: Handle -> Maybe ByteString -> Map ByteString ByteString -> Triples -> IO ()
+writeSubjGroup :: Handle -> Maybe T.Text -> Map T.Text T.Text -> Triples -> IO ()
 writeSubjGroup _ _    _   []     = return ()
 writeSubjGroup h dUrl pms ts@(t:_) =
   writeNode h dUrl (subjectOf t) pms >> hPutChar h ' ' >>
@@ -107,7 +106,7 @@ writeSubjGroup h dUrl pms ts@(t:_) =
 -- Write a group of triples that all have the same subject and the same predicate,
 -- assuming the subject has already been output and only the predicate and objects
 -- need to be written.
-writePredGroup :: Handle -> Maybe ByteString -> Map ByteString ByteString -> Triples -> IO ()
+writePredGroup :: Handle -> Maybe T.Text -> Map T.Text T.Text -> Triples -> IO ()
 writePredGroup _  _       _   []     = return ()
 writePredGroup h  docUrl pms (t:ts) =
   -- The doesn't rule out <> in either the predicate or object (as well as subject), 
@@ -116,58 +115,58 @@ writePredGroup h  docUrl pms (t:ts) =
   writeNode h docUrl (objectOf t) pms >>
   mapM_ (\t -> hPutStr h ", " >> writeNode h docUrl (objectOf t) pms) ts
 
-writeNode :: Handle -> Maybe ByteString -> Node -> Map ByteString ByteString -> IO ()
+writeNode :: Handle -> Maybe T.Text -> Node -> Map T.Text T.Text -> IO ()
 writeNode h mdUrl node prefixes =
   case node of
-    (UNode fs)  -> let currUri = B.reverse $ value fs
+    (UNode bs)  -> let currUri = T.reverse bs
                    in case mdUrl of
                         Nothing  -> writeUNodeUri h currUri prefixes
                         Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
-    (BNode gId) -> hPutStrRev h (value gId)
+    (BNode gId) -> hPutStrRev h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n prefixes
 
-writeUNodeUri :: Handle -> ByteString -> Map ByteString ByteString -> IO ()
+writeUNodeUri :: Handle -> T.Text -> Map T.Text T.Text -> IO ()
 writeUNodeUri h uri prefixes =
   case mapping of
-    Nothing                 -> hPutChar h '<' >> BL.hPutStr h uri >> hPutChar h '>'
-    (Just (pre, localName)) -> BL.hPutStr h pre >> hPutChar h ':' >> BL.hPutStr h localName
+    Nothing                 -> hPutChar h '<' >> B.hPutStr h (encodeUtf8 uri) >> hPutChar h '>'
+    (Just (pre, localName)) -> B.hPutStr h (encodeUtf8 pre) >> hPutChar h ':' >> B.hPutStr h (encodeUtf8 localName)
   where
     mapping         = findMapping prefixes uri
 
 -- Print prefix mappings to stdout for debugging.
-_debugPMs     :: Map ByteString ByteString -> IO ()
-_debugPMs pms =  mapM_ (\(k, v) -> B.putStr k >> putStr "__" >> B.putStrLn v) (Map.toList pms)
+_debugPMs     :: Map T.Text T.Text -> IO ()
+_debugPMs pms =  mapM_ (\(k, v) -> B.putStr (encodeUtf8 k) >> putStr "__" >> B.putStrLn (encodeUtf8 v)) (Map.toList pms)
 
 -- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
 -- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
 -- there is no such mapping. This function does a linear-time search over the 
 -- map, but the prefix mappings should always be very small, so it's okay for now.
-findMapping :: Map ByteString ByteString -> ByteString -> Maybe (ByteString, ByteString)
+findMapping :: Map T.Text T.Text -> T.Text -> Maybe (T.Text, T.Text)
 findMapping pms uri =
   case mapping of
     Nothing     -> Nothing
-    Just (u, p) -> Just (p, B.drop (B.length u) uri) -- empty localName is permitted
+    Just (u, p) -> Just (p, T.drop (T.length u) uri) -- empty localName is permitted
   where
-    mapping        = find (\(k, _) -> B.isPrefixOf k uri) (Map.toList pms)
+    mapping        = find (\(k, _) -> T.isPrefixOf k uri) (Map.toList pms)
 
 --_testPms = Map.fromList [(s2b "http://example.com/ex#", s2b "eg")]
 
-writeLValue :: Handle -> LValue -> Map ByteString ByteString -> IO ()
+writeLValue :: Handle -> LValue -> Map T.Text T.Text -> IO ()
 writeLValue h lv pms =
   case lv of
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@" >>
-                            BL.hPutStr h lang
+                            B.hPutStr h (encodeUtf8 lang)
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^" >>
-                            writeUNodeUri h (B.reverse $ value dtype) pms
+                            writeUNodeUri h (T.reverse dtype) pms
 
-writeLiteralString:: Handle -> ByteString -> IO ()
+writeLiteralString:: Handle -> T.Text -> IO ()
 writeLiteralString h bs =
   do hPutChar h '"'
-     B.foldl' writeChar (return True) bs
+     T.foldl' writeChar (return True) bs
      hPutChar h '"'
   where
     writeChar :: IO Bool -> Char -> IO Bool

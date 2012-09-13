@@ -14,13 +14,11 @@ module Data.RDF.Namespace(
 )
 where
 
-import Data.RDF.Utils
 import Text.Printf
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.List as List
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text as T
 
 standard_namespaces :: [Namespace]
 standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
@@ -71,7 +69,7 @@ ex2  :: Namespace
 ex2   =   mkPrefixedNS'  "ex2"   "http://www2.example.org/"
 
 -- |An alias for a map from prefix to namespace URI.
-newtype PrefixMappings   = PrefixMappings (Map ByteString ByteString)
+newtype PrefixMappings   = PrefixMappings (Map T.Text T.Text)
   deriving (Eq, Ord)
 instance Show PrefixMappings where
   -- This is really inefficient, but it's not used much so not what
@@ -87,38 +85,38 @@ mergePrefixMappings (PrefixMappings p1s) (PrefixMappings p2s) =
 
 -- |View the prefix mappings as a list of key-value pairs. The PM in
 -- in the name is to reduce name clashes if used without qualifying.
-toPMList :: PrefixMappings -> [(ByteString, ByteString)]
+toPMList :: PrefixMappings -> [(T.Text, T.Text)]
 toPMList (PrefixMappings m) = Map.toList m
 
 -- |A mapping of a prefix to the URI for that prefix.
-newtype PrefixMapping = PrefixMapping (ByteString, ByteString)
+newtype PrefixMapping = PrefixMapping (T.Text, T.Text)
   deriving (Eq, Ord)
 instance Show PrefixMapping where
-  show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (b2s prefix) (b2s uri)
+  show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (show prefix) (show uri)
 
 -- |Make a URI consisting of the given namespace and the given localname.
-mkUri :: Namespace -> ByteString -> ByteString
-mkUri ns local = uriOf ns `B.append` local
+mkUri :: Namespace -> T.Text -> T.Text
+mkUri ns local = uriOf ns `T.append` local
 
 -- |Represents a namespace as either a prefix and uri, respectively,
 --  or just a uri.
-data Namespace = PrefixedNS  ByteString ByteString -- prefix and ns uri
-               | PlainNS     ByteString            -- ns uri alone
+data Namespace = PrefixedNS  T.Text T.Text -- prefix and ns uri
+               | PlainNS     T.Text            -- ns uri alone
 
 -- |Make a namespace for the given URI reference.
-mkPlainNS     ::  ByteString -> Namespace
+mkPlainNS     ::  T.Text -> Namespace
 mkPlainNS       =  PlainNS
 
 -- |Make a namespace having the given prefix for the given URI reference,
 -- respectively.
-mkPrefixedNS  :: ByteString -> ByteString -> Namespace
+mkPrefixedNS  :: T.Text -> T.Text -> Namespace
 mkPrefixedNS    =  PrefixedNS
 
 -- |Make a namespace having the given prefix for the given URI reference,
 -- respectively, using strings which will be converted to bytestrings
 -- automatically.
 mkPrefixedNS' :: String -> String -> Namespace
-mkPrefixedNS' s1 s2 = mkPrefixedNS (B.pack s1) (B.pack s2)
+mkPrefixedNS' s1 s2 = mkPrefixedNS (T.pack s1) (T.pack s2)
 
 instance Eq Namespace where
   (PrefixedNS _ u1) == (PrefixedNS _ u2)  = u1 == u2
@@ -127,15 +125,15 @@ instance Eq Namespace where
   (PlainNS      u1) == (PrefixedNS _ u2)  = u1 == u2
 
 instance Show Namespace where
-  show (PlainNS           uri)  =  B.unpack uri
-  show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (B.unpack prefix) (B.unpack uri)
+  show (PlainNS           uri)  =  T.unpack uri
+  show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (T.unpack prefix) (T.unpack uri)
 
 -- |Determine the URI of the given namespace.
-uriOf     ::  Namespace -> ByteString
+uriOf     ::  Namespace -> T.Text
 uriOf    (PlainNS      uri)  = uri
 uriOf    (PrefixedNS _ uri)  = uri
 
 -- |Determine the prefix of the given namespace, if it has one.
-prefixOf  ::  Namespace -> Maybe ByteString
+prefixOf  ::  Namespace -> Maybe T.Text
 prefixOf (PlainNS      _)    = Nothing
 prefixOf (PrefixedNS p _)    = Just p

@@ -14,8 +14,7 @@
 
 module Text.RDF.RDF4H.Interact where
 
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text as T
 
 import Data.RDF
 import Data.RDF.Utils()
@@ -40,13 +39,13 @@ loadTurtleFile baseUrl docUri = _load parseFile (mkTurtleParser baseUrl docUri)
 loadTurtleURL  :: forall rdf. (RDF rdf) => Maybe String -> Maybe String -> String -> IO rdf
 loadTurtleURL baseUrl docUri  = _load parseURL (mkTurtleParser baseUrl docUri)
 
--- |Parse a Turtle document from the given 'ByteString' using the given @baseUrl@ and 
+-- |Parse a Turtle document from the given 'T.Text' using the given @baseUrl@ and 
 -- @docUri@, which have the same semantics as in the loadTurtle* functions.
-parseTurtleString :: forall rdf. (RDF rdf) => Maybe String -> Maybe String -> ByteString -> rdf
+parseTurtleString :: forall rdf. (RDF rdf) => Maybe String -> Maybe String -> T.Text -> rdf
 parseTurtleString baseUrl docUri = _parse parseString (mkTurtleParser baseUrl docUri)
 
 mkTurtleParser :: Maybe String -> Maybe String -> TurtleParser
-mkTurtleParser b d = TurtleParser ((BaseUrl . B.pack) `fmap` b) (B.pack `fmap` d)
+mkTurtleParser b d = TurtleParser ((BaseUrl . T.pack) `fmap` b) (T.pack `fmap` d)
 
 -- |Load an NTriples file from the filesystem.
 -- 
@@ -59,10 +58,11 @@ loadNTriplesFile = _load parseFile NTriplesParser
 loadNTriplesURL :: forall rdf. (RDF rdf) => String -> IO rdf
 loadNTriplesURL  = _load parseURL  NTriplesParser
 
--- |Parse an NTriples document from the given 'ByteString', as 'loadNTriplesFile' does
+-- |Parse an NTriples document from the given 'T.Text', as 'loadNTriplesFile' does
 -- from a file.
-parseNTriplesString :: forall rdf. (RDF rdf) => ByteString -> rdf
+parseNTriplesString :: forall rdf. (RDF rdf) => T.Text -> rdf
 parseNTriplesString = _parse parseString NTriplesParser
+
 
 -- |Print a list of triples to stdout; useful for debugging and interactive use.
 printTriples :: Triples -> IO ()
@@ -76,11 +76,11 @@ _load :: forall p rdf. (RdfParser p, RDF rdf) =>
              p -> String -> IO rdf
 _load parseFunc parser location = parseFunc parser location >>= _handle
 
--- Use the given parseFunc and parser to parse the given 'ByteString', calling error
+-- Use the given parseFunc and parser to parse the given 'T.Text', calling error
 -- with the 'ParseFailure' message if unable to load or parse for any reason.
 _parse :: forall p rdf. (RdfParser p, RDF rdf) => 
-                        (p -> ByteString -> Either ParseFailure rdf) -> 
-                         p -> ByteString -> rdf
+                        (p -> T.Text -> Either ParseFailure rdf) -> 
+                         p -> T.Text -> rdf
 _parse parseFunc parser rdfBs = either (error . show) id $ parseFunc parser rdfBs
 
 -- Handle the result of an IO parse by returning the graph if parse was successful

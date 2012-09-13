@@ -27,17 +27,16 @@ module Data.RDF (
   listSubjectsWithPredicate,listObjectsOfPredicate,
   Subject, Predicate, Object,
   ParseFailure(ParseFailure),
-  FastString(uniq,value),mkFastString,
-  s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
+  {- FastString(uniq,value),mkFastString, -}
+  s2t,t2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
-  fromEither, maybeHead, removeDupes
+  fromEither, removeDupes
 )
 where
 
 import Data.RDF.Namespace
-import Data.RDF.Utils
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import Data.RDF.Utils ( s2t, t2s, canonicalize )
+import qualified Data.Text as T
 import Data.List
 import System.IO
 import Text.Printf
@@ -129,7 +128,7 @@ class RdfParser p where
 
   -- |Parse RDF from the given bytestring, yielding a failure with error message or
   -- the resultant RDF.
-  parseString :: forall rdf. (RDF rdf) => p -> ByteString -> Either ParseFailure rdf
+  parseString :: forall rdf. (RDF rdf) => p -> T.Text -> Either ParseFailure rdf
 
   -- |Parse RDF from the local file with the given path, yielding a failure with error
   -- message or the resultant RDF in the IO monad.
@@ -192,12 +191,12 @@ data Node =
   -- |An RDF URI reference. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
-  UNode !FastString
+  UNode !T.Text
 
   -- |An RDF blank node. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
-  | BNode !FastString
+  | BNode !T.Text
 
   -- |An RDF blank node with an auto-generated identifier, as used in
   -- Turtle.
@@ -213,13 +212,13 @@ data Node =
 
 -- |Return a URIRef node for the given bytetring URI.
 {-# INLINE unode #-}
-unode :: ByteString -> Node
-unode = UNode . mkFastString
+unode :: T.Text -> Node
+unode = UNode
 
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
-bnode :: ByteString ->  Node
-bnode = BNode . mkFastString
+bnode :: T.Text ->  Node
+bnode = BNode
 
 -- |Return a literal node using the given LValue.
 {-# INLINE lnode #-}
@@ -257,33 +256,33 @@ data LValue =
   -- control over the format of the literal bytestring that we store.
 
   -- |A plain (untyped) literal value in an unspecified language.
-  PlainL !ByteString
+  PlainL !T.Text
 
   -- |A plain (untyped) literal value with a language specifier.
-  | PlainLL !ByteString !ByteString
+  | PlainLL !T.Text !T.Text
 
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
-  | TypedL !ByteString  !FastString
+  | TypedL !T.Text  !T.Text
 
 -- ================================
 -- Constructor functions for LValue
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
-plainL :: ByteString -> LValue
+plainL :: T.Text -> LValue
 plainL =  PlainL
 
 -- |Return a PlainLL LValue for the given string value and language,
 -- respectively.
 {-# INLINE plainLL #-}
-plainLL :: ByteString -> ByteString -> LValue
+plainLL :: T.Text -> T.Text -> LValue
 plainLL = PlainLL
 
 -- |Return a TypedL LValue for the given string value and datatype URI,
 -- respectively.
 {-# INLINE typedL #-}
-typedL :: ByteString -> FastString -> LValue
+typedL :: T.Text -> T.Text -> LValue
 typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 -- Constructor functions for LValue
@@ -291,7 +290,7 @@ typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl ByteString
+newtype BaseUrl = BaseUrl T.Text
   deriving (Eq, Ord, Show)
 
 -- |A 'NodeSelector' is either a function that returns 'True'
@@ -313,8 +312,8 @@ newtype ParseFailure = ParseFailure String
 -- |A node is equal to another node if they are both the same type
 -- of node and if the field values are equal.
 instance Eq Node where
-  (UNode fs1)    ==  (UNode fs2)     =  uniq fs1 == uniq fs2
-  (BNode fs1)    ==  (BNode fs2)     =  uniq fs1 == uniq fs2
+  (UNode bs1)    ==  (UNode bs2)     =   bs1 ==  bs2
+  (BNode bs1)    ==  (BNode bs2)     =   bs1 ==  bs2
   (BNodeGen i1)  ==  (BNodeGen i2)   =  i1 == i2
   (LNode l1)     ==  (LNode l2)      =  l1 == l2
   _              ==  _               =  False
@@ -331,9 +330,9 @@ instance Ord Node where
   compare = compareNode
 
 compareNode :: Node -> Node -> Ordering
-compareNode (UNode fs1)                      (UNode fs2)                      = compareFS fs1 fs2
+compareNode (UNode bs1)                      (UNode bs2)                      = compare bs1 bs2
 compareNode (UNode _)                        _                                = LT
-compareNode (BNode fs1)                      (BNode fs2)                      = compareFS fs1 fs2
+compareNode (BNode bs1)                      (BNode bs2)                      = compare bs1 bs2
 compareNode (BNode _)                        (UNode _)                        = GT
 compareNode (BNode _)                        _                                = LT
 compareNode (BNodeGen i1)                    (BNodeGen i2)                    = compare i1 i2
@@ -348,9 +347,9 @@ compareNode (LNode (PlainLL bs1 bs1'))       (LNode (PlainLL bs2 bs2'))       =
     GT -> GT
 compareNode (LNode (PlainLL _ _))            (LNode (PlainL _))               = GT
 compareNode (LNode (PlainLL _ _))            (LNode _)                        = LT
-compareNode (LNode (TypedL bs1 fs1))         (LNode (TypedL bs2 fs2))         =
-  case compare fs1 fs2 of
-    EQ -> compare bs1 bs2
+compareNode (LNode (TypedL bsType1 bs1))         (LNode (TypedL bsType2 bs2))         =
+  case compare bs1 bs2 of
+    EQ -> compare bsType1 bsType2
     LT -> LT
     GT -> GT
 compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
@@ -378,7 +377,7 @@ instance Ord Triple where
 instance Eq LValue where
   (PlainL bs1)        ==  (PlainL bs2)        =  bs1 == bs2
   (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  bs1' == bs2'    &&  bs1 == bs2
-  (TypedL bs1 fs1)    ==  (TypedL bs2 fs2)    =  equalFS fs1 fs2 &&  bs1 == bs2
+  (TypedL bsType1 bs1)    ==  (TypedL bsType2 bs2)    =  bsType1 == bsType2 &&  bs1 == bs2
   _                   ==  _                   =  False
 
 -- |Ordering of 'LValue' values is as follows: (PlainL _) < (PlainLL _ _)
@@ -402,7 +401,7 @@ compareLValue (PlainLL bs1 bs1') (PlainLL bs2 bs2') =
 compareLValue (PlainLL _ _)       _                 = LT
 compareLValue _                   (PlainLL _ _)     = GT
 compareLValue (TypedL l1 t1) (TypedL l2 t2) =
-  case compareFS t1 t2 of
+  case compare t1 t2 of
     EQ -> compare l1 l2
     GT -> GT
     LT -> LT
@@ -420,9 +419,9 @@ instance Show Node where
   show (LNode lvalue)                = "LNode(" ++ show lvalue ++ ")"
 
 instance Show LValue where
-  show (PlainL lit)               = "PlainL(" ++ B.unpack lit ++ ")"
-  show (PlainLL lit lang)         = "PlainLL(" ++ B.unpack lit ++ ", " ++ B.unpack lang ++ ")"
-  show (TypedL lit dtype)         = "TypedL(" ++ B.unpack lit ++ "," ++ show dtype ++ ")"
+  show (PlainL lit)               = "PlainL(" ++ T.unpack lit ++ ")"
+  show (PlainLL lit lang)         = "PlainLL(" ++ T.unpack lit ++ ", " ++ T.unpack lang ++ ")"
+  show (TypedL lit dtype)         = "TypedL(" ++ T.unpack lit ++ "," ++ show dtype ++ ")"
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples

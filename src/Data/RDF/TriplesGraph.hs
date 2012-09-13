@@ -47,6 +47,9 @@ instance RDF TriplesGraph where
   select            = select'
   query             = query'
 
+instance Show TriplesGraph where
+  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
+
 prefixMappings' :: TriplesGraph -> PrefixMappings
 prefixMappings' (TriplesGraph (_, _, pms)) = pms
 

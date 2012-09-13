@@ -7,9 +7,9 @@ module Text.RDF.RDF4H.NTriplesSerializer(
 
 import Data.RDF
 import Data.RDF.Utils
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text as T
+import Data.Text.Encoding
+import qualified Data.ByteString as B
 import Control.Monad (void)
 import System.IO
 
@@ -43,10 +43,10 @@ _writeTriple h (Triple s p o) =
 _writeNode :: Handle -> Node -> IO ()
 _writeNode h node =
   case node of
-    (UNode fs)  -> hPutChar h '<' >>
-                     hPutStrRev h (value fs) >>
+    (UNode bs)  -> hPutChar h '<' >>
+                     hPutStrRev h bs >>
                      hPutChar h '>'
-    (BNode gId) -> hPutStrRev h (value gId)
+    (BNode gId) -> hPutStrRev h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> _writeLValue h n
 
@@ -56,17 +56,17 @@ _writeLValue h lv =
     (PlainL lit)       -> _writeLiteralString h lit
     (PlainLL lit lang) -> _writeLiteralString h lit >>
                             hPutStr h "@" >>
-                            BL.hPutStr h lang
+                            B.hPutStr h (encodeUtf8 lang)
     (TypedL lit dtype) -> _writeLiteralString h lit >>
                             hPutStr h "^^<" >>
-                            hPutStrRev h (value dtype) >>
+                            hPutStrRev h dtype >>
                             hPutStr h ">"
 
 -- TODO: this is REALLY slow.
-_writeLiteralString:: Handle -> ByteString -> IO ()
+_writeLiteralString:: Handle -> T.Text -> IO ()
 _writeLiteralString h bs =
   do hPutChar h '"'
-     B.foldl' writeChar (return ()) bs
+     T.foldl' writeChar (return ()) bs
      hPutChar h '"'
   where
     -- the seq is necessary in writeChar to ensure all chars
@@ -81,9 +81,9 @@ _writeLiteralString h bs =
         '\\' ->  void (hPutChar h '\\' >> hPutChar h '\\')
         _    ->  void (hPutChar h c)
 
-_bs1, _bs2 :: ByteString
-_bs1 = B.pack "\nthis \ris a \\U00015678long\t\nliteral\\uABCD\n"
-_bs2 = B.pack "\nan \\U00015678 escape\n"
+_bs1, _bs2 :: T.Text
+_bs1 = T.pack "\nthis \ris a \\U00015678long\t\nliteral\\uABCD\n"
+_bs2 = T.pack "\nan \\U00015678 escape\n"
 
 _w :: IO ()
 _w = _writeLiteralString stdout _bs1
