@@ -8,14 +8,13 @@ import qualified Test.HUnit as T
 import Data.RDF
 import Data.RDF.TriplesGraph
 import Data.RDF.GraphTestUtils
-
 import Text.RDF.RDF4H.TurtleParser
-import Text.RDF.RDF4H.NTriplesParser
 
 import Text.Printf
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
+import Control.Monad (liftM)
 
 tests = [ testGroup "TurtleParser" allCTests ]
 
@@ -35,7 +34,7 @@ testBaseUri :: String
 testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
 
 mtestBaseUri :: Maybe BaseUrl
-mtestBaseUri = Just $ BaseUrl $ B.pack testBaseUri
+mtestBaseUri = Just $ BaseUrl $ T.pack testBaseUri
 
 fpath :: String -> Int -> String -> String
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
@@ -45,7 +44,7 @@ allCTests = ts1 ++ ts2 ++ ts3
    where
         ts1 = map (buildTest . checkGoodConformanceTest) [0..30]
         ts2 = map (buildTest . checkBadConformanceTest) [0..14]
-        ts3 = map (buildTest . (uncurry checkGoodOtherTest)) otherTestFiles
+        ts3 = map (buildTest . uncurry checkGoodOtherTest) otherTestFiles
 
 checkGoodConformanceTest :: Int -> IO Test
 checkGoodConformanceTest i =
@@ -64,28 +63,26 @@ checkGoodOtherTest dir fname =
 doGoodConformanceTest   :: Either ParseFailure TriplesGraph -> 
                            Either ParseFailure TriplesGraph -> 
                            String -> IO Test
-doGoodConformanceTest expGr inGr testname =
-  do
-    t1 <-  return (return expGr >>= assertLoadSuccess (printf "expected (%s): " testname))
-    t2 <-  return (return inGr  >>= assertLoadSuccess (printf "   input (%s): " testname))
-    t3 <-  return $ assertEquivalent testname expGr inGr
-    return $ testGroup (printf "Conformance %s" testname) $ map (\(name, assertion) -> testCase name assertion) [("Loading expected graph data", t1), ("Loading input graph data", t2), ("Comparing graphs", t3)]
+doGoodConformanceTest expGr inGr testname = do
+    let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
+        t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
+        t3 = assertEquivalent testname expGr inGr
+    return $ testGroup (printf "Conformance %s" testname) $ map (uncurry testCase) [("Loading expected graph data", t1), ("Loading input graph data", t2), ("Comparing graphs", t3)]
 
 checkBadConformanceTest :: Int -> IO Test
-checkBadConformanceTest i =
-  do
-    t <- return (loadInputGraph "bad" i >>= assertLoadFailure (show i))
-    return $ testCase (printf "Loading test %d (negative)" i) t
+checkBadConformanceTest i = do
+  let t = loadInputGraph "bad" i >>= assertLoadFailure (show i)
+  return $ testCase (printf "Loading test %d (negative)" i) t
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
 equivalent :: RDF rdf => Either ParseFailure rdf -> Either ParseFailure rdf -> Maybe String
 equivalent (Left _) _                = Nothing
 equivalent _        (Left _)         = Nothing
-equivalent (Right gr1) (Right gr2)   = (test $! zip gr1ts gr2ts)
+equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
   where
-    gr1ts = uordered $ triplesOf $ gr1
-    gr2ts = uordered $ triplesOf $ gr2
+    gr1ts = uordered $ triplesOf gr1
+    gr2ts = uordered $ triplesOf gr2
     test []           = Nothing
     test ((t1,t2):ts) =
       case compareTriple t1 t2 of
@@ -99,19 +96,20 @@ equivalent (Right gr1) (Right gr2)   = (test $! zip gr1ts gr2ts)
         (s1, p1, o1) = f t1
         (s2, p2, o2) = f t2
         f t = (subjectOf t, predicateOf t, objectOf t)
-    equalNodes (BNode fs1) (BNodeGen i) = B.reverse ( fs1) == s2b ("_:genid" ++ show i)
+    equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == s2t ("_:genid" ++ show i)
     equalNodes n1          n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
 -- triples into a format so that they can be compared with the expected output triples.
 loadInputGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 loadInputGraph name n =
-  B.readFile (fpath name n "ttl") >>=
-    return . parseString (TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)) >>= return . handleLoad
+  TIO.readFile (fpath name n "ttl") >>=
+  return . parseString (TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)) >>= return . handleLoad
+
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure TriplesGraph)
 loadInputGraph1 dir fname =
-  B.readFile (printf "%s/%s.ttl" dir fname :: String) >>=
-    return . parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
+  TIO.readFile (printf "%s/%s.ttl" dir fname :: String) >>=
+  return . parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
 
 handleLoad :: Either ParseFailure TriplesGraph -> Either ParseFailure TriplesGraph
 handleLoad res =
@@ -125,13 +123,14 @@ normalize t = let s' = normalizeN $ subjectOf t
                   o' = normalizeN $ objectOf t
               in  triple s' p' o'
 normalizeN :: Node -> Node
-normalizeN (BNodeGen i) = BNode $  (s2b $ "_:genid" ++ show i)
+normalizeN (BNodeGen i) = BNode (s2t $ "_:genid" ++ show i)
 normalizeN n            = n
 
 loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
 loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")
 loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesGraph)
-loadExpectedGraph1 filename = B.readFile filename >>= return . parseString NTriplesParser
+loadExpectedGraph1 fname =
+  liftM (parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname))) (TIO.readFile fname)
 
 assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
 assertLoadSuccess idStr (Left (ParseFailure err)) = T.assertFailure $ idStr  ++ err
@@ -146,8 +145,8 @@ assertEquivalent testname r1 r2 =
     (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
   where equiv = equivalent r1 r2
 
-mkDocUrl :: String -> String -> Int -> Maybe ByteString
-mkDocUrl baseDocUrl fname testNum = Just $ s2b $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
+mkDocUrl :: String -> String -> Int -> Maybe T.Text
+mkDocUrl baseDocUrl fname testNum = Just $ s2t $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
 
-mkDocUrl1 :: String -> String -> Maybe ByteString
-mkDocUrl1 baseDocUrl fname        = Just $ s2b $ printf "%s%s.ttl" baseDocUrl fname
+mkDocUrl1 :: String -> String -> Maybe T.Text
+mkDocUrl1 baseDocUrl fname        = Just $ s2t $ printf "%s%s.ttl" baseDocUrl fname

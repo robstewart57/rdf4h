@@ -8,8 +8,8 @@ import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.TurtleSerializer
 
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 import System.Environment
 import System.IO
@@ -55,10 +55,10 @@ main =
           >> hPrintf stderr "OUTPUT-BASE-URI:  %s\n\n" outputBaseUri)
      let mInputUri
            = if inputBaseUri == "-" then Nothing else
-               Just (BaseUrl $ s2b inputBaseUri)
-         docUri = Just $ s2b inputUri
+               Just (BaseUrl (T.pack inputBaseUri))
+         docUri = Just $ T.pack inputUri
          emptyPms = PrefixMappings Map.empty
-     case (inputFormat, isUri $ s2b inputUri) of
+     case (inputFormat, isUri $ T.pack inputUri) of
          ("turtle", True) -> parseURL (TurtleParser mInputUri docUri)
                                inputUri
                                >>=
@@ -66,7 +66,7 @@ main =
                                  write outputFormat docUri emptyPms res
          ("turtle", False) -> (if inputUri /= "-" then
                                  parseFile (TurtleParser mInputUri docUri) inputUri else
-                                 liftM (parseString (TurtleParser mInputUri docUri)) B.getContents)
+                                 liftM (parseString (TurtleParser mInputUri docUri)) TIO.getContents)
                                 >>=
                                 \ (res :: Either ParseFailure TriplesGraph) ->
                                   write outputFormat docUri emptyPms res
@@ -75,13 +75,13 @@ main =
                                    write outputFormat Nothing emptyPms res
          ("ntriples", False) -> (if inputUri /= "-" then
                                    parseFile NTriplesParser inputUri else
-                                   liftM (parseString NTriplesParser) B.getContents)
+                                   liftM (parseString NTriplesParser) TIO.getContents)
                                   >>=
                                   \ (res :: Either ParseFailure TriplesGraph) ->
                                     write outputFormat Nothing emptyPms res
          (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: forall rdf. (RDF rdf) => String -> Maybe ByteString -> PrefixMappings -> Either ParseFailure rdf -> IO ()
+write :: forall rdf. (RDF rdf) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure rdf -> IO ()
 write format docUri pms res =
   case res of
     (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
@@ -106,9 +106,9 @@ getInputBaseUri inputUri args flags =
 
 -- Determine if the bytestring represents a URI, which is currently
 -- decided solely by checking for a colon in the string.
-isUri :: ByteString -> Bool
-isUri str = not (B.null post) && B.all isLetter pre
-  where (pre, post) = B.break (== ':') str
+isUri :: T.Text -> Bool
+isUri str = not (T.null post) && T.all isLetter pre
+  where (pre, post) = T.break (== ':') str
 
 -- Extract from the list of flags a flag of the same type as the first
 -- flag argument, returning its string value; if there is no such flag,

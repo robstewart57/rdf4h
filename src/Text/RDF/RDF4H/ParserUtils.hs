@@ -7,8 +7,11 @@ import Data.RDF
 import Network.URI
 import Network.HTTP
 import Data.Char(intToDigit)
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+-- import Data.ByteString.Lazy.Char8(ByteString)
+-- import qualified Data.ByteString as B
+import Data.Text.Encoding (decodeUtf8)
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 import Data.Maybe (fromMaybe)
 
 -- A convenience function for terminating a parse with a parse failure, using
@@ -22,7 +25,7 @@ justTriples :: [Maybe Triple] -> [Triple]
 justTriples = map (fromMaybe (error "ParserUtils.justTriples")) .
               filter (/= Nothing)
 
-_parseURL :: RDF rdf => (ByteString -> Either ParseFailure rdf)  -> String -> IO (Either ParseFailure rdf)
+_parseURL :: RDF rdf => (T.Text -> Either ParseFailure rdf)  -> String -> IO (Either ParseFailure rdf)
 _parseURL parseFunc url =
   maybe
     (return (Left (ParseFailure $ "Unable to parse URL: " ++ url)))
@@ -36,10 +39,10 @@ _parseURL parseFunc url =
         case resp of
           (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url ++ " [" ++ show e ++ "]")
           (Right res) -> case rspCode res of
-                           (2, 0, 0) -> return $ parseFunc (rspBody res)
+                           (2, 0, 0) -> return $ parseFunc (decodeUtf8 (rspBody res))
                            _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
 
-request :: URI -> HTTPRequest ByteString
+request :: URI -> HTTPRequest B.ByteString
 request uri = Request { rqURI = uri,
                         rqMethod = GET,
                         rqHeaders = [Header HdrConnection "close"],

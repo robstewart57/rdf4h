@@ -28,16 +28,15 @@ module Data.RDF (
   Subject, Predicate, Object,
   ParseFailure(ParseFailure),
   {- FastString(uniq,value),mkFastString, -}
-  s2b,b2s,unode,bnode,lnode,plainL,plainLL,typedL,
+  s2t,t2s,unode,bnode,lnode,plainL,plainLL,typedL,
   View, view,
   fromEither, removeDupes
 )
 where
 
 import Data.RDF.Namespace
-import Data.RDF.Utils ( s2b, b2s, canonicalize )
-import Data.ByteString.Lazy.Char8(ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B
+import Data.RDF.Utils ( s2t, t2s, canonicalize )
+import qualified Data.Text as T
 import Data.List
 import System.IO
 import Text.Printf
@@ -129,7 +128,7 @@ class RdfParser p where
 
   -- |Parse RDF from the given bytestring, yielding a failure with error message or
   -- the resultant RDF.
-  parseString :: forall rdf. (RDF rdf) => p -> ByteString -> Either ParseFailure rdf
+  parseString :: forall rdf. (RDF rdf) => p -> T.Text -> Either ParseFailure rdf
 
   -- |Parse RDF from the local file with the given path, yielding a failure with error
   -- message or the resultant RDF in the IO monad.
@@ -192,12 +191,12 @@ data Node =
   -- |An RDF URI reference. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
-  UNode !ByteString
+  UNode !T.Text
 
   -- |An RDF blank node. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
-  | BNode !ByteString
+  | BNode !T.Text
 
   -- |An RDF blank node with an auto-generated identifier, as used in
   -- Turtle.
@@ -213,12 +212,12 @@ data Node =
 
 -- |Return a URIRef node for the given bytetring URI.
 {-# INLINE unode #-}
-unode :: ByteString -> Node
+unode :: T.Text -> Node
 unode = UNode
 
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
-bnode :: ByteString ->  Node
+bnode :: T.Text ->  Node
 bnode = BNode
 
 -- |Return a literal node using the given LValue.
@@ -257,33 +256,33 @@ data LValue =
   -- control over the format of the literal bytestring that we store.
 
   -- |A plain (untyped) literal value in an unspecified language.
-  PlainL !ByteString
+  PlainL !T.Text
 
   -- |A plain (untyped) literal value with a language specifier.
-  | PlainLL !ByteString !ByteString
+  | PlainLL !T.Text !T.Text
 
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
-  | TypedL !ByteString  !ByteString
+  | TypedL !T.Text  !T.Text
 
 -- ================================
 -- Constructor functions for LValue
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
-plainL :: ByteString -> LValue
+plainL :: T.Text -> LValue
 plainL =  PlainL
 
 -- |Return a PlainLL LValue for the given string value and language,
 -- respectively.
 {-# INLINE plainLL #-}
-plainLL :: ByteString -> ByteString -> LValue
+plainLL :: T.Text -> T.Text -> LValue
 plainLL = PlainLL
 
 -- |Return a TypedL LValue for the given string value and datatype URI,
 -- respectively.
 {-# INLINE typedL #-}
-typedL :: ByteString -> ByteString -> LValue
+typedL :: T.Text -> T.Text -> LValue
 typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 -- Constructor functions for LValue
@@ -291,7 +290,7 @@ typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl ByteString
+newtype BaseUrl = BaseUrl T.Text
   deriving (Eq, Ord, Show)
 
 -- |A 'NodeSelector' is either a function that returns 'True'
@@ -420,9 +419,9 @@ instance Show Node where
   show (LNode lvalue)                = "LNode(" ++ show lvalue ++ ")"
 
 instance Show LValue where
-  show (PlainL lit)               = "PlainL(" ++ B.unpack lit ++ ")"
-  show (PlainLL lit lang)         = "PlainLL(" ++ B.unpack lit ++ ", " ++ B.unpack lang ++ ")"
-  show (TypedL lit dtype)         = "TypedL(" ++ B.unpack lit ++ "," ++ show dtype ++ ")"
+  show (PlainL lit)               = "PlainL(" ++ T.unpack lit ++ ")"
+  show (PlainLL lit lang)         = "PlainLL(" ++ T.unpack lit ++ ", " ++ T.unpack lang ++ ")"
+  show (TypedL lit dtype)         = "TypedL(" ++ T.unpack lit ++ "," ++ show dtype ++ ")"
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples
