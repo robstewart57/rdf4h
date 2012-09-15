@@ -6,3 +6,4 @@ cabal-dev
 *.hi
 *.chi
 *.chs.h
+TAGS

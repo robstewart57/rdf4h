@@ -524,7 +524,7 @@ removeDupes :: Triples -> Triples
 removeDupes =  map head . group . sort
 
 -- |This determines if two RDF representations are equal regardless of blank
--- nodc names, triple order and prefixes.  In math terms, this is the \simeq
+-- node names, triple order and prefixes.  In math terms, this is the \simeq
 -- latex operator, or ~=
 isIsomorphic :: forall rdf1 rdf2. (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
 isIsomorphic g1 g2 = normalize g1 == normalize g2
