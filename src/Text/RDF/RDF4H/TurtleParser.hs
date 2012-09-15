@@ -576,7 +576,7 @@ parseFile' bUrl docUrl fpath =
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
--- a a string rather than a location URI.
+-- a string rather than a location URI.
 parseString' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure rdf
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
