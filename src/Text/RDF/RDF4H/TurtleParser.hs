@@ -21,10 +21,6 @@ import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
 import Data.Maybe (fromMaybe)
-import Debug.Trace(trace)
-
--- To avoid compiler warnings when not being used.
-_trace = trace
 
 -- |An 'RdfParser' implementation for parsing RDF in the 
 -- Turtle format. It takes optional arguments representing the base URL to use
@@ -469,7 +465,6 @@ popPred :: GenParser ParseState Predicate
 popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, ts) ->
                 setState (bUrl, dUrl, i, pms, ss, tail ps, cs, ts) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
-                  -- _trace (show ps) (return ()) >>
                   return (head ps)
 
 isInColl :: GenParser ParseState Bool
@@ -581,7 +576,7 @@ parseFile' bUrl docUrl fpath =
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
--- a a string rather than a location URI.
+-- a string rather than a location URI.
 parseString' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure rdf
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)

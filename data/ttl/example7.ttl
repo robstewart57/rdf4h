@@ -2,4 +2,4 @@
 @prefix owl: <http://www.w3.org/2002/07/owl/> .
 @prefix ns10: <http://fr.dbpedia.org/resource/> .
 
-dbpedia:Edinburgh owl:sameAs ns10:Ãdimbourg .
+dbpedia:Edinburgh owl:sameAs ns10:Édimbourg .
