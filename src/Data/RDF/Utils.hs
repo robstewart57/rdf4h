@@ -25,16 +25,16 @@ s2t = T.pack
 hPutStrRev :: Handle -> T.Text -> IO ()
 hPutStrRev h bs = B.hPutStr h ((encodeUtf8 . T.reverse) bs)
 
--- |Canonicalize the given 'T.Text' value using the 'FastString'
+-- |Canonicalize the given 'T.Text' value using the 'T.Text'
 -- as the datatype URI.
 {-# NOINLINE canonicalize #-}
 canonicalize :: T.Text -> T.Text -> T.Text
-canonicalize typeFs litValue =
-  case Map.lookup typeFs canonicalizerTable of
+canonicalize typeTxt litValue =
+  case Map.lookup typeTxt canonicalizerTable of
     Nothing   ->  litValue
     Just fn   ->  fn litValue
 
--- A table of mappings from a FastString URI (reversed as
+-- A table of mappings from a 'T.Text' URI (reversed as
 -- they are) to a function that canonicalizes a T.Text
 -- assumed to be of that type.
 {-# NOINLINE canonicalizerTable #-}
