@@ -10,7 +10,8 @@ module Data.RDF.Namespace(
   mkUri,
   prefixOf, uriOf,
   -- * Predefined namespace values
-  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2, standard_ns_mappings
+  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2,
+  standard_ns_mappings, ns_mappings
 )
 where
 
@@ -23,8 +24,12 @@ standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
 
 -- |The set of common predefined namespaces as a 'PrefixMappings' value.
 standard_ns_mappings  :: PrefixMappings
-standard_ns_mappings  =  PrefixMappings $ Map.fromList $ 
-                         map (\(PrefixedNS pre uri) -> (pre, uri)) standard_namespaces
+standard_ns_mappings  =  ns_mappings standard_namespaces
+
+-- |Takes a list of 'Namespace's and returns 'PrefixMappings'.
+ns_mappings :: [Namespace] -> PrefixMappings
+ns_mappings ns =  PrefixMappings $ Map.fromList $ 
+                     map (\(PrefixedNS pre uri) -> (pre, uri)) ns
 
 -- |The RDF namespace.
 rdf  :: Namespace

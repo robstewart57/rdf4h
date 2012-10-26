@@ -114,7 +114,7 @@ writePredGroup h  docUrl pms (t:ts) =
 writeNode :: Handle -> Maybe T.Text -> Node -> Map T.Text T.Text -> IO ()
 writeNode h mdUrl node prefixes =
   case node of
-    (UNode bs)  -> let currUri = T.reverse bs
+    (UNode bs)  -> let currUri = bs
                    in case mdUrl of
                         Nothing  -> writeUNodeUri h currUri prefixes
                         Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
