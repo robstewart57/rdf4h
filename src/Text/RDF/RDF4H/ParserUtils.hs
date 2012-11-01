@@ -2,7 +2,7 @@ module Text.RDF.RDF4H.ParserUtils(
   _parseURL, justTriples
 ) where
 
-import Data.RDF
+import Data.RDF.Types
 
 import Network.URI
 import Network.HTTP

@@ -12,7 +12,8 @@ module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, select, quer
 
 where
 
-import Data.RDF
+import Data.RDF.Types
+import Data.RDF.Query
 import Data.RDF.Namespace
 import qualified Data.Map as Map
 

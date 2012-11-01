@@ -5,7 +5,8 @@ module Text.RDF.RDF4H.XmlParser(
   parseXmlRDF, getRDF
 ) where
 
-import Data.RDF
+import Data.RDF.Types
+import Data.RDF.Utils
 import qualified Data.Map as Map
 import Control.Arrow
 import Text.XML.HXT.Core

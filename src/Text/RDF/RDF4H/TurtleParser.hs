@@ -7,7 +7,8 @@ module Text.RDF.RDF4H.TurtleParser(
 
 where
 
-import Data.RDF
+import Data.RDF.Types
+import Data.RDF.Utils
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec

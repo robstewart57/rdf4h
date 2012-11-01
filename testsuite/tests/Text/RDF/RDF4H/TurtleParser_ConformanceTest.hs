@@ -5,7 +5,9 @@ import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as T
 
-import Data.RDF
+import Data.RDF.Utils
+import Data.RDF.Query
+import Data.RDF.Types
 import Data.RDF.TriplesGraph
 import Data.RDF.GraphTestUtils
 import Text.RDF.RDF4H.TurtleParser

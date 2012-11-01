@@ -4,7 +4,7 @@ import Test.Framework (testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Property
-import Data.RDF
+import Data.RDF.Types
 import Data.RDF.TriplesGraph
 import Data.RDF.GraphTestUtils
 import qualified Data.Map as Map

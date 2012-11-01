@@ -6,6 +6,13 @@ module Data.RDF.Types (
   Node(UNode,BNode,BNodeGen,LNode), Subject, Predicate, Object,
   Triple(Triple), Triples, View(view),
 
+  -- * Constructor functions
+  plainL,plainLL,typedL,
+  unode,bnode,lnode,triple,
+
+  -- * Node query function
+  isUNode,isLNode,isBNode,
+
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,select,query),
 
@@ -31,6 +38,45 @@ import Data.Map(Map)
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+-------------------
+-- LValue and constructor functions
+
+-- |The actual value of an RDF literal, represented as the 'LValue'
+-- parameter of an 'LNode'.
+data LValue =
+  -- Constructors are not exported, because we need to have more
+  -- control over the format of the literal text that we store.
+
+  -- |A plain (untyped) literal value in an unspecified language.
+  PlainL !T.Text
+
+  -- |A plain (untyped) literal value with a language specifier.
+  | PlainLL !T.Text !T.Text
+
+  -- |A typed literal value consisting of the literal value and
+  -- the URI of the datatype of the value, respectively.
+  | TypedL !T.Text  !T.Text
+
+-- |Return a PlainL LValue for the given string value.
+{-# INLINE plainL #-}
+plainL :: T.Text -> LValue
+plainL =  PlainL
+
+-- |Return a PlainLL LValue for the given string value and language,
+-- respectively.
+{-# INLINE plainLL #-}
+plainLL :: T.Text -> T.Text -> LValue
+plainLL = PlainLL
+
+-- |Return a TypedL LValue for the given string value and datatype URI,
+-- respectively.
+{-# INLINE typedL #-}
+typedL :: T.Text -> T.Text -> LValue
+typedL val dtype = TypedL (canonicalize dtype val) dtype
+
+-------------------
+-- Node and constructor functions
+
 -- |An RDF node, which may be either a URIRef node ('UNode'), a blank
 -- node ('BNode'), or a literal node ('LNode').
 data Node =
@@ -54,25 +100,6 @@ data Node =
   -- information.
   | LNode !LValue
 
-
-
--- |The actual value of an RDF literal, represented as the 'LValue'
--- parameter of an 'LNode'.
-data LValue =
-  -- Constructors are not exported, because we need to have more
-  -- control over the format of the literal text that we store.
-
-  -- |A plain (untyped) literal value in an unspecified language.
-  PlainL !T.Text
-
-  -- |A plain (untyped) literal value with a language specifier.
-  | PlainLL !T.Text !T.Text
-
-  -- |A typed literal value consisting of the literal value and
-  -- the URI of the datatype of the value, respectively.
-  | TypedL !T.Text  !T.Text
-
-
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
 
@@ -82,6 +109,23 @@ type Predicate = Node
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Object = Node
 
+-- |Return a URIRef node for the given bytetring URI.
+{-# INLINE unode #-}
+unode :: T.Text -> Node
+unode = UNode
+
+-- |Return a blank node using the given string identifier.
+{-# INLINE bnode #-}
+bnode :: T.Text ->  Node
+bnode = BNode
+
+-- |Return a literal node using the given LValue.
+{-# INLINE lnode #-}
+lnode :: LValue ->  Node
+lnode = LNode
+
+-------------------
+-- Triple and constructor functions
 
 -- |An RDF triple is a statement consisting of a subject, predicate,
 -- and object, respectively.
@@ -93,6 +137,34 @@ data Triple = Triple !Node !Node !Node
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
 
+-- |A smart constructor function for 'Triple' that verifies the node arguments
+-- are of the correct type and creates the new 'Triple' if so or calls 'error'.
+-- /subj/ must be a 'UNode' or 'BNode', and /pred/ must be a 'UNode'.
+triple :: Subject -> Predicate -> Object -> Triple
+triple subj pred obj
+  | isLNode subj     =  error $ "subject must be UNode or BNode: "     ++ show subj
+  | isLNode pred     =  error $ "predicate must be UNode, not LNode: " ++ show pred
+  | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred
+  | otherwise        =  Triple subj pred obj
+
+-- |Answer if given node is a URI Ref node.
+{-# INLINE isUNode #-}
+isUNode :: Node -> Bool
+isUNode (UNode _) = True
+isUNode _         = False
+
+-- |Answer if given node is a blank node.
+{-# INLINE isBNode #-}
+isBNode :: Node -> Bool
+isBNode (BNode _)    = True
+isBNode (BNodeGen _) = True
+isBNode _            = False
+
+-- |Answer if given node is a literal node.
+{-# INLINE isLNode #-}
+isLNode :: Node -> Bool
+isLNode (LNode _) = True
+isLNode _         = False
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where
@@ -397,3 +469,43 @@ newtype PrefixMapping = PrefixMapping (T.Text, T.Text)
   deriving (Eq, Ord)
 instance Show PrefixMapping where
   show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (show prefix) (show uri)
+
+
+-----------------
+-- Internal canonicalize functions, don't export
+
+-- |Canonicalize the given 'T.Text' value using the 'T.Text'
+-- as the datatype URI.
+{-# NOINLINE canonicalize #-}
+canonicalize :: T.Text -> T.Text -> T.Text
+canonicalize typeTxt litValue =
+  case Map.lookup typeTxt canonicalizerTable of
+    Nothing   ->  litValue
+    Just fn   ->  fn litValue
+
+-- A table of mappings from a 'T.Text' URI (reversed as
+-- they are) to a function that canonicalizes a T.Text
+-- assumed to be of that type.
+{-# NOINLINE canonicalizerTable #-}
+canonicalizerTable :: Map T.Text (T.Text -> T.Text)
+canonicalizerTable =
+  Map.fromList [(integerUri, _integerStr), (doubleUri, _doubleStr),
+                (decimalUri, _decimalStr)]
+  where
+    integerUri =  "http://www.w3.org/2001/XMLSchema#integer"
+    decimalUri =  "http://www.w3.org/2001/XMLSchema#decimal"
+    doubleUri  =  "http://www.w3.org/2001/XMLSchema#double"
+
+_integerStr, _decimalStr, _doubleStr :: T.Text -> T.Text
+_integerStr = T.dropWhile (== '0')
+
+-- exponent: [eE] ('-' | '+')? [0-9]+
+-- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
+_doubleStr s = T.pack $ show (read $ T.unpack s :: Double)
+
+-- ('-' | '+')? ( [0-9]+ '.' [0-9]* | '.' ([0-9])+ | ([0-9])+ )
+_decimalStr s =     -- haskell double parser doesn't handle '1.'..,
+  case T.last s of   -- so we add a zero if that's the case and then parse
+    '.' -> f (s `T.snoc` '0')
+    _   -> f s
+  where f s' = T.pack $ show (read $ T.unpack s' :: Double)

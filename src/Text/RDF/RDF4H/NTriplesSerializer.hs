@@ -5,7 +5,7 @@ module Text.RDF.RDF4H.NTriplesSerializer(
   NTriplesSerializer(NTriplesSerializer)
 ) where
 
-import Data.RDF
+import Data.RDF.Types
 import Data.RDF.Utils
 import qualified Data.Text as T
 import Data.Text.Encoding

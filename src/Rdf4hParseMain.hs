@@ -1,8 +1,7 @@
 module Main where
 
-import Data.RDF
+import Data.RDF.Types
 import Data.RDF.TriplesGraph
-
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleParser

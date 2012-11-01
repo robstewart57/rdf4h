@@ -16,7 +16,7 @@ module Text.RDF.RDF4H.Interact where
 
 import qualified Data.Text as T
 
-import Data.RDF
+import Data.RDF.Types
 import Data.RDF.Utils()
 import Data.RDF.TriplesGraph()
 import Data.RDF.MGraph()

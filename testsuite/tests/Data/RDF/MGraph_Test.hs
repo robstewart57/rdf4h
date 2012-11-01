@@ -1,6 +1,6 @@
 module Data.RDF.MGraph_Test where
 
-import Data.RDF
+import Data.RDF.Types
 import Data.RDF.MGraph
 import Data.RDF.GraphTestUtils
 import qualified Data.Map as Map

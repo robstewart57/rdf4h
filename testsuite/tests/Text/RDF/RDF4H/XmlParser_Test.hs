@@ -8,7 +8,9 @@ import Test.HUnit
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
 
-import Data.RDF
+import Data.RDF.Utils
+import Data.RDF.Types
+import Data.RDF.Query
 import Data.RDF.TriplesGraph (TriplesGraph)
 import Text.RDF.RDF4H.XmlParser
 

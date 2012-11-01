@@ -3,11 +3,9 @@
 
 module Text.RDF.RDF4H.NTriplesParser(
   NTriplesParser(NTriplesParser), ParseFailure
-)
+) where
 
-where
-
-import Data.RDF
+import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
 import Data.Char(isLetter, isDigit, isLower)
 import qualified Data.Map as Map

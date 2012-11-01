@@ -4,7 +4,8 @@ module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, select, query)
 
 where
 
-import Data.RDF
+import Data.RDF.Types
+import Data.RDF.Query
 import Data.RDF.Namespace
 import Data.Map(Map)
 import qualified Data.Map as Map

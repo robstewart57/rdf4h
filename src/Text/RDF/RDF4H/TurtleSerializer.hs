@@ -7,7 +7,8 @@ module Text.RDF.RDF4H.TurtleSerializer(
 
 where
 
-import Data.RDF
+import Data.RDF.Types
+import Data.RDF.Query
 import Data.RDF.Namespace
 import Data.RDF.Utils
 import qualified Data.Text as T
