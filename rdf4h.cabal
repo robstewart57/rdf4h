@@ -37,6 +37,8 @@ flag hpc
 library
   exposed-modules: Data.RDF
                  , Data.RDF.Namespace
+                 , Data.RDF.Types
+                 , Data.RDF.Query
                  , Data.RDF.MGraph
                  , Data.RDF.TriplesGraph
                  , Text.RDF.RDF4H.TurtleParser
