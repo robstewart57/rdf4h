@@ -1,3 +1,5 @@
+{-# Language Arrows #-}
+
 -- |An parser for the RDF/XML format 
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
 
@@ -5,13 +7,14 @@ module Text.RDF.RDF4H.XmlParser(
   parseXmlRDF, getRDF
 ) where
 
-import Data.RDF.Types
-import Data.RDF.Utils
-import qualified Data.Map as Map
-import Control.Arrow
-import Text.XML.HXT.Core
-import qualified Data.Text as T
-import Data.String.Utils
+import Control.Arrow (Arrow,(>>>),(<<<),(&&&),(***),arr,returnA)
+import Control.Arrow.ArrowState (ArrowState,nextState)
+import Data.List (isPrefixOf)
+import qualified Data.Map as Map (fromList)
+import Data.RDF.Types (RDF,Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode)
+import Data.RDF.Utils (s2t,t2s)
+import qualified Data.Text as T (Text)
+import Text.XML.HXT.Core (ArrowXml,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xread,runSLA)
 
 -- TODO: Create instance:
 --  RdfParse XmlParser
@@ -62,7 +65,7 @@ getRDF = proc xml -> do
             triples <- parseDescription' >. id -< (bUrl, rdf)
             returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
-        toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (s2t (drop 6 n), s2t m)) . filter (startswith "xmlns:" . fst)
+        toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (s2t (drop 6 n), s2t m)) . filter (isPrefixOf "xmlns:" . fst)
 
 -- |Read the initial state from an rdf element
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple
@@ -178,7 +181,7 @@ mkCollectionTriples = arr (mkCollectionTriples' [])
 
 -- |Read a Triple and it's type when rdf:datatype is available
 getTypedTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
-getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& xshow getChildren >>> arr (\(t, v) -> mkTypedLiteralNode ( (s2t t)) v))
+getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& xshow getChildren >>> arr (\(t, v) -> mkTypedLiteralNode (s2t t) v))
     >>> arr (attachSubject (stateSubject state))
 
 getResourceTriple :: forall a. (ArrowXml a, ArrowState GParseState a)
@@ -200,7 +203,10 @@ mkNode state = choiceA [ hasAttr "rdf:about" :-> (attrExpandURI state "rdf:about
                        , this :-> mkBlankNode
                        ]
 
-rdfXmlLiteral = (s2t) "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
+rdfXmlLiteral :: T.Text
+rdfFirst,rdfRest,rdfNil,rdfType,rdfStatement,rdfSubject,rdfPredicate,rdfObject :: Node
+
+rdfXmlLiteral = s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
 rdfFirst = (unode . s2t) "rdf:first"
 rdfRest = (unode . s2t) "rdf:rest"
 rdfNil = (unode . s2t) "rdf:nil"
