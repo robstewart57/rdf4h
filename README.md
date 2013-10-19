@@ -1,6 +1,8 @@
 RDF For Haskell
 =====
 
+[![Build Status](https://travis-ci.org/robstewart57/rdf4h.png)](https://travis-ci.org/robstewart57/rdf4h)
+
 rdf4h is a library for working with RDF in Haskell. At present it
   includes parsers and serializers for RDF in the N-Triples and
   Turtle formats, and parsing support for RDF/XML. It provides abilities such
