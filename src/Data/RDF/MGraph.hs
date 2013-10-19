@@ -4,6 +4,7 @@ module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, select, query)
 
 where
 
+import Prelude hiding (pred)
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
@@ -50,21 +51,21 @@ type Adjacencies = Set Object
 type SPOMap    = Map Subject AdjacencyMap
 
 baseUrl' :: MGraph -> Maybe BaseUrl
-baseUrl' (MGraph (_, baseUrl, _)) = baseUrl
+baseUrl' (MGraph (_, baseURL, _)) = baseURL
 
 prefixMappings' :: MGraph -> PrefixMappings
 prefixMappings' (MGraph (_, _, pms)) = pms
 
 addPrefixMappings' :: MGraph -> PrefixMappings -> Bool -> MGraph
-addPrefixMappings' (MGraph (ts, baseUrl, pms)) pms' replace = 
+addPrefixMappings' (MGraph (ts, baseURL, pms)) pms' replace = 
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  MGraph (ts, baseUrl, merge pms pms')
+  in  MGraph (ts, baseURL, merge pms pms')
 
 empty' :: MGraph
 empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
-mkRdf' ts baseUrl pms = MGraph (mergeTs Map.empty ts, baseUrl, pms)
+mkRdf' ts baseURL pms = MGraph (mergeTs Map.empty ts, baseURL, pms)
 
 mergeTs :: SPOMap -> [Triple] -> SPOMap
 mergeTs = foldl' mergeT
@@ -75,19 +76,17 @@ mergeTs = foldl' mergeT
 mergeT' :: SPOMap -> Subject -> Predicate -> Object -> SPOMap
 mergeT' m s p o =
   if s `Map.member` m then
-    (if p `Map.member` adjs then Map.insert s (addPredObj p o adjs) m
-       else Map.insert s (addNewPredObjMap p o adjs) m)
-    else Map.insert s (newPredMap p o) m
+    (if p `Map.member` adjs then Map.insert s addPredObj m
+       else Map.insert s addNewPredObjMap m)
+    else Map.insert s newPredMap m
   where
     adjs = get s m
-    newPredMap :: Predicate -> Object -> Map Predicate (Set Object)
-    newPredMap p o = Map.singleton p (Set.singleton o)
-    addNewPredObjMap :: Predicate -> Object -> Map Predicate (Set Object) ->
-                       Map Predicate (Set Object)
-    addNewPredObjMap p o = Map.insert p (Set.singleton o)
-    addPredObj :: Predicate -> Object -> Map Predicate (Set Object) ->
-                    Map Predicate (Set Object)
-    addPredObj p o = Map.insert p (Set.insert o (get p adjs))
+    newPredMap :: Map Predicate (Set Object)
+    newPredMap = Map.singleton p (Set.singleton o)
+    addNewPredObjMap :: Map Predicate (Set Object)
+    addNewPredObjMap = Map.insert p (Set.singleton o) adjs
+    addPredObj :: Map Predicate (Set Object)
+    addPredObj = Map.insert p (Set.insert o (get p adjs)) adjs
     get :: Ord k => k -> Map k v -> v
     get = Map.findWithDefault undefined
 

@@ -9,10 +9,11 @@ where
 
 import Data.RDF.Types
 import Data.RDF.Query
-import Data.RDF.Namespace
+import Data.RDF.Namespace hiding (rdf)
 import Data.RDF.Utils
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text.IO as T
 import qualified Data.ByteString.Char8 as B
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -95,7 +96,7 @@ writeSubjGroup _ _    _   []     = return ()
 writeSubjGroup h dUrl pms ts@(t:_) =
   writeNode h dUrl (subjectOf t) pms >> hPutChar h ' ' >>
   writePredGroup h dUrl pms (head ts') >>
-  mapM_ (\t -> hPutStr h ";\n\t" >> writePredGroup h dUrl pms t) (tail ts') >>
+  mapM_ (\t' -> hPutStr h ";\n\t" >> writePredGroup h dUrl pms t') (tail ts') >>
   hPutStrLn h " ."
   where
     ts' = groupBy equalPredicates ts
@@ -110,7 +111,7 @@ writePredGroup h  docUrl pms (t:ts) =
   -- so we pass the docUrl through to writeNode in all cases.
   writeNode h docUrl (predicateOf t) pms >> hPutChar h ' ' >> 
   writeNode h docUrl (objectOf t) pms >>
-  mapM_ (\t -> hPutStr h ", " >> writeNode h docUrl (objectOf t) pms) ts
+  mapM_ (\t' -> hPutStr h ", " >> writeNode h docUrl (objectOf t') pms) ts
 
 writeNode :: Handle -> Maybe T.Text -> Node -> Map T.Text T.Text -> IO ()
 writeNode h mdUrl node prefixes =
@@ -155,7 +156,7 @@ writeLValue h lv pms =
     (PlainL lit)       -> writeLiteralString h lit
     (PlainLL lit lang) -> writeLiteralString h lit >>
                             hPutStr h "@" >>
-                            B.hPutStr h (encodeUtf8 lang)
+                            T.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^" >>
                             writeUNodeUri h (T.reverse dtype) pms

@@ -8,9 +8,10 @@ import Control.Monad
 
 -- Testing imports
 import Test.QuickCheck
-import Test.Framework (testGroup)
+import Test.Framework (Test,testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
+tests :: [Test]
 tests = [ testGroup "MGraph"
             [ testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)

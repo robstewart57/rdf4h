@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         1.1.0
+version:         1.2.0
 synopsis:        A library for RDF processing in Haskell
 description:     
   'RDF for Haskell' is a library for working with RDF in Haskell.
@@ -19,7 +19,7 @@ cabal-version:   >= 1.8
 build-type:      Simple
 category:        RDF
 stability:       Experimental
-tested-with:     GHC==7.6.1
+tested-with:     GHC==7.6.3
 extra-tmp-files: test
 
 flag small_base
@@ -60,7 +60,7 @@ library
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
-  ghc-options:     -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures -funbox-strict-fields -fno-warn-unused-do-bind
+  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
 
 executable rdf4h
   main-is:         Rdf4hParseMain.hs 
@@ -76,13 +76,12 @@ executable rdf4h
                  , text
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes ScopedTypeVariables MultiParamTypeClasses OverloadedStrings
-  ghc-options:     -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures -funbox-strict-fields -fno-warn-unused-do-bind
-
+  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
 
 test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
-  ghc-options:   -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures -funbox-strict-fields -fno-warn-unused-do-bind
+  ghc-options:   -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fno-warn-name-shadowing -funbox-strict-fields
   extensions:    RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
   build-depends: base >= 4 && < 6
                , parsec >= 3

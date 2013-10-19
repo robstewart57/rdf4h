@@ -12,8 +12,9 @@ module Data.RDF.Query (
 
 ) where
 
-import Data.RDF.Types
+import Prelude hiding (pred)
 import Data.List
+import Data.RDF.Types
 
 -- |Answer the given list of triples in sorted order.
 sortTriples :: Triples -> Triples
@@ -111,8 +112,8 @@ expandTriples rdf = expandTriples' [] (baseUrl rdf) (prefixMappings rdf) (triple
 
 expandTriples' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Triples -> Triples
 expandTriples' acc _ _ [] = acc
-expandTriples' acc baseUrl prefixMappings (t:rest) = expandTriples' (normalize baseUrl prefixMappings t : acc) baseUrl prefixMappings rest
-  where normalize baseUrl prefixMappings = expandPrefixes prefixMappings . expandBaseUrl baseUrl
-        expandBaseUrl (Just _) triple = triple
-        expandBaseUrl Nothing triple = triple
-        expandPrefixes _ triple = triple
+expandTriples' acc baseURL prefixMaps (t:rest) = expandTriples' (normalize baseURL prefixMaps t : acc) baseURL prefixMaps rest
+  where normalize baseURL' prefixMaps' = expandPrefixes prefixMaps' . expandBaseUrl baseURL'
+        expandBaseUrl (Just _) triple' = triple'
+        expandBaseUrl Nothing triple' = triple'
+        expandPrefixes _ triple' = triple'

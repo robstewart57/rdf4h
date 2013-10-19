@@ -7,8 +7,6 @@ import Data.RDF.Types
 import Network.URI
 import Network.HTTP
 import Data.Char(intToDigit)
--- import Data.ByteString.Lazy.Char8(ByteString)
--- import qualified Data.ByteString as B
 import Data.Text.Encoding (decodeUtf8)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
@@ -34,10 +32,10 @@ _parseURL parseFunc url =
   where
     showRspCode (a, b, c) = map intToDigit [a, b, c]
     httpError resp = showRspCode (rspCode resp) ++ " " ++ rspReason resp
-    p url =
-      simpleHTTP (request url) >>= \resp ->
+    p url' =
+      simpleHTTP (request url') >>= \resp ->
         case resp of
-          (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url ++ " [" ++ show e ++ "]")
+          (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url' ++ " [" ++ show e ++ "]")
           (Right res) -> case rspCode res of
                            (2, 0, 0) -> return $ parseFunc (decodeUtf8 (rspBody res))
                            _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)

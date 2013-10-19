@@ -12,13 +12,14 @@ import Data.RDF.TriplesGraph
 import Data.RDF.Types
 import qualified Data.Text as T 
 import System.IO
-import Test.Framework (testGroup)
+import Test.Framework (Test,testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Monadic (assert, monadicIO,run)
 import Test.QuickCheck.Property
 import Text.RDF.RDF4H.NTriplesSerializer
 
+tests :: [Test]
 tests = [ testGroup "TriplesGraph"
             [ testProperty "empty"              prop_tg_empty
             , testProperty "mkRdf_triplesOf"    prop_tg_mkRdf_triplesOf
@@ -47,6 +48,7 @@ tests = [ testGroup "TriplesGraph"
 ----------------------------------------------------
 -- instances and graph functions for TriplesGraph --
 ----------------------------------------------------
+
 
 instance Arbitrary TriplesGraph where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)

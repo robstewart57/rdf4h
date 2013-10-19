@@ -18,10 +18,11 @@ import qualified Data.Text.IO as TIO
 
 import Control.Monad (liftM)
 
+tests :: [Test]
 tests = [ testGroup "TurtleParser" allCTests ]
 
-
 -- A list of other tests to run, each entry of which is (directory, fname_without_ext).
+otherTestFiles :: [(String, String)]
 otherTestFiles = [("data/ttl", "example1"),
                   ("data/ttl", "example2"),
                   ("data/ttl", "example3"),

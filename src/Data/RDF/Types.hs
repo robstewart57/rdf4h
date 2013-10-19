@@ -31,6 +31,7 @@ module Data.RDF.Types (
 
 ) where
 
+import Prelude hiding (pred)
 import qualified Data.Text as T
 import System.IO
 import Text.Printf

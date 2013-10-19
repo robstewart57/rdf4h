@@ -5,6 +5,7 @@ module Text.RDF.RDF4H.NTriplesParser(
   NTriplesParser(NTriplesParser), ParseFailure
 ) where
 
+import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
 import Data.Char(isLetter, isDigit, isLower)
@@ -187,6 +188,7 @@ inner_string =
   <|> liftM T.pack
     (many (satisfy (\ c -> is_nonquote_char c && c /= '\\')))
 
+b_tab, b_ret, b_nl, b_slash, b_quote :: T.Text
 b_tab = T.singleton '\t'
 b_ret = T.singleton '\r'
 b_nl  = T.singleton '\n'

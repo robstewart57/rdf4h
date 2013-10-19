@@ -1,9 +1,11 @@
 module Text.RDF.RDF4H.XmlParser_Test where
 
+-- todo: QuickCheck tests
+
 -- Testing imports
-import Test.Framework (testGroup)
+import Test.Framework (Test,testGroup)
 import Test.Framework.Providers.HUnit
-import Test.HUnit
+import Test.HUnit (Assertion,assertBool,assertFailure)
 
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
@@ -14,6 +16,7 @@ import Data.RDF.Query
 import Data.RDF.TriplesGraph (TriplesGraph)
 import Text.RDF.RDF4H.XmlParser
 
+tests :: [Test]
 tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simpleStriping1
                                             , testCase "simpleStriping2" test_simpleStriping2
                                             , testCase "simpleSingleton1" test_simpleSingleton1
@@ -36,11 +39,22 @@ tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_si
                                             ]
         ]
 
-mkTextNode = lnode . plainL . s2t
-testParse exRDF ex = assertBool ("expected: " ++ show ex ++ "but got: " ++ show parsed)
-                                (isIsomorphic (parsed :: TriplesGraph) (ex :: TriplesGraph))
-  where parsed = case parseXmlRDF Nothing Nothing (s2t exRDF) of Right result -> result
 
+mkTextNode :: String -> Node
+mkTextNode = lnode . plainL . s2t
+
+testParse :: String -> TriplesGraph -> Assertion
+testParse exRDF ex =
+    case parsed of
+      Right result ->
+          assertBool
+            ("expected: " ++ show ex ++ "but got: " ++ show result)
+            (isIsomorphic (result :: TriplesGraph) (ex :: TriplesGraph))
+      Left (ParseFailure err) ->
+          assertFailure err
+  where parsed = parseXmlRDF Nothing Nothing (s2t exRDF)
+
+test_simpleStriping1 :: Assertion
 test_simpleStriping1 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\
@@ -56,6 +70,7 @@ test_simpleStriping1 = testParse
                                            , (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_simpleStriping2 :: Assertion
 test_simpleStriping2 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\
@@ -78,6 +93,7 @@ test_simpleStriping2 = testParse
                                            , (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_simpleSingleton1 :: Assertion
 test_simpleSingleton1 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\
@@ -92,6 +108,7 @@ test_simpleSingleton1 = testParse
                                            , (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_simpleSingleton2 :: Assertion
 test_simpleSingleton2 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\
@@ -111,6 +128,7 @@ test_simpleSingleton2 = testParse
     )
 
 -- * Document Element and XML Declaration
+test_parseXmlRDF_example07 :: Assertion
 test_parseXmlRDF_example07 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -138,6 +156,7 @@ test_parseXmlRDF_example07 = testParse
     )
 
 -- * Languages: xml:lang
+test_parseXmlRDF_example08 :: Assertion
 test_parseXmlRDF_example08 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\
@@ -177,6 +196,7 @@ test_parseXmlRDF_example08 = testParse
     )
 
 -- * XML Literals: rdf:parseType="Literal"
+test_parseXmlRDF_example09 :: Assertion
 test_parseXmlRDF_example09 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:ex=\"http://example.org/stuff/1.0/\">\
@@ -202,6 +222,7 @@ test_parseXmlRDF_example09 = testParse
     )
 
 -- * Typed Literals: rdf:datatype
+test_parseXmlRDF_example10 :: Assertion
 test_parseXmlRDF_example10 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:ex=\"http://example.org/stuff/1.0/\">\
@@ -220,6 +241,7 @@ test_parseXmlRDF_example10 = testParse
     )
 
 -- * Identifying Blank Nodes: rdf:nodeID
+test_parseXmlRDF_example11 :: Assertion
 test_parseXmlRDF_example11 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -250,6 +272,7 @@ test_parseXmlRDF_example11 = testParse
   where mkBNode = BNode . s2t
 
 -- * Omitting Blank Nodes: rdf:parseType="Resource"
+test_parseXmlRDF_example12 :: Assertion
 test_parseXmlRDF_example12 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -278,6 +301,7 @@ test_parseXmlRDF_example12 = testParse
     )
 
 -- * Omitting Nodes: Property Attributes on an empty Property Element
+test_parseXmlRDF_example13 :: Assertion
 test_parseXmlRDF_example13 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -304,6 +328,7 @@ test_parseXmlRDF_example13 = testParse
     )
 
 -- * Typed Node Elements
+test_parseXmlRDF_example14 :: Assertion
 test_parseXmlRDF_example14 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -326,6 +351,7 @@ test_parseXmlRDF_example14 = testParse
                                            , (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_parseXmlRDF_example15 :: Assertion
 test_parseXmlRDF_example15 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\
@@ -348,6 +374,7 @@ test_parseXmlRDF_example15 = testParse
     )
 
 -- * Abbreviating URIs: rdf:ID and xml:base
+test_parseXmlRDF_example16 :: Assertion
 test_parseXmlRDF_example16 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:ex=\"http://example.org/stuff/1.0/\"\
@@ -364,6 +391,7 @@ test_parseXmlRDF_example16 = testParse
     )
 
 -- * Container Membership Property Elements: rdf:li and rdf:_n
+test_parseXmlRDF_example17 :: Assertion
 test_parseXmlRDF_example17 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\
       \<rdf:Seq rdf:about=\"http://example.org/favourite-fruit\">\
@@ -389,6 +417,7 @@ test_parseXmlRDF_example17 = testParse
             ( PrefixMappings (Map.fromList [ (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_parseXmlRDF_example18 :: Assertion
 test_parseXmlRDF_example18 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\
       \<rdf:Seq rdf:about=\"http://example.org/favourite-fruit\">\
@@ -415,6 +444,7 @@ test_parseXmlRDF_example18 = testParse
     )
 
 -- * Collections: rdf:parseType="Collection"
+test_parseXmlRDF_example19 :: Assertion
 test_parseXmlRDF_example19 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:ex=\"http://example.org/stuff/1.0/\">\
@@ -452,6 +482,7 @@ test_parseXmlRDF_example19 = testParse
     )
 
 -- * Reifying Statements: rdf:ID
+test_parseXmlRDF_example20 :: Assertion
 test_parseXmlRDF_example20 = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:ex=\"http://example.org/stuff/1.0/\"\
@@ -481,6 +512,7 @@ test_parseXmlRDF_example20 = testParse
                                            , (s2t "rdf", s2t "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
 
+test_parseXmlRDF_vCardPersonal :: Assertion
 test_parseXmlRDF_vCardPersonal = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:v=\"http://www.w3.org/2006/vcard/ns#\">\

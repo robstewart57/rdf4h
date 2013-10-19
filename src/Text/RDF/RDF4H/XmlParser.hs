@@ -141,7 +141,7 @@ parseObjectsFromChildren s p = choiceA
     ]
   where parseObjectDescription = proc desc -> do
                                       o <- mkNode s -< desc
-                                      t0 <- arr (\(sub, (p, o)) -> Triple sub p o) -< (stateSubject s, (p, o))
+                                      t0 <- arr (\(sub, (p', o)) -> Triple sub p' o) -< (stateSubject s, (p, o))
                                       t <- arr fst <+> (parseDescription <<< arr snd) -< (t0, (s { stateSubject = o }, desc))
                                       returnA -< t
 

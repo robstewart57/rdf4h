@@ -12,10 +12,11 @@ module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, select, quer
 
 where
 
-import Data.RDF.Types
-import Data.RDF.Query
-import Data.RDF.Namespace
+import Prelude hiding (pred)
 import qualified Data.Map as Map
+import Data.RDF.Namespace
+import Data.RDF.Query
+import Data.RDF.Types
 
 -- |A simple implementation of the 'RDF' type class that represents
 -- the graph internally as a list of triples.
@@ -55,12 +56,12 @@ prefixMappings' :: TriplesGraph -> PrefixMappings
 prefixMappings' (TriplesGraph (_, _, pms)) = pms
 
 addPrefixMappings' :: TriplesGraph -> PrefixMappings -> Bool -> TriplesGraph
-addPrefixMappings' (TriplesGraph (ts, baseUrl, pms)) pms' replace =
+addPrefixMappings' (TriplesGraph (ts, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  TriplesGraph (ts, baseUrl, merge pms pms')
+  in  TriplesGraph (ts, baseURL, merge pms pms')
   
 baseUrl' :: TriplesGraph -> Maybe BaseUrl
-baseUrl' (TriplesGraph (_, baseUrl, _)) = baseUrl
+baseUrl' (TriplesGraph (_, baseURL, _)) = baseURL
 
 empty' :: TriplesGraph
 empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
@@ -70,7 +71,7 @@ empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
 -- from the results of the select' and query' functions, since it is cheap to do
 -- there in most cases, but not when triplesOf' is called.
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkRdf' ts baseUrl pms = TriplesGraph (ts, baseUrl, pms)
+mkRdf' ts baseURL pms = TriplesGraph (ts, baseURL, pms)
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
