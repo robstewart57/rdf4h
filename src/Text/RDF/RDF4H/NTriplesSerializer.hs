@@ -5,14 +5,12 @@ module Text.RDF.RDF4H.NTriplesSerializer(
   NTriplesSerializer(NTriplesSerializer)
 ) where
 
+import Control.Monad (void)
 import Data.RDF.Types
 import Data.RDF.Utils
 import qualified Data.Text as T
-import Data.Text.Encoding
-import qualified Data.ByteString as B
-import Control.Monad (void)
+import qualified Data.Text.IO as T
 import System.IO
-
 
 data NTriplesSerializer = NTriplesSerializer
 
@@ -44,7 +42,7 @@ _writeNode :: Handle -> Node -> IO ()
 _writeNode h node =
   case node of
     (UNode bs)  -> hPutChar h '<' >>
-                     hPutStrRev h bs >>
+                     T.hPutStr h bs >>
                      hPutChar h '>'
     (BNode gId) -> hPutStrRev h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
@@ -56,10 +54,10 @@ _writeLValue h lv =
     (PlainL lit)       -> _writeLiteralString h lit
     (PlainLL lit lang) -> _writeLiteralString h lit >>
                             hPutStr h "@" >>
-                            B.hPutStr h (encodeUtf8 lang)
+                            T.hPutStr h lang
     (TypedL lit dtype) -> _writeLiteralString h lit >>
                             hPutStr h "^^<" >>
-                            hPutStrRev h dtype >>
+                            T.hPutStr h dtype >>
                             hPutStr h ">"
 
 -- TODO: this is REALLY slow.

@@ -54,7 +54,6 @@ library
                  , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.0.0
-                 , MissingH >= 1.2.0.0
                  , text
   other-modules:   Data.RDF.Utils
                  , Text.RDF.RDF4H.ParserUtils
@@ -62,7 +61,6 @@ library
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
   ghc-options:     -Wall -fno-warn-name-shadowing -fno-warn-missing-signatures -funbox-strict-fields -fno-warn-unused-do-bind
-
 
 executable rdf4h
   main-is:         Rdf4hParseMain.hs 
@@ -74,7 +72,6 @@ executable rdf4h
                  , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.0.0
-                 , MissingH >= 1.2.0.0
                  , containers
                  , text
   hs-source-dirs:  src
@@ -96,11 +93,11 @@ test-suite test-rdf4h
                , network >= 2.2.0.0
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
-               , MissingH >= 1.2.0.0
                , bytestring
                , hxt
                , containers
                , text
+               , knob
   other-modules: Data.RDF
                , Data.RDF.Namespace
                , Data.RDF.MGraph

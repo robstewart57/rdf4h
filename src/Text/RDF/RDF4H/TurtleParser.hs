@@ -215,7 +215,7 @@ t_literal =
   liftM (`mkLNode` xsdBooleanUri) t_boolean
   where
     mkLNode :: T.Text -> T.Text -> Node
-    mkLNode bsType bs = LNode (typedL bsType bs)
+    mkLNode bsType bs' = LNode (typedL bsType bs')
 
 str_literal :: GenParser ParseState Node
 str_literal =
@@ -293,9 +293,9 @@ t_ws =
 
 t_language  :: GenParser ParseState T.Text
 t_language =
-  do init <- many1 lower;
+  do initial <- many1 lower;
      rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ( s2t ('-':cs))})
-     return $! ( s2t init `T.append` T.concat rest)
+     return $! ( s2t initial `T.append` T.concat rest)
 
 identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
 identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( s2t (i:r))
@@ -425,7 +425,7 @@ absolutizeUrl mbUrl mdUrl urlFrag =
                                                   else bUrl)
                                                  `T.append` urlFrag)
   where
-    isHash bs = T.length bs == 1 && T.head bs == '#'
+    isHash bs' = T.length bs' == 1 && T.head bs' == '#'
 
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: T.Text -> Bool
@@ -572,7 +572,7 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
 parseFile' bUrl docUrl fpath =
-  TIO.readFile fpath >>= \bs -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" t2s docUrl) bs)
+  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" t2s docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
