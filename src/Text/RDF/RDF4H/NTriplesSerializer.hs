@@ -7,7 +7,6 @@ module Text.RDF.RDF4H.NTriplesSerializer(
 
 import Control.Monad (void)
 import Data.RDF.Types
-import Data.RDF.Utils
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import System.IO
@@ -44,7 +43,7 @@ _writeNode h node =
     (UNode bs)  -> hPutChar h '<' >>
                      T.hPutStr h bs >>
                      hPutChar h '>'
-    (BNode gId) -> hPutStrRev h gId
+    (BNode gId) -> T.hPutStr h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> _writeLValue h n
 

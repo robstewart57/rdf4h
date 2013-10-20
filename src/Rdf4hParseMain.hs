@@ -1,3 +1,8 @@
+{-# LANGUAGE OverloadedStrings,
+             RankNTypes,
+             ScopedTypeVariables,
+             MultiParamTypeClasses #-}
+
 module Main where
 
 import Data.RDF.Types

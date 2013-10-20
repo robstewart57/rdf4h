@@ -484,8 +484,8 @@ canonicalize typeTxt litValue =
     Nothing   ->  litValue
     Just fn   ->  fn litValue
 
--- A table of mappings from a 'T.Text' URI (reversed as
--- they are) to a function that canonicalizes a T.Text
+-- A table of mappings from a 'T.Text' URI
+-- to a function that canonicalizes a T.Text
 -- assumed to be of that type.
 {-# NOINLINE canonicalizerTable #-}
 canonicalizerTable :: Map T.Text (T.Text -> T.Text)

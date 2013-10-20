@@ -55,8 +55,7 @@ library
                  , HTTP >= 4000.0.0
                  , hxt >= 9.0.0
                  , text
-  other-modules:   Data.RDF.Utils
-                 , Text.RDF.RDF4H.ParserUtils
+  other-modules:   Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings

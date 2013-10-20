@@ -10,11 +10,8 @@ where
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace hiding (rdf)
-import Data.RDF.Utils
 import qualified Data.Text as T
-import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO as T
-import qualified Data.ByteString.Char8 as B
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List
@@ -61,20 +58,16 @@ writeBase :: Handle -> Maybe BaseUrl -> IO ()
 writeBase _ Nothing               =
   return ()
 writeBase h (Just (BaseUrl bUrl)) =
-  hPutStr h "@base " >> hPutChar h '<' >> B.hPutStr h (encodeUtf8 bUrl) >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@base " >> hPutChar h '<' >> T.hPutStr h bUrl >> hPutStr h "> ." >> hPutChar h '\n'
 
 writePrefixes :: Handle -> PrefixMappings -> IO ()
 writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 
 writePrefix :: Handle -> (T.Text, T.Text) -> IO ()
 writePrefix h (pre, uri) =
-  hPutStr h "@prefix " >> B.hPutStr h (encodeUtf8 pre) >> hPutStr h ": " >>
-  hPutChar h '<' >> B.hPutStr h (encodeUtf8 uri) >> hPutStr h "> ." >> hPutChar h '\n'
+  hPutStr h "@prefix " >> T.hPutStr h pre >> hPutStr h ": " >>
+  hPutChar h '<' >> T.hPutStr h uri >> hPutStr h "> ." >> hPutChar h '\n'
 
--- We don't really use the map as a map yet, but we reverse the map anyway so that
--- it maps from uri to prefix rather than the usual prefix to uri, since we never need
--- to look anything up by prefix, where as we do use the uri for determining which
--- prefix to use.
 writeTriples :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeTriples h mdUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
@@ -120,21 +113,21 @@ writeNode h mdUrl node prefixes =
                    in case mdUrl of
                         Nothing  -> writeUNodeUri h currUri prefixes
                         Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
-    (BNode gId) -> hPutStrRev h gId
+    (BNode gId) -> T.hPutStr h gId
     (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
     (LNode n)   -> writeLValue h n prefixes
 
 writeUNodeUri :: Handle -> T.Text -> Map T.Text T.Text -> IO ()
 writeUNodeUri h uri prefixes =
   case mapping of
-    Nothing                 -> hPutChar h '<' >> B.hPutStr h (encodeUtf8 uri) >> hPutChar h '>'
-    (Just (pre, localName)) -> B.hPutStr h (encodeUtf8 pre) >> hPutChar h ':' >> B.hPutStr h (encodeUtf8 localName)
+    Nothing                 -> hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
+    (Just (pre, localName)) -> T.hPutStr h pre >> hPutChar h ':' >> T.hPutStr h localName
   where
     mapping         = findMapping prefixes uri
 
 -- Print prefix mappings to stdout for debugging.
 _debugPMs     :: Map T.Text T.Text -> IO ()
-_debugPMs pms =  mapM_ (\(k, v) -> B.putStr (encodeUtf8 k) >> putStr "__" >> B.putStrLn (encodeUtf8 v)) (Map.toList pms)
+_debugPMs pms =  mapM_ (\(k, v) -> T.putStr k >> putStr "__" >> T.putStrLn v) (Map.toList pms)
 
 -- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
 -- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
@@ -148,8 +141,6 @@ findMapping pms uri =
   where
     mapping        = find (\(k, _) -> T.isPrefixOf k uri) (Map.toList pms)
 
---_testPms = Map.fromList [(s2b "http://example.com/ex#", s2b "eg")]
-
 writeLValue :: Handle -> LValue -> Map T.Text T.Text -> IO ()
 writeLValue h lv pms =
   case lv of
@@ -159,7 +150,8 @@ writeLValue h lv pms =
                             T.hPutStr h lang
     (TypedL lit dtype) -> writeLiteralString h lit >>
                             hPutStr h "^^" >>
-                            writeUNodeUri h (T.reverse dtype) pms
+                            writeUNodeUri h dtype pms
+                            -- writeUNodeUri h (T.reverse dtype) pms
 
 writeLiteralString:: Handle -> T.Text -> IO ()
 writeLiteralString h bs =
@@ -176,7 +168,3 @@ writeLiteralString h bs =
         '"'  ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '"')  >> return True
         '\\' ->  b >>= \b' -> when b' (hPutChar h '\\' >> hPutChar h '\\') >> return True
         _    ->  b >>= \b' -> when b' (hPutChar  h c)                      >> return True
-
---subj1 = unode $ s2b "http://example.com/subj"
---pred1 = unode $ s2b "http://example.com/pred"
---obj1  = typedL (s2b "hello, world") (mkFastString $ makeUri xsd $ s2b "")

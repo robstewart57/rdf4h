@@ -5,18 +5,16 @@ import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as T
 
-import Data.RDF.Utils
-import Data.RDF.Query
-import Data.RDF.Types
-import Data.RDF.TriplesGraph
+-- Import common libraries to facilitate tests
+import Control.Monad (liftM)
 import Data.RDF.GraphTestUtils
-import Text.RDF.RDF4H.TurtleParser
-
-import Text.Printf
+import Data.RDF.Query
+import Data.RDF.TriplesGraph
+import Data.RDF.Types
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-
-import Control.Monad (liftM)
+import Text.Printf
+import Text.RDF.RDF4H.TurtleParser
 
 tests :: [Test]
 tests = [ testGroup "TurtleParser" allCTests ]
@@ -29,6 +27,7 @@ otherTestFiles = [("data/ttl", "example1"),
                   ("data/ttl", "example5"),
                   ("data/ttl", "example6"),
                   ("data/ttl", "example7"),
+                  ("data/ttl", "example8"),
                   ("data/ttl", "fawlty1")
                  ]
 
@@ -99,7 +98,8 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
         (s1, p1, o1) = f t1
         (s2, p2, o2) = f t2
         f t = (subjectOf t, predicateOf t, objectOf t)
-    equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == s2t ("_:genid" ++ show i)
+    -- equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == T.pack ("_:genid" ++ show i)
+    equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" ++ show i)
     equalNodes n1          n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
@@ -126,7 +126,7 @@ normalize t = let s' = normalizeN $ subjectOf t
                   o' = normalizeN $ objectOf t
               in  triple s' p' o'
 normalizeN :: Node -> Node
-normalizeN (BNodeGen i) = BNode (s2t $ "_:genid" ++ show i)
+normalizeN (BNodeGen i) = BNode (T.pack $ "_:genid" ++ show i)
 normalizeN n            = n
 
 loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
@@ -149,7 +149,7 @@ assertEquivalent testname r1 r2 =
   where equiv = equivalent r1 r2
 
 mkDocUrl :: String -> String -> Int -> Maybe T.Text
-mkDocUrl baseDocUrl fname testNum = Just $ s2t $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
+mkDocUrl baseDocUrl fname testNum = Just $ T.pack $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
 
 mkDocUrl1 :: String -> String -> Maybe T.Text
-mkDocUrl1 baseDocUrl fname        = Just $ s2t $ printf "%s%s.ttl" baseDocUrl fname
+mkDocUrl1 baseDocUrl fname        = Just $ T.pack $ printf "%s%s.ttl" baseDocUrl fname

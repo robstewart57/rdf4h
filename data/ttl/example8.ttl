@@ -1,0 +1,5 @@
+@prefix ex: <http://example.org/stuff/1.0/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+
+ex:John   foaf:knows       _:p1 .
+_:p1      foaf:birthday   "04-21" .

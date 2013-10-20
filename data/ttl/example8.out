@@ -1,0 +1,2 @@
+<http://example.org/stuff/1.0/John> <http://xmlns.com/foaf/0.1/knows> _:p1 .
+_:p1 <http://xmlns.com/foaf/0.1/birthday> "04-21" .

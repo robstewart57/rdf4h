@@ -8,7 +8,6 @@ module Text.RDF.RDF4H.TurtleParser(
 where
 
 import Data.RDF.Types
-import Data.RDF.Utils
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec
@@ -248,15 +247,15 @@ t_integer =
      ds <- many1 digit   <?> "digit"
      notFollowedBy (char '.')
      -- integer must be in canonical format, with no leading plus sign or leading zero
-     return $! ( s2t sign `T.append` s2t ds)
+     return $! ( T.pack sign `T.append` T.pack ds)
 
 t_double :: GenParser ParseState T.Text
 t_double =
   do sign <- sign_parser <?> "+-"
-     rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return ( s2t ds `T.snoc` '.' `T.append`  s2t ds' `T.append` e) }) <|>
-             try (do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.' `T.cons`  s2t ds `T.append` e) }) <|>
-             try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ( s2t ds `T.append` e) })
-     return $! s2t sign `T.append` rest
+     rest <- try (do { ds <- many1 digit <?> "digit";  char '.'; ds' <- many digit <?> "digit"; e <- t_exponent <?> "exponent"; return ( T.pack ds `T.snoc` '.' `T.append`  T.pack ds' `T.append` e) }) <|>
+             try (do { char '.'; ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ('.' `T.cons`  T.pack ds `T.append` e) }) <|>
+             try (do { ds <- many1 digit <?> "digit"; e <- t_exponent <?> "exponent"; return ( T.pack ds `T.append` e) })
+     return $! T.pack sign `T.append` rest
 
 sign_parser :: GenParser ParseState String
 sign_parser = option "" (oneOf "-+" >>= (\c -> return [c]))
@@ -267,18 +266,18 @@ t_decimal =
      rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
              <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
-     return $ s2t sign `T.append`  s2t rest
+     return $ T.pack sign `T.append`  T.pack rest
 
 t_exponent :: GenParser ParseState T.Text
 t_exponent = do e <- oneOf "eE"
                 s <- option "" (oneOf "-+" >>= \c -> return [c])
                 ds <- many1 digit;
-                return $! (e `T.cons` ( s2t s `T.append` s2t ds))
+                return $! (e `T.cons` ( T.pack s `T.append` T.pack ds))
 
 t_boolean :: GenParser ParseState T.Text
 t_boolean =
-  try (liftM s2t (string "true") <|>
-  liftM s2t (string "false"))
+  try (liftM T.pack (string "true") <|>
+  liftM T.pack (string "false"))
 
 t_comment :: GenParser ParseState ()
 t_comment =
@@ -294,11 +293,11 @@ t_ws =
 t_language  :: GenParser ParseState T.Text
 t_language =
   do initial <- many1 lower;
-     rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ( s2t ('-':cs))})
-     return $! ( s2t initial `T.append` T.concat rest)
+     rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ( T.pack ('-':cs))})
+     return $! ( T.pack initial `T.append` T.concat rest)
 
 identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
-identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( s2t (i:r))
+identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( T.pack (i:r))
 
 t_prefixName :: GenParser ParseState T.Text
 t_prefixName = identifier t_nameStartCharMinusUnderscore t_nameChar
@@ -311,7 +310,7 @@ t_uriref = between (char '<') (char '>') t_relativeURI
 
 t_relativeURI  :: GenParser ParseState T.Text
 t_relativeURI =
-  do frag <- liftM (s2t . concat) (many t_ucharacter)
+  do frag <- liftM (T.pack . concat) (many t_ucharacter)
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
      return $ absolutizeUrl bUrl dUrl frag
@@ -321,9 +320,9 @@ t_relativeURI =
 -- when it creates a T.Text it can all be in one chunk.
 t_ucharacter  :: GenParser ParseState String
 t_ucharacter =
-  try (liftM t2s unicode_escape) <|>
+  try (liftM T.unpack unicode_escape) <|>
   try (string "\\>") <|>
-  liftM t2s (non_ctrl_char_except ">")
+  liftM T.unpack (non_ctrl_char_except ">")
 
 t_nameChar :: GenParser ParseState Char
 t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
@@ -352,7 +351,7 @@ bs1 :: Char -> GenParser ParseState T.Text
 bs1 = return . T.singleton
 
 bs :: String -> GenParser ParseState T.Text
-bs = return . s2t
+bs = return . T.pack
 
 t_nameStartChar  :: GenParser ParseState Char
 t_nameStartChar = char '_' <|> t_nameStartCharMinusUnderscore
@@ -387,8 +386,8 @@ unicode_escape  :: GenParser ParseState T.Text
 unicode_escape =
  (char '\\' >> return (T.singleton '\\')) >>
  ((char '\\' >> return "\\\\") <|>
-  (char 'u' >> count 4 t_hex >>= \cs -> return $!  "\\u" `T.append`  s2t cs) <|>
-  (char 'U' >> count 8 t_hex >>= \cs -> return $!  "\\U" `T.append` s2t cs))
+  (char 'u' >> count 4 t_hex >>= \cs -> return $!  "\\u" `T.append`  T.pack cs) <|>
+  (char 'U' >> count 8 t_hex >>= \cs -> return $!  "\\U" `T.append` T.pack cs))
 
 non_ctrl_char_except  :: String -> GenParser ParseState T.Text
 non_ctrl_char_except cs =
@@ -410,7 +409,7 @@ resolveQName mbaseUrl prefix (PrefixMappings pms') =
     (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
   where
     err1 = error  "Cannot resolve empty QName prefix to a Base URL."
-    err2 = error ("Cannot resolve QName prefix: " ++ t2s prefix)
+    err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
 
 -- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
 absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
@@ -429,7 +428,7 @@ absolutizeUrl mbUrl mdUrl urlFrag =
 
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = T.isInfixOf (s2t [':'])
+isAbsoluteUri = T.isInfixOf (T.pack [':'])
 
 newBaseUrl :: Maybe BaseUrl -> T.Text -> BaseUrl
 newBaseUrl Nothing                url = BaseUrl url
@@ -572,7 +571,7 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
 parseFile' bUrl docUrl fpath =
-  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" t2s docUrl) bs')
+  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 

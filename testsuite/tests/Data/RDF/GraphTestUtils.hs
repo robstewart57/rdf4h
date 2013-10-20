@@ -1,6 +1,5 @@
 module Data.RDF.GraphTestUtils where
 
-import Data.RDF.Utils
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
@@ -13,13 +12,13 @@ import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)
 
 instance Arbitrary BaseUrl where
-  arbitrary = oneof $ map (return . BaseUrl . s2t) ["http://example.com/a", "http://asdf.org/b"]
+  arbitrary = oneof $ map (return . BaseUrl . T.pack) ["http://example.com/a", "http://asdf.org/b"]
   --coarbitrary = undefined
 
 instance Arbitrary PrefixMappings where
   arbitrary = oneof [return $ PrefixMappings Map.empty, return $ PrefixMappings $
-                          Map.fromAscList [(s2t "eg1", s2t "http://example.com/1"),
-                                        (s2t "eg2", s2t "http://example.com/2")]]
+                          Map.fromAscList [(T.pack "eg1", T.pack "http://example.com/1"),
+                                        (T.pack "eg2", T.pack "http://example.com/2")]]
   --coarbitrary = undefined
 
 -- Test stubs, which just require the appropriate RDF impl function
@@ -270,13 +269,13 @@ queryT :: RDF rdf => rdf -> Triple -> Triples
 queryT rdf t = query rdf (Just $ subjectOf t) (Just $ predicateOf t) (Just $ objectOf t)
 
 languages :: [T.Text]
-languages = [s2t "fr", s2t "en"]
+languages = [T.pack "fr", T.pack "en"]
 
 datatypes :: [T.Text]
-datatypes = map (mkUri xsd . s2t) ["string", "int", "token"]
+datatypes = map (mkUri xsd . T.pack) ["string", "int", "token"]
 
 uris :: [T.Text]
-uris = map (mkUri ex) [s2t n `T.append` s2t (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
+uris = map (mkUri ex) [T.pack n `T.append` T.pack (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
@@ -291,7 +290,7 @@ unodes :: [Node]
 unodes = map UNode uris
 
 bnodes :: [ Node]
-bnodes = map (BNode . \i -> s2t ":_genid" `T.append` s2t (show (i::Int))) [1..5]
+bnodes = map (BNode . \i -> T.pack ":_genid" `T.append` T.pack (show (i::Int))) [1..5]
 
 lnodes :: [Node]
 lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
