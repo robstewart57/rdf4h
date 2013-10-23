@@ -4,19 +4,29 @@
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
 
 module Text.RDF.RDF4H.XmlParser(
-  parseXmlRDF, getRDF
+  XmlParser(XmlParser)
 ) where
 
 import Control.Arrow (Arrow,(>>>),(<<<),(&&&),(***),arr,returnA)
 import Control.Arrow.ArrowState (ArrowState,nextState)
 import Data.List (isPrefixOf)
 import qualified Data.Map as Map (fromList)
-import Data.RDF.Types (RDF,Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode)
+import Text.RDF.RDF4H.ParserUtils
+import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode)
 import qualified Data.Text as T (Text,pack,unpack)
+import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xread,runSLA)
 
--- TODO: Create instance:
---  RdfParse XmlParser
+-- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
+
+data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
+
+-- |'XmlParser' is an instance of 'RdfParser'.
+instance RdfParser XmlParser where
+  parseString (XmlParser bUrl dUrl)  = parseXmlRDF bUrl dUrl 
+  parseFile   (XmlParser bUrl dUrl)  = parseFile' bUrl dUrl
+  parseURL    (XmlParser bUrl dUrl)  = parseURL'  bUrl dUrl
+
 
 -- |Global state for the parser
 data GParseState = GParseState { stateGenId :: Int
@@ -29,6 +39,42 @@ data LParseState = LParseState { stateBaseUrl :: BaseUrl
                                , stateSubject :: Subject
                                }
   deriving(Show)
+
+-- |Parse the given file as a XML document. The arguments and return type have the same semantics
+-- as 'parseURL', except that the last String argument corresponds to a filesystem location rather
+-- than a location URI.
+--
+-- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
+parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
+parseFile' bUrl dUrl fpath =
+   TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
+
+-- |Parse the document at the given location URL as an XML document, using an optional @BaseUrl@
+-- as the base URI, and using the given document URL as the URI of the XML document itself.
+--
+-- The @BaseUrl@ is used as the base URI within the document for resolving any relative URI references.
+-- It may be changed within the document using the @\@base@ directive. At any given point, the current
+-- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or 
+-- if none given, the document URL given to @parseURL@. For example, if the @BaseUrl@ were
+-- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@ 
+-- directive), then the relative URI would expand to @http:\/\/example.org\/b@.
+--
+-- The document URL is for the purpose of resolving references to 'this document' within the document,
+-- and may be different than the actual location URL from which the document is retrieved. Any reference
+-- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is 
+-- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
+-- base URI against which the relative URI is resolved.
+--p
+-- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
+parseURL' :: forall rdf. (RDF rdf) => 
+                 Maybe BaseUrl       -- ^ The optional base URI of the document.
+                 -> Maybe T.Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> String           -- ^ The location URI from which to retrieve the XML document.
+                 -> IO (Either ParseFailure rdf)
+                                     -- ^ The parse result, which is either a @ParseFailure@ or the RDF
+                                     --   corresponding to the XML document.
+parseURL' bUrl docUrl = _parseURL (parseXmlRDF bUrl docUrl)
+
 
 -- |Parse a xml T.Text to an RDF representation
 parseXmlRDF :: forall rdf. (RDF rdf)

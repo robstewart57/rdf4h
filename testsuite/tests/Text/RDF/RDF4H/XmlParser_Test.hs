@@ -51,7 +51,7 @@ testParse exRDF ex =
             (isIsomorphic (result :: TriplesGraph) (ex :: TriplesGraph))
       Left (ParseFailure err) ->
           assertFailure err
-  where parsed = parseXmlRDF Nothing Nothing exRDF
+  where parsed = parseString (XmlParser Nothing Nothing) exRDF
 
 test_simpleStriping1 :: Assertion
 test_simpleStriping1 = testParse
