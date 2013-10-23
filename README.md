@@ -57,22 +57,13 @@ Example
       putStrLn $ "Query: " ++ show (query g1 Nothing Nothing (Just node1))
 
 
-TODOs
------
-
-* RDF/XML Serialization; Add RdfParser instance for XmlParser
-* `Data.RDF` API to match that of the
-[Model](http://jena.apache.org/documentation/javadoc/jena/com/hp/hpl/jena/rdf/model/Model.html)
-class in the Jena framework (Java)
-
-
 Issues
 ------
 
 Please use the GitHub [issue
 tracker](https://github.com/robstewart57/rdf4h/issues) to report any
-bugs you might find. New contributors are most welcome, and pull
-requests will be favourably received.
+bugs you might find. New contributors are most welcome! See the
+TODO.org file for some ideas on how to contribute.
 
 
 Related Haskell Packages

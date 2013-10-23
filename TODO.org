@@ -1,0 +1,34 @@
+* Preamble
+
+The following TODOs should be addressed. Should you have the
+inclination to address them, please feel free to send pull requests!
+
+* QuickCheck tests for XML, Turtle and NTriples Parser
+
+Currently there are only Unit tests in
+testsuite/tests/Text/RDF/RDF4H/ for the XmlParser and TurtleParser
+instances. Automated QuickCheck tests would add confidence in the
+stability in this library. 
+
+* Tests of any kind for the NTriples Parser
+
+There are no tests for the NTriplesParser instance.
+
+* Lots of coding examples
+
+Examples help newcomers to the library understand it should be
+used. Adding plenty of simple examples could be added to the examples/
+directory.
+
+* More exotic RDF API
+
+The RDF typeclass is very simple. More interesting graph manipulation
+and querying is left currently to the user.  A more exotic API could
+be inspired by the
+[Jena](http://jena.apache.org/documentation/javadoc/jena/) library.
+
+* More descriptive haddock documentation
+
+The haddock documentation is not very helpful. It would be good to add
+a verbose description of the RDF standard and a couple of simple
+coding examples in the src/Data/RDF.hs file.
