@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         1.2.1
+version:         1.2.2
 synopsis:        A library for RDF processing in Haskell
 description:     
   'RDF for Haskell' is a library for working with RDF in Haskell.
@@ -54,7 +54,7 @@ library
   build-depends:   parsec >= 3
                  , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
-                 , hxt >= 9.0.0
+                 , hxt >= 9.3.1.2
                  , text
   other-modules:   Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.Interact
@@ -71,7 +71,7 @@ executable rdf4h
   build-depends:   parsec >= 3
                  , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
-                 , hxt >= 9.0.0
+                 , hxt >= 9.3.1.2
                  , containers
                  , text
   hs-source-dirs:  src
@@ -93,7 +93,7 @@ test-suite test-rdf4h
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
                , bytestring
-               , hxt
+               , hxt >= 9.3.1.2
                , containers
                , text
                , knob

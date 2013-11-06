@@ -15,7 +15,7 @@ import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode)
 import qualified Data.Text as T (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
-import Text.XML.HXT.Core (ArrowXml,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xread,runSLA)
+import Text.XML.HXT.Core (ArrowXml,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
 
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
@@ -85,7 +85,7 @@ parseXmlRDF :: forall rdf. (RDF rdf)
 parseXmlRDF bUrl dUrl xmlStr = case runParseArrow of
                                 (_,r:_) -> Right r
                                 _ -> Left (ParseFailure "XML parsing failed")
-  where runParseArrow = runSLA (xread >>> addMetaData bUrl dUrl >>> getRDF) initState (T.unpack xmlStr)
+  where runParseArrow = runSLA (xreadDoc >>> isElem >>> addMetaData bUrl dUrl >>> getRDF) initState (T.unpack xmlStr)
         initState = GParseState { stateGenId = 0 }
 
 -- |Add a root tag to a given XmlTree to appear as if it was read from a readDocument function
