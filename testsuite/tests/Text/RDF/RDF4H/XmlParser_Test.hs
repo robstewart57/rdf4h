@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import Data.RDF.Query
 import Data.RDF.TriplesGraph (TriplesGraph)
 import Data.RDF.Types
-import qualified Data.Text as T (Text)
+import qualified Data.Text as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser
  
 tests :: [Test]
@@ -35,6 +35,9 @@ tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_si
                                             , testCase "example19" test_parseXmlRDF_example19
                                             , testCase "example20" test_parseXmlRDF_example20
                                             , testCase "vCardPersonal" test_parseXmlRDF_vCardPersonal
+                                            , testCase "NML" test_parseXmlRDF_NML
+                                            , testCase "NML2" test_parseXmlRDF_NML2
+                                            , testCase "NML3" test_parseXmlRDF_NML3
                                             ]
         ]
 
@@ -582,5 +585,106 @@ test_parseXmlRDF_vCardPersonal = testParse
             ]
             Nothing
             ( PrefixMappings (Map.fromList [ ("v", "http://www.w3.org/2006/vcard/ns#")
+                                           , ("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
+    )
+
+test_parseXmlRDF_NML :: Assertion
+test_parseXmlRDF_NML = testParse
+    (T.unlines
+    ["<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    ,"<rdf:RDF"
+    ,"  xmlns:nml=\"http://schemas.ogf.org/nml/2013/05/base#\""
+    ,"  xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
+    ,">"
+    ,"  <nml:Node rdf:about=\"urn:ogf:network:example.org:2014:foo\">"
+    ,"    <nml:hasInboundPort>"
+    ,"      <nml:Port rdf:about=\"urn:ogf:network:example.org:2014:foo:A1:in\">"
+    ,"        <nml:isSink rdf:resource=\"urn:ogf:network:example.org:2014:link:1\"/>"
+    ,"      </nml:Port>"
+    ,"    </nml:hasInboundPort>"
+    ,"  </nml:Node>"
+    ,"</rdf:RDF>"
+    ])
+    ( mkRdf [ Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "rdf:type")
+                     (unode "nml:Node")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "nml:hasInboundPort")
+                     (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "rdf:type")
+                     (unode "nml:Port")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "nml:isSink")
+                     (unode "urn:ogf:network:example.org:2014:link:1")
+            ]
+            Nothing
+            ( PrefixMappings (Map.fromList [ ("nml", "http://schemas.ogf.org/nml/2013/05/base#")
+                                           , ("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
+    )
+
+test_parseXmlRDF_NML2 :: Assertion
+test_parseXmlRDF_NML2 = testParse
+    (T.unlines
+    ["<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    ,"<rdf:RDF"
+    ,"  xmlns:nml=\"http://schemas.ogf.org/nml/2013/05/base#\""
+    ,"  xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
+    ,">"
+    ,"  <nml:Node rdf:about=\"urn:ogf:network:example.org:2014:foo\">"
+    ,"    <nml:hasInboundPort rdf:resource=\"urn:ogf:network:example.org:2014:foo:A1:in\"/>"
+    ,"  </nml:Node>"
+    ,"  <nml:Port rdf:about=\"urn:ogf:network:example.org:2014:foo:A1:in\">"
+    ,"    <nml:isSink rdf:resource=\"urn:ogf:network:example.org:2014:link:1\"/>"
+    ,"  </nml:Port>"
+    ,"</rdf:RDF>"
+    ])
+    ( mkRdf [ Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "rdf:type")
+                     (unode "nml:Node")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "nml:hasInboundPort")
+                     (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "rdf:type")
+                     (unode "nml:Port")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "nml:isSink")
+                     (unode "urn:ogf:network:example.org:2014:link:1")
+            ]
+            Nothing
+            ( PrefixMappings (Map.fromList [ ("nml", "http://schemas.ogf.org/nml/2013/05/base#")
+                                           , ("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
+    )
+
+test_parseXmlRDF_NML3 :: Assertion
+test_parseXmlRDF_NML3 = testParse
+    "<?xml version=\"1.0\" encoding=\"utf-8\"?>\
+     \<rdf:RDF\
+     \ xmlns:nml=\"http://schemas.ogf.org/nml/2013/05/base#\"\
+     \ xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
+     \>\
+     \ <nml:Node rdf:about=\"urn:ogf:network:example.org:2014:foo\">\
+     \   <nml:hasInboundPort rdf:resource=\"urn:ogf:network:example.org:2014:foo:A1:in\"/>\
+     \ </nml:Node>\
+     \ <nml:Port rdf:about=\"urn:ogf:network:example.org:2014:foo:A1:in\">\
+     \   <nml:isSink rdf:resource=\"urn:ogf:network:example.org:2014:link:1\"/>\
+     \ </nml:Port>\
+     \</rdf:RDF>"
+    ( mkRdf [ Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "rdf:type")
+                     (unode "nml:Node")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo")
+                     (unode "nml:hasInboundPort")
+                     (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "rdf:type")
+                     (unode "nml:Port")
+            , Triple (unode "urn:ogf:network:example.org:2014:foo:A1:in")
+                     (unode "nml:isSink")
+                     (unode "urn:ogf:network:example.org:2014:link:1")
+            ]
+            Nothing
+            ( PrefixMappings (Map.fromList [ ("nml", "http://schemas.ogf.org/nml/2013/05/base#")
                                            , ("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ]) )
     )
