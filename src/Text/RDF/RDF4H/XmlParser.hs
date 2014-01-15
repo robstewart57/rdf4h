@@ -182,7 +182,7 @@ parseObjectsFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p = choiceA
     [ isText :-> (neg( isWhiteSpace) >>> getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
-    , isElem :-> (hasName "rdf:Description" >>> parseObjectDescription)
+    , isElem :-> (parseObjectDescription)
     ]
   where parseObjectDescription = proc desc -> do
                                       o <- mkNode s -< desc
