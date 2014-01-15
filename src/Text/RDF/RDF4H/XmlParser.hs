@@ -161,7 +161,7 @@ parsePredicatesFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
 parsePredicatesFromChildren = updateState
     >>> choiceA
         [ second (hasAttrValue "rdf:parseType" (== "Literal")) :-> arr2A parseAsLiteralTriple
-        , second (hasAttrValue "rdf:parseType" (== "Resource")) :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parseAsResource))
+        , second (hasAttrValue "rdf:parseType" (== "Resource")) :-> (mkBlankNode &&& arr id >>> arr2A parseAsResource)
         , second (hasAttrValue "rdf:parseType" (== "Collection")) :-> (listA (defaultA >>> arr id &&& mkBlankNode) >>> mkCollectionTriples >>> unlistA)
         , second (hasAttr "rdf:datatype") :-> arr2A getTypedTriple
         , second (hasAttr "rdf:resource") :-> arr2A getResourceTriple
