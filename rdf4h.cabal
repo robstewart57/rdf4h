@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         1.2.2
+version:         1.2.3
 synopsis:        A library for RDF processing in Haskell
 description:     
   'RDF for Haskell' is a library for working with RDF in Haskell.

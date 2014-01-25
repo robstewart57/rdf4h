@@ -34,7 +34,6 @@ main =
   do (opts, args) <- getArgs >>= compilerOpts
      when (Help `elem` opts)
       (putStrLn (usageInfo header options) >> exitSuccess)
-     when (Version `elem` opts) (putStrLn version >> exitSuccess)
      when (null args)
       (ioError
         (userError
@@ -134,7 +133,7 @@ strValue flag              = error $ "No string value for flag: " ++ show flag
 
 -- The commandline arguments we accept. None are required.
 data Flag
- = Help | Debug | Version
+ = Help | Debug
  | InputFormat String | InputBaseUri String
  | OutputFormat String | OutputBaseUri String
  deriving (Show)
@@ -145,12 +144,12 @@ data Flag
 instance Eq Flag where
   Help            == Help            = True
   Debug           == Debug           = True
-  Version         == Version         = True
   InputFormat _   == InputFormat _   = True
   InputBaseUri _  == InputBaseUri _  = True
   OutputFormat _  == OutputFormat _  = True
   OutputBaseUri _ == OutputBaseUri _ = True
   _               == _               = False
+
 
 -- The top part of the usage output.
 header :: String
@@ -162,18 +161,10 @@ header =
   "    Default is INPUT-URI\n"                                               ++
   "    Equivalent to -I INPUT-BASE-URI, --input-base-uri INPUT-BASE-URI\n\n"
 
--- The current version of the executable, which for the moment is the same as
--- the version for the library as a whole, as given in rdf4h.cabal.
--- TODO: should get this from cabal file rather than duplicating i here.
-version :: String
-version = "1.0.2"
-
 options :: [OptDescr Flag]
 options =
  [ Option "h"  ["help"]                           (NoArg Help)   "Display this help, then exit"
  , Option "d"  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
- , Option "v"  ["version"]                     (NoArg Version)   "Show version number\n\n"
-
  , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
                                                                    "  ntriples    N-Triples"
