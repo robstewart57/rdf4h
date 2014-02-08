@@ -60,7 +60,7 @@ library
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
-  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
+  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields -O2
 
 executable rdf4h
   main-is:         Rdf4hParseMain.hs 
