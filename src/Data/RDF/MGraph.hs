@@ -28,7 +28,7 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype MGraph = MGraph (SPOMap, Maybe BaseUrl, PrefixMappings)
+newtype MGraph = MGraph (TMaps, Maybe BaseUrl, PrefixMappings)
 
 instance RDF MGraph where
   baseUrl           = baseUrl'
@@ -44,11 +44,13 @@ instance RDF MGraph where
 
 -- An adjacency map for a subject, mapping from a predicate node to
 -- to the adjacent nodes via that predicate.
-type AdjacencyMap = Map Predicate Adjacencies
+type AdjacencyMap = Map Predicate (Set Node)
 
---
-type Adjacencies = Set Object
-type SPOMap    = Map Subject AdjacencyMap
+type Adjacencies = Set Node
+
+type TMap   = Map Node AdjacencyMap
+type TMaps  = (TMap, TMap)
+
 
 baseUrl' :: MGraph -> Maybe BaseUrl
 baseUrl' (MGraph (_, baseURL, _)) = baseURL
@@ -62,19 +64,22 @@ addPrefixMappings' (MGraph (ts, baseURL, pms)) pms' replace =
   in  MGraph (ts, baseURL, merge pms pms')
 
 empty' :: MGraph
-empty' = MGraph (Map.empty, Nothing, PrefixMappings Map.empty)
+empty' = MGraph ((Map.empty, Map.empty), Nothing, PrefixMappings Map.empty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MGraph
-mkRdf' ts baseURL pms = MGraph (mergeTs Map.empty ts, baseURL, pms)
+mkRdf' ts baseURL pms = MGraph (mergeTs (Map.empty, Map.empty) ts, baseURL, pms)
 
-mergeTs :: SPOMap -> [Triple] -> SPOMap
+mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
   where
-    mergeT :: SPOMap -> Triple -> SPOMap
+    mergeT :: TMaps -> Triple -> TMaps
     mergeT m t = mergeT' m (subjectOf t) (predicateOf t) (objectOf t)
 
-mergeT' :: SPOMap -> Subject -> Predicate -> Object -> SPOMap
-mergeT' m s p o =
+mergeT' :: TMaps -> Subject -> Predicate -> Object -> TMaps
+mergeT' (spo, ops) s p o = (mergeT'' spo s p o, mergeT'' ops o p s)
+
+mergeT'' :: TMap -> Subject -> Predicate -> Object -> TMap
+mergeT'' m s p o =
   if s `Map.member` m then
     (if p `Map.member` adjs then Map.insert s addPredObj m
        else Map.insert s addNewPredObjMap m)
@@ -92,7 +97,7 @@ mergeT' m s p o =
 
 -- 3 following functions support triplesOf
 triplesOf' :: MGraph -> Triples
-triplesOf' (MGraph (spoMap, _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' (MGraph ((spoMap, _), _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = Map.toList spoMap
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
@@ -104,10 +109,10 @@ tripsForSubjPred s p adjs = map (Triple s p) (Set.elems adjs)
 
 -- supports select
 select' :: MGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (MGraph (spoMap,_,_)) subjFn predFn objFn =
+select' (MGraph ((spoMap,_),_,_)) subjFn predFn objFn =
   map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
-sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> SPOMap -> Set (Node, Node, Node)
+sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> TMap -> Set (Node, Node, Node)
 sel1 (Just subjFn) p o spoMap =
   Set.unions $ map (sel2 p o) $ filter (\(x,_) -> subjFn x) $ Map.toList spoMap
 sel1 Nothing p o spoMap = Set.unions $ map (sel2 p o) $ Map.toList spoMap
@@ -133,12 +138,13 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
 query' :: MGraph -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
-query' (MGraph (spoMap,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj spoMap
+query' (MGraph (m,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
   where f (s, p, o) = Triple s p o
 
-q1 :: Maybe Node -> Maybe Node -> Maybe Node -> SPOMap -> Set (Node, Node, Node)
-q1 (Just s) p o spoMap = q2 p o (s, Map.findWithDefault Map.empty s spoMap)
-q1 Nothing  p o spoMap = Set.unions $ map (q2 p o) $ Map.toList spoMap
+q1 :: Maybe Node -> Maybe Node -> Maybe Node -> TMaps -> Set (Node, Node, Node)
+q1 (Just s) p o        (spoMap, _     ) = q2 p o (s, Map.findWithDefault Map.empty s spoMap)
+q1 s        p (Just o) (_     , opsMap) = Set.map (\(o',p',s') -> (s',p',o')) $ q2 p s (o, Map.findWithDefault Map.empty o opsMap)
+q1 Nothing  p o        (spoMap, _     ) = Set.unions $ map (q2 p o) $ Map.toList spoMap
 
 q2 :: Maybe Node -> Maybe Node -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
 q2 (Just p) o (s, pmap) =
