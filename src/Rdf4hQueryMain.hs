@@ -6,7 +6,7 @@ main :: IO ()
 main = putStrLn "Not Implemented Yet"
 
 data Flag
- = Help | Version | Verbose
+ = Help | Verbose
  | InputFormat String | InputBaseUri String
  deriving (Show)
 
@@ -23,8 +23,6 @@ options :: [OptDescr Flag]
 options =
  [ Option "h"  ["help"]                           (NoArg Help)   "Display this help, then exit"
  , Option "v"  ["verbose"]                     (NoArg Verbose)   "Display extra information messages to stderr"
- , Option "V"  ["version"]                     (NoArg Version)   "Show version number\n\n"
-
  , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
                                                                    "  ntriples    N-Triples"
@@ -32,7 +30,3 @@ options =
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
  ]
--- The current version of the executable, which for the moment is the same as
--- the version for the library as a whole, as given in rdf4h.cabal.
-version :: String
-version = "0.7"
