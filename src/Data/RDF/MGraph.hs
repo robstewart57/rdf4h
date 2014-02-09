@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 -- |A simple graph implementation backed by 'Data.Map'.
 
 module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, select, query)
@@ -148,10 +149,7 @@ q1 Nothing  p o        (spoMap, _     ) = Set.unions $ map (q2 p o) $ Map.toList
 
 q2 :: Maybe Node -> Maybe Node -> (Node, Map Node (Set Node)) -> Set (Node, Node, Node)
 q2 (Just p) o (s, pmap) =
-  if p `Map.member` pmap then
-    Set.map (\ (p', o') -> (s, p', o')) $
-      q3 o (p, Map.findWithDefault undefined p pmap)
-    else Set.empty
+  maybe Set.empty (Set.map (\ (p', o') -> (s, p', o')) . q3 o . (p,)) $ Map.lookup p pmap
 q2 Nothing o (s, pmap) = Set.map (\(x,y) -> (s,x,y)) $ Set.unions $ map (q3 o) opmaps
   where opmaps ::[(Node, Set Node)]
         opmaps = Map.toList pmap
