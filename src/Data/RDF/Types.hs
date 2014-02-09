@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 
 module Data.RDF.Types (
 
@@ -36,6 +37,8 @@ import qualified Data.Text as T
 import System.IO
 import Text.Printf
 import Data.Map(Map)
+import GHC.Generics (Generic)
+import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -57,6 +60,7 @@ data LValue =
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
   | TypedL !T.Text  !T.Text
+    deriving Generic
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
@@ -100,6 +104,7 @@ data Node =
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
   | LNode !LValue
+    deriving Generic
 
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
@@ -369,6 +374,8 @@ compareNode (LNode (TypedL bsType1 bs1))         (LNode (TypedL bsType2 bs2))   
 compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
 compareNode (LNode _)                        _                                = GT
 
+instance Hashable Node
+
 -- |Two triples are equal iff their respective subjects, predicates, and objects
 -- are equal.
 instance Eq Triple where
@@ -419,6 +426,8 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
     EQ -> compare l1 l2
     GT -> GT
     LT -> LT
+
+instance Hashable LValue
 
 -- String representations of the various data types; generally NTriples-like.
 

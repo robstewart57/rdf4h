@@ -56,11 +56,13 @@ library
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text
+                 , unordered-containers
+                 , hashable
   other-modules:   Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
-  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
+  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields -O2
 
 executable rdf4h
   main-is:         Rdf4hParseMain.hs 
@@ -74,6 +76,7 @@ executable rdf4h
                  , hxt >= 9.3.1.2
                  , containers
                  , text
+                 , hashable
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes ScopedTypeVariables MultiParamTypeClasses OverloadedStrings
   ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
@@ -97,6 +100,8 @@ test-suite test-rdf4h
                , containers
                , text
                , knob
+               , unordered-containers
+               , hashable
   other-modules: Data.RDF
                , Data.RDF.Namespace
                , Data.RDF.MGraph
