@@ -9,7 +9,7 @@ description:
   selecting triples that satisfy an arbitrary predicate function.
 
 author:          Calvin Smith
-copyright:       (c) Calvin Smith
+copyright:       (c) Calvin Smith, Rob Stewart
 maintainer:      Rob Stewart <robstewart@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
