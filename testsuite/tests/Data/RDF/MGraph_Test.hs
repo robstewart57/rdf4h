@@ -45,9 +45,6 @@ instance Arbitrary MGraph where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
   --coarbitrary = undefined
 
-instance Show MGraph where
-  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
-
 _empty :: MGraph
 _empty = empty
 

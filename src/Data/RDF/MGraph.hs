@@ -43,6 +43,9 @@ instance RDF MGraph where
   select            = select'
   query             = query'
 
+instance Show MGraph where
+  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
+
 -- some convenience type alias for readability
 
 -- An adjacency map for a subject, mapping from a predicate node to
