@@ -58,6 +58,7 @@ library
                  , text
                  , unordered-containers
                  , hashable
+                 , network-uri
   other-modules:   Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
@@ -77,6 +78,7 @@ executable rdf4h
                  , containers
                  , text
                  , hashable
+                 , network-uri
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes ScopedTypeVariables MultiParamTypeClasses OverloadedStrings
   ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
