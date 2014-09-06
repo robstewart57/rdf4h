@@ -52,7 +52,6 @@ library
   else
     build-depends: base < 3
   build-depends:   parsec >= 3
-                 , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text
@@ -72,7 +71,6 @@ executable rdf4h
   else
     build-depends: base >= 4 && < 6
   build-depends:   parsec >= 3
-                 , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , containers
@@ -94,7 +92,6 @@ test-suite test-rdf4h
                , test-framework-quickcheck2
                , test-framework-hunit >= 0.2.7
                , HTTP >= 4000.0.0
-               , network >= 2.2.0.0
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
                , bytestring
@@ -104,6 +101,7 @@ test-suite test-rdf4h
                , knob
                , unordered-containers
                , hashable
+               , network-uri
   other-modules: Data.RDF
                , Data.RDF.Namespace
                , Data.RDF.MGraph
