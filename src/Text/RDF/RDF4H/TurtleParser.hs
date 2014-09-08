@@ -586,6 +586,3 @@ handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
-
-_testParseState :: ParseState
-_testParseState = (Nothing, Nothing, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
