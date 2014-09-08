@@ -11,3 +11,6 @@ TAGS
 *.dc
 *#
 *.backup
+
+/.cabal-sandbox
+cabal.sandbox.config
