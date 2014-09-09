@@ -12,6 +12,7 @@ import Data.Char(intToDigit)
 import Data.Text.Encoding (decodeUtf8)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
+import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
 -- | A convenience function for terminating a parse with a parse failure, using
