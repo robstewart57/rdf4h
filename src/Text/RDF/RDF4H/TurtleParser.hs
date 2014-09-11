@@ -127,11 +127,7 @@ t_subject =
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList =
-  do t_verb <?> "verb"     -- pushes pred onto pred stack
-     many1 t_ws   <?> "polist-whitespace-after-verb"
-     t_objectList <?> "polist-objectList"
-     many (try (many t_ws >> char ';') >> many t_ws >> t_verb >> many1 t_ws >> t_objectList >> popPred)
-     popPred               -- pop off the predicate pushed by 1st t_verb
+  do sepEndBy1 (t_verb >> many1 t_ws >> t_objectList >> popPred) (try (many t_ws >> char ';' >> many t_ws))
      return ()
 
 t_objectList :: GenParser ParseState ()
