@@ -14,6 +14,7 @@ import qualified Data.Text as T
 import qualified Data.List as L (find)
 import Data.Maybe (fromJust)
 
+-- | Manifest data as represented in W3C test files.
 data Manifest =
     Manifest {
       description :: T.Text,
@@ -47,7 +48,7 @@ mfAction = unode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#actio
 mfResult = unode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#result"
 
 -- | Load the manifest from the given file;
--- apply the given namespae as the base IRI of the manifest.
+-- apply the given namespace as the base IRI of the manifest.
 loadManifest :: T.Text -> T.Text -> IO Manifest
 loadManifest manifestPath baseIRI = do
   parseFile testParser (T.unpack manifestPath) >>= return . ttlToManifest . fromEither
@@ -95,8 +96,9 @@ testEntrySubjectNodes rdf = subjectNodes rdf [rdftTestTurtleEval, rdftTestTurtle
 
 subjectNodes :: TriplesGraph -> [Object] -> [Subject]
 subjectNodes rdf ns = map subjectOf $ concatMap queryType ns
-  where queryType = (\n -> query rdf Nothing (Just rdfType) (Just n))
+  where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
+-- TODO: Looks useful. Move it to RDF4H lib?
 lnodeText :: Node -> T.Text
 lnodeText (LNode(PlainL t)) = t
 lnodeText (LNode(PlainLL t _)) = t
