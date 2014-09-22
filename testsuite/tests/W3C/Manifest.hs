@@ -51,16 +51,16 @@ mfResult = unode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#resul
 -- apply the given namespace as the base IRI of the manifest.
 loadManifest :: T.Text -> T.Text -> IO Manifest
 loadManifest manifestPath baseIRI = do
-  parseFile testParser (T.unpack manifestPath) >>= return . ttlToManifest . fromEither
+  parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
   where testParser = TurtleParser (Just (BaseUrl baseIRI)) (Just baseIRI)
 
-ttlToManifest :: TriplesGraph -> Manifest
-ttlToManifest rdf = Manifest desc tpls
+rdfToManifest :: TriplesGraph -> Manifest
+rdfToManifest rdf = Manifest desc tpls
   where desc = lnodeText $ objectOf $ head $ query rdf (Just $ head $ manifestSubjectNodes rdf) (Just rdfsComment) Nothing
-        tpls = ttlToTestEntries rdf
+        tpls = rdfToTestEntries rdf
 
-ttlToTestEntries :: TriplesGraph -> [TestEntry]
-ttlToTestEntries rdf = map (\n -> triplesToTestEntry $ query rdf (Just n) Nothing Nothing) $ testEntrySubjectNodes rdf
+rdfToTestEntries :: TriplesGraph -> [TestEntry]
+rdfToTestEntries rdf = map (\n -> triplesToTestEntry $ query rdf (Just n) Nothing Nothing) $ testEntrySubjectNodes rdf
 
 triplesToTestEntry :: Triples -> TestEntry
 triplesToTestEntry ts = case objectByPredicate rdfType ts of
