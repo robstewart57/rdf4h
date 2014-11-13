@@ -35,6 +35,18 @@ data TestEntry =
       comment :: T.Text,
       approval :: Node,
       action :: Node
+    } |
+    TestTurtlePositiveSyntax {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node
+    } |
+    TestTurtleNegativeSyntax {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node
     }
 
 -- TODO: Perhaps these should be pulled from the manifest graph
@@ -70,6 +82,8 @@ triplesToTestEntry :: Triples -> TestEntry
 triplesToTestEntry ts = case objectByPredicate rdfType ts of
                           (UNode "http://www.w3.org/ns/rdftest#TestTurtleEval") -> mkTestTurtleEval ts
                           (UNode "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval") -> mkTestTurtleNegativeEval ts
+                          (UNode "http://www.w3.org/ns/rdftest#TestTurtlePositiveSyntax") -> mkTestTurtlePositiveSyntax ts
+                          (UNode "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax") -> mkTestTurtleNegativeSyntax ts
                           _ -> error "Unknown test case"
 
 mkTestTurtleEval :: Triples -> TestEntry
@@ -88,6 +102,22 @@ mkTestTurtleNegativeEval ts = TestTurtleNegativeEval {
                                 approval = objectByPredicate rdftApproval ts,
                                 action = objectByPredicate mfAction ts
                               }
+
+mkTestTurtlePositiveSyntax :: Triples -> TestEntry
+mkTestTurtlePositiveSyntax ts = TestTurtlePositiveSyntax {
+                                  name = lnodeText $ objectByPredicate mfName ts,
+                                  comment = lnodeText $ objectByPredicate rdfsComment ts,
+                                  approval = objectByPredicate rdftApproval ts,
+                                  action = objectByPredicate mfAction ts
+                                }
+
+mkTestTurtleNegativeSyntax :: Triples -> TestEntry
+mkTestTurtleNegativeSyntax ts = TestTurtleNegativeSyntax {
+                                  name = lnodeText $ objectByPredicate mfName ts,
+                                  comment = lnodeText $ objectByPredicate rdfsComment ts,
+                                  approval = objectByPredicate rdftApproval ts,
+                                  action = objectByPredicate mfAction ts
+                                }
 
 objectByPredicate :: Predicate -> Triples -> Object
 objectByPredicate p ts = objectOf $ fromJust $ L.find (\t -> predicateOf t == p) ts
