@@ -22,6 +22,9 @@ data Manifest =
       entries :: [TestEntry]
     }
 
+-- TODO: Fields `name` and `action` are mandatory for all tests,
+-- `result` is mandatory for positive *Eval tests,
+-- the rest are optional, so we should use "Maybe" for them.
 data TestEntry =
     TestTurtleEval {
       name :: T.Text,
