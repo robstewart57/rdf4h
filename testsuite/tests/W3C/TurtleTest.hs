@@ -1,9 +1,5 @@
 module W3C.TurtleTest where
 
--- 1. Load manifest.ttl
--- 2. Map every test to its result
--- (Determine the test type and call appropriate test function)
-
 import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as TU
@@ -16,7 +12,9 @@ import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
 import Data.RDF.TriplesGraph
 
-mfPath = "data/w3c/turtle/manifest.ttl"
+suiteFilesDir = "data/w3c/turtle/"
+
+mfPath = T.concat [suiteFilesDir, "manifest.ttl"]
 mfBaseURI = "http://www.w3.org/2013/TurtleTests/"
 
 tests :: [Test]
@@ -39,22 +37,22 @@ mfEntryToTest (TestTurtleEval nm cmt apr act res) = do
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
   where parserA = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do
   parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do
   parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ rightIsTrue parsedRDF
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do
   parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 
 rightIsTrue :: Either a b -> Bool
 rightIsTrue (Left _) = False
