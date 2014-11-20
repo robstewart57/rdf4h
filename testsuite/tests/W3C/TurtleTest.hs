@@ -40,6 +40,26 @@ mfEntryToTest (TestTurtleEval nm cmt apr act res) = do
   where parserA = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
-mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
-mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
-mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
+mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do
+  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
+  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
+        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do
+  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ rightIsTrue parsedRDF
+  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
+        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do
+  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
+  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
+        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+
+rightIsTrue :: Either a b -> Bool
+rightIsTrue (Left _) = False
+rightIsTrue (Right _) = True
+
+leftIsTrue :: Either a b -> Bool
+leftIsTrue (Left _) = True
+leftIsTrue (Right _) = False
