@@ -16,29 +16,30 @@ import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
 import Data.RDF.TriplesGraph
 
-manifests :: [(String, String)]
-manifests = [("data/w3c/turtle/manifest.ttl", "http://www.w3.org/2013/TurtleTests/")]
+mfPath = "data/w3c/turtle/manifest.ttl"
+mfBaseURI = "http://www.w3.org/2013/TurtleTests/"
 
 tests :: [Test]
-tests = [ testGroup "W3C Turtle Tests" allTurtleTests ]
+tests = [ buildTest allTurtleTests ]
 
-allTurtleTests :: [Test]
-allTurtleTests = [] -- TODO
+allTurtleTests :: IO Test
+allTurtleTests = do
+  m <- loadManifest mfPath mfBaseURI
+  return $ testGroup "W3C Turtle Tests" $ map (buildTest . mfEntryToTest) $ entries m
 
 -- Functions to map manifest test entries to unit tests.
 -- They are defined here to avoid cluttering W3C.Manifest
 -- with functions that may not be needed to those who
 -- just want to parse Manifest files.
 -- TODO: They should probably be moved to W3C.Manifest after all.
-mfEntryToTest :: TestEntry -> Test
-mfEntryToTest (TestTurtleEval nm cmt apr act res) = buildTest $ do
+mfEntryToTest :: TestEntry -> IO Test
+mfEntryToTest (TestTurtleEval nm cmt apr act res) = do
   parsedRDF <- parseFile parserA (nodeURI act) >>= return . fromEither :: IO TriplesGraph
   expectedRDF <- parseFile parserB (nodeURI res) >>= return . fromEither :: IO TriplesGraph
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
-  where parserA = TurtleParser (Just (BaseUrl baseIRI)) (Just baseIRI)
-        parserB = TurtleParser (Just (BaseUrl baseIRI)) (Just baseIRI)
-        baseIRI = "http://example.org/1/"
-        nodeURI = \(UNode u) -> T.unpack u
-mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = undefined -- TODO
-mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = undefined -- TODO
-mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = undefined -- TODO
+  where parserA = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
+        parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
+        nodeURI = \(UNode u) -> T.unpack $ T.concat ["data/w3c/turtle/", last $ T.split (\c -> c == '/') u]
+mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
+mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
+mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do return $ testCase (T.unpack nm) $ TU.assert True -- TODO
