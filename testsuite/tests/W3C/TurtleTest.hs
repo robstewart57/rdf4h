@@ -39,24 +39,24 @@ mfEntryToTest (TestTurtleEval nm cmt apr act res) = do
         parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do
-  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
-  return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
+  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do
-  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
-  return $ testCase (T.unpack nm) $ TU.assert $ rightIsTrue parsedRDF
+  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do
-  parsedRDF <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
-  return $ testCase (T.unpack nm) $ TU.assert $ leftIsTrue parsedRDF
+  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 
-rightIsTrue :: Either a b -> Bool
-rightIsTrue (Left _) = False
-rightIsTrue (Right _) = True
+isParsed :: Either a b -> Bool
+isParsed (Left _) = False
+isParsed (Right _) = True
 
-leftIsTrue :: Either a b -> Bool
-leftIsTrue = not . rightIsTrue
+isNotParsed :: Either a b -> Bool
+isNotParsed = not . isParsed
