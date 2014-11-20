@@ -59,5 +59,4 @@ rightIsTrue (Left _) = False
 rightIsTrue (Right _) = True
 
 leftIsTrue :: Either a b -> Bool
-leftIsTrue (Left _) = True
-leftIsTrue (Right _) = False
+leftIsTrue = not . rightIsTrue
