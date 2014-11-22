@@ -31,28 +31,24 @@ allTurtleTests = do
 -- just want to parse Manifest files.
 -- TODO: They should probably be moved to W3C.Manifest after all.
 mfEntryToTest :: TestEntry -> IO Test
-mfEntryToTest (TestTurtleEval nm cmt apr act res) = do
+mfEntryToTest (TestTurtleEval nm _ _ act res) = do
   parsedRDF <- parseFile parserA (nodeURI act) >>= return . fromEither :: IO TriplesGraph
   expectedRDF <- parseFile parserB (nodeURI res) >>= return . fromEither :: IO TriplesGraph
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
   where parserA = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
         parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
-mfEntryToTest (TestTurtleNegativeEval nm cmt apr act) = do
+mfEntryToTest (TestTurtleNegativeEval nm _ _ act) = do
   rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
-mfEntryToTest (TestTurtlePositiveSyntax nm cmt apr act) = do
+mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act) = do
   rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
-mfEntryToTest (TestTurtleNegativeSyntax nm cmt apr act) = do
+mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act) = do
   rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
   where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False
@@ -60,3 +56,6 @@ isParsed (Right _) = True
 
 isNotParsed :: Either a b -> Bool
 isNotParsed = not . isParsed
+
+nodeURI :: Node -> String
+nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
