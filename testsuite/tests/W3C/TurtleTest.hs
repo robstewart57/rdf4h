@@ -23,7 +23,7 @@ tests = [ buildTest allTurtleTests ]
 allTurtleTests :: IO Test
 allTurtleTests = do
   m <- loadManifest mfPath suiteFilesDir
-  return $ testGroup "W3C Turtle Tests" $ map (buildTest . mfEntryToTest) $ entries m
+  return $ testGroup (T.unpack $ description m) $ map (buildTest . mfEntryToTest) $ entries m
 
 -- Functions to map manifest test entries to unit tests.
 -- They are defined here to avoid cluttering W3C.Manifest
