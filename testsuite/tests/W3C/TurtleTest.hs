@@ -10,6 +10,7 @@ import W3C.Manifest
 import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
+import Text.RDF.RDF4H.NTriplesParser
 import Data.RDF.TriplesGraph
 
 suiteFilesDir = "data/w3c/turtle/"
@@ -33,7 +34,7 @@ allTurtleTests = do
 mfEntryToTest :: TestEntry -> IO Test
 mfEntryToTest (TestTurtleEval nm _ _ act res) = do
   parsedRDF <- parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesGraph
-  expectedRDF <- parseFile testParser (nodeURI res) >>= return . fromEither :: IO TriplesGraph
+  expectedRDF <- parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesGraph
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
 mfEntryToTest (TestTurtleNegativeEval nm _ _ act) = do
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
