@@ -12,5 +12,7 @@ TAGS
 *#
 *.backup
 
+/data/w3c
+
 /.cabal-sandbox
 cabal.sandbox.config
