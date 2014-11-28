@@ -70,6 +70,19 @@ data TestEntry =
       entailmentRegime :: T.Text,
       recognizedDatatypes :: [Node],
       unrecognizedDatatypes :: [Node]
+    } |
+    TestXMLEval {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node,
+      result :: Node
+    } |
+    TestXMLNegativeSyntax {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node
     }
 
 -- TODO: Perhaps these should be pulled from the manifest graph
@@ -114,6 +127,8 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/ns/rdftest#TestTurtleNegativeSyntax") -> mkTestTurtleNegativeSyntax ts
     (UNode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#PositiveEntailmentTest") -> mkPositiveEntailmentTest ts rdf
     (UNode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeEntailmentTest") -> mkNegativeEntailmentTest ts rdf
+    (UNode "http://www.w3.org/ns/rdftest#TestXMLEval") -> mkTestXMLEval ts
+    (UNode "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax") -> mkTestXMLNegativeSyntax ts
     _ -> error "Unknown test case"
 
 mkTestTurtleEval :: Triples -> TestEntry
@@ -184,6 +199,27 @@ mkNegativeEntailmentTest ts rdf = NegativeEntailmentTest {
           rDTCollectionHead = objectByPredicate mfRecognizedDatatypes ts
           uDT = rdfCollectionToList rdf uDTCollectionHead
           uDTCollectionHead = objectByPredicate mfUnrecognizedDatatypes ts
+
+mkTestXMLEval :: Triples -> TestEntry
+mkTestXMLEval ts = TestXMLEval {
+                     name = lnodeText $ objectByPredicate mfName ts,
+                     comment = lnodeText $ objectByPredicate rdfsComment ts,
+                     -- FIXME: incorrect namespace "rdfs:approval" in rdf-mt/manifest.ttl
+                     -- approval = objectByPredicate rdftApproval ts,
+                     approval = objectByPredicate rdfsApproval ts,
+                     action = objectByPredicate mfAction ts,
+                     result = objectByPredicate mfResult ts
+                   }
+
+mkTestXMLNegativeSyntax :: Triples -> TestEntry
+mkTestXMLNegativeSyntax ts = TestXMLNegativeSyntax {
+                               name = lnodeText $ objectByPredicate mfName ts,
+                               comment = lnodeText $ objectByPredicate rdfsComment ts,
+                               -- FIXME: incorrect namespace "rdfs:approval" in rdf-mt/manifest.ttl
+                               -- approval = objectByPredicate rdftApproval ts
+                               approval = objectByPredicate rdfsApproval ts,
+                               action = objectByPredicate mfAction ts
+                             }
 
 -- Filter the triples by given predicate and return the object of the first found triple.
 -- Raises an exception on errors.
