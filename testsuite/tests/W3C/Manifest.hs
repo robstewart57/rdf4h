@@ -93,7 +93,7 @@ mfUnrecognizedDatatypes = unode "http://www.w3.org/2001/sw/DataAccess/tests/test
 loadManifest :: T.Text -> T.Text -> IO Manifest
 loadManifest manifestPath baseIRI = do
   parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
-  where testParser = TurtleParser (Just (BaseUrl "xxx/yyy/")) (Just baseIRI)
+  where testParser = TurtleParser (Just $ BaseUrl baseIRI) Nothing
 
 rdfToManifest :: TriplesGraph -> Manifest
 rdfToManifest rdf = Manifest desc tpls

@@ -15,14 +15,14 @@ import Data.RDF.TriplesGraph
 suiteFilesDir = "data/w3c/turtle/"
 
 mfPath = T.concat [suiteFilesDir, "manifest.ttl"]
-mfBaseURI = "http://www.w3.org/2013/TurtleTests/"
+mfBaseURI = BaseUrl "http://www.w3.org/2013/TurtleTests/"
 
 tests :: [Test]
 tests = [ buildTest allTurtleTests ]
 
 allTurtleTests :: IO Test
 allTurtleTests = do
-  m <- loadManifest mfPath mfBaseURI
+  m <- loadManifest mfPath suiteFilesDir
   return $ testGroup "W3C Turtle Tests" $ map (buildTest . mfEntryToTest) $ entries m
 
 -- Functions to map manifest test entries to unit tests.
@@ -32,23 +32,18 @@ allTurtleTests = do
 -- TODO: They should probably be moved to W3C.Manifest after all.
 mfEntryToTest :: TestEntry -> IO Test
 mfEntryToTest (TestTurtleEval nm _ _ act res) = do
-  parsedRDF <- parseFile parserA (nodeURI act) >>= return . fromEither :: IO TriplesGraph
-  expectedRDF <- parseFile parserB (nodeURI res) >>= return . fromEither :: IO TriplesGraph
+  parsedRDF <- parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesGraph
+  expectedRDF <- parseFile testParser (nodeURI res) >>= return . fromEither :: IO TriplesGraph
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
-  where parserA = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
-        parserB = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
 mfEntryToTest (TestTurtleNegativeEval nm _ _ act) = do
-  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
-  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
 mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act) = do
-  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
-  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
 mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act) = do
-  rdf <- parseFile parser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
-  where parser = TurtleParser (Just (BaseUrl mfBaseURI)) (Just mfBaseURI)
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False
@@ -58,4 +53,7 @@ isNotParsed :: Either a b -> Bool
 isNotParsed = not . isParsed
 
 nodeURI :: Node -> String
-nodeURI = \(UNode u) -> T.unpack $ T.concat [suiteFilesDir, last $ T.split (\c -> c == '/') u]
+nodeURI = \(UNode u) -> T.unpack u
+
+testParser :: TurtleParser
+testParser = TurtleParser (Just mfBaseURI) Nothing
