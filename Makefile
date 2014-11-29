@@ -2,29 +2,31 @@
 all: build
 
 clean:
-	runhaskell Setup clean
+	cabal clean
 
-configure: Setup.hs rdf4h.cabal *.hs
-	runhaskell Setup configure -fno-warn-unused-do-bind --user --prefix=${HOME} \
-		--docdir=dist/doc \
-		--haddock-options="-v \
-		--source-module=http://protempore.net/rdf4h/doc/src/%{MODULE/./-}.html" \
-	    --enable-tests
+configure:
+	cabal configure
+
+configure-tests:
+	cabal configure --enable-tests
 
 build: configure
-	runhaskell Setup build
+	cabal build
+
+build-tests: configure-tests
+	cabal build
 
 haddock: configure build
-	runhaskell Setup haddock --hyperlink-source
+	cabal haddock --hyperlink-source
 
-install:  configure build
-	runhaskell Setup install
+install:
+	cabal install
 
-sdist :: configure build
-	runhaskell Setup sdist
-# The test function compiles, so no need to depend on configure or compile.
-test:
-	runhaskell Setup test
+sdist: configure build
+	cabal sdist
+
+test: build-tests
+	cabal test
 
 
 #=======================================
