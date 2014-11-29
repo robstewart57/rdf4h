@@ -40,7 +40,7 @@ instance RdfParser TurtleParser where
 
 type ParseState =
   (Maybe BaseUrl,    -- the current BaseUrl, may be Nothing initially, but not after it is once set
-   Maybe T.Text, -- the docUrl, which never changes and is used to resolve <> in the document.
+   Maybe T.Text,     -- the docUrl, which never changes and is used to resolve <> in the document.
    Int,              -- the id counter, containing the value of the next id to be used
    PrefixMappings,   -- the mappings from prefix to URI that are encountered while parsing
    [Subject],        -- stack of current subject nodes, if we have parsed a subject but not finished the triple
@@ -127,11 +127,7 @@ t_subject =
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList =
-  do t_verb <?> "verb"     -- pushes pred onto pred stack
-     many1 t_ws   <?> "polist-whitespace-after-verb"
-     t_objectList <?> "polist-objectList"
-     many (try (many t_ws >> char ';') >> many t_ws >> t_verb >> many1 t_ws >> t_objectList >> popPred)
-     popPred               -- pop off the predicate pushed by 1st t_verb
+  do sepEndBy1 (t_verb >> many1 t_ws >> t_objectList >> popPred) (try (many t_ws >> char ';' >> many t_ws))
      return ()
 
 t_objectList :: GenParser ParseState ()
@@ -200,10 +196,10 @@ rdfFirstNode  = UNode $ mkUri rdf "first"
 rdfRestNode   = UNode $ mkUri rdf "rest"
 
 xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: T.Text
-xsdIntUri     =   mkUri xsd "integer"
-xsdDoubleUri  =   mkUri xsd "double"
-xsdDecimalUri =  mkUri xsd "decimal"
-xsdBooleanUri =  mkUri xsd "boolean"
+xsdIntUri     = mkUri xsd "integer"
+xsdDoubleUri  = mkUri xsd "double"
+xsdDecimalUri = mkUri xsd "decimal"
+xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: GenParser ParseState Node
 t_literal =
@@ -224,14 +220,14 @@ str_literal =
       liftM (lnode . plainLL str) (char '@' >> t_language) <|>
       return (lnode $ plainL str)
 
-t_quotedString  :: GenParser ParseState T.Text
+t_quotedString :: GenParser ParseState T.Text
 t_quotedString = t_longString <|> t_string
 
 -- a non-long string: any number of scharacters (echaracter without ") inside doublequotes.
-t_string  :: GenParser ParseState T.Text
+t_string :: GenParser ParseState T.Text
 t_string = liftM T.concat (between (char '"') (char '"') (many t_scharacter))
 
-t_longString  :: GenParser ParseState T.Text
+t_longString :: GenParser ParseState T.Text
 t_longString =
   do
     try tripleQuote
@@ -283,14 +279,14 @@ t_comment :: GenParser ParseState ()
 t_comment =
   void (char '#' >> many (satisfy (\ c -> c /= '\n' && c /= '\r')))
 
-t_ws  :: GenParser ParseState ()
+t_ws :: GenParser ParseState ()
 t_ws =
     (void (try (char '\t' <|> char '\n' <|> char '\r' <|> char ' '))
-    <|> try t_comment)
-   <?> "whitespace-or-comment"
+     <|> try t_comment)
+    <?> "whitespace-or-comment"
 
 
-t_language  :: GenParser ParseState T.Text
+t_language :: GenParser ParseState T.Text
 t_language =
   do initial <- many1 lower;
      rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ( T.pack ('-':cs))})
@@ -308,7 +304,7 @@ t_name = identifier t_nameStartChar t_nameChar
 t_uriref :: GenParser ParseState T.Text
 t_uriref = between (char '<') (char '>') t_relativeURI
 
-t_relativeURI  :: GenParser ParseState T.Text
+t_relativeURI :: GenParser ParseState T.Text
 t_relativeURI =
   do frag <- liftM (T.pack . concat) (many t_ucharacter)
      bUrl <- currBaseUrl
@@ -318,7 +314,7 @@ t_relativeURI =
 -- We make this String rather than T.Text because we want
 -- t_relativeURI (the only place it's used) to have chars so that
 -- when it creates a T.Text it can all be in one chunk.
-t_ucharacter  :: GenParser ParseState String
+t_ucharacter :: GenParser ParseState String
 t_ucharacter =
   try (liftM T.unpack unicode_escape) <|>
   try (string "\\>") <|>
@@ -329,8 +325,8 @@ t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
   where
     f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
 
-longString_char  :: GenParser ParseState T.Text
-longString_char  =
+longString_char :: GenParser ParseState T.Text
+longString_char =
   specialChar        <|> -- \r|\n|\t as single char
   try escapedChar    <|> -- an backslash-escaped tab, newline, linefeed, backslash or doublequote
   try twoDoubleQuote <|> -- two doublequotes not followed by a doublequote
@@ -353,10 +349,10 @@ bs1 = return . T.singleton
 bs :: String -> GenParser ParseState T.Text
 bs = return . T.pack
 
-t_nameStartChar  :: GenParser ParseState Char
+t_nameStartChar :: GenParser ParseState Char
 t_nameStartChar = char '_' <|> t_nameStartCharMinusUnderscore
 
-t_nameStartCharMinusUnderscore  :: GenParser ParseState Char
+t_nameStartCharMinusUnderscore :: GenParser ParseState Char
 t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
   where
     blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'),
@@ -367,12 +363,12 @@ t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
               ('\xF900', '\xFDCF'), ('\xFDF0', '\xFFFD'),
               ('\x10000', '\xEFFFF')]
 
-t_hex  :: GenParser ParseState Char
+t_hex :: GenParser ParseState Char
 t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
 
 -- characters used in (non-long) strings; any echaracters except ", or an escaped \"
 -- echaracter - #x22 ) | '\"'
-t_scharacter  :: GenParser ParseState T.Text
+t_scharacter :: GenParser ParseState T.Text
 t_scharacter =
   (try (string "\\\"") >> return (T.singleton '"'))
      <|> try (do {char '\\';
@@ -382,14 +378,14 @@ t_scharacter =
      <|> unicode_escape
      <|> (non_ctrl_char_except "\\\"" >>= \s -> return $! s) -- echaracter part 2 minus "
 
-unicode_escape  :: GenParser ParseState T.Text
+unicode_escape :: GenParser ParseState T.Text
 unicode_escape =
  (char '\\' >> return (T.singleton '\\')) >>
  ((char '\\' >> return "\\\\") <|>
   (char 'u' >> count 4 t_hex >>= \cs -> return $!  "\\u" `T.append`  T.pack cs) <|>
   (char 'U' >> count 8 t_hex >>= \cs -> return $!  "\\U" `T.append` T.pack cs))
 
-non_ctrl_char_except  :: String -> GenParser ParseState T.Text
+non_ctrl_char_except :: String -> GenParser ParseState T.Text
 non_ctrl_char_except cs =
   liftM T.singleton
     (satisfy (\ c -> c <= '\1114111' && (c >= ' ' && c `notElem` cs)))
@@ -398,48 +394,9 @@ non_ctrl_char_except cs =
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
--- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
--- empty, then the base URL will be used if there is a base URL and if the map
--- does not contain an entry for the empty prefix.
-resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> T.Text
-resolveQName mbaseUrl prefix (PrefixMappings pms') =
-  case (mbaseUrl, T.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base T.empty pms'
-    (Nothing,             True)  ->  err1
-    (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
-  where
-    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
-    err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
-
--- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
-absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
-absolutizeUrl mbUrl mdUrl urlFrag =
-  if isAbsoluteUri urlFrag then urlFrag else
-    (case (mbUrl, mdUrl) of
-         (Nothing, Nothing) -> urlFrag
-         (Just (BaseUrl bUrl), Nothing) -> bUrl `T.append` urlFrag
-         (Nothing, Just dUrl) -> if isHash urlFrag then
-                                     dUrl `T.append` urlFrag else urlFrag
-         (Just (BaseUrl bUrl), Just dUrl) -> (if isHash urlFrag then dUrl
-                                                  else bUrl)
-                                                 `T.append` urlFrag)
-  where
-    isHash bs' = T.length bs' == 1 && T.head bs' == '#'
-
-{-# INLINE isAbsoluteUri #-}
-isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = T.isInfixOf (T.pack [':'])
-
 newBaseUrl :: Maybe BaseUrl -> T.Text -> BaseUrl
-newBaseUrl Nothing                url = BaseUrl url
+newBaseUrl Nothing               url = BaseUrl url
 newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
-
-{-# INLINE mkAbsoluteUrl #-}
--- Make an absolute URL by returning as is if already an absolute URL and otherwise
--- appending the URL to the given base URL.
-mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
-mkAbsoluteUrl base url =
-  if isAbsoluteUri url then url else base `T.append` url
 
 currBaseUrl :: GenParser ParseState (Maybe BaseUrl)
 currBaseUrl = getState >>= \(bUrl, _, _, _, _, _, _, _) -> return bUrl
@@ -553,11 +510,11 @@ addTripleForObject obj =
 -- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is 
 -- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
 -- base URI against which the relative URI is resolved.
---p
+--
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseURL' :: forall rdf. (RDF rdf) => 
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
-                 -> Maybe T.Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> Maybe T.Text     -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the Turtle document.
                  -> IO (Either ParseFailure rdf)
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
@@ -586,6 +543,3 @@ handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
-
-_testParseState :: ParseState
-_testParseState = (Nothing, Nothing, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)

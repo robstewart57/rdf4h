@@ -111,6 +111,7 @@ test-suite test-rdf4h
                , Text.RDF.RDF4H.TurtleParser
                , Text.RDF.RDF4H.TurtleSerializer
                , Text.RDF.RDF4H.XmlParser
+               , W3C.TurtleTest
   hs-source-dirs: src, testsuite/tests
 
 source-repository head

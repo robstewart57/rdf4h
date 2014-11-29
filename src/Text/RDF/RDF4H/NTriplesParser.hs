@@ -221,10 +221,3 @@ handleParse _mkRdf result
     conv []            = []
     conv (Nothing:ts)  = conv ts
     conv (Just t:ts) = t : conv ts
-
-_test :: GenParser () a -> String -> IO a
-_test p str =
-    case result of
-      (Left err) -> putStr "ParseError: '" >> putStr (show err) >> putStr "\n" >> error ""
-      (Right a)  -> return a
-  where result = runParser p () "" (T.pack str)

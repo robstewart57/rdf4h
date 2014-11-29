@@ -57,6 +57,19 @@ Example
       putStrLn $ "Query: " ++ show (query g1 Nothing Nothing (Just node1))
 
 
+Development
+-----------
+
+Writing tests is highly encouraged. Use `cabal test` to run the tests.
+
+Note however, that RDF4H test suite includes
+[RDF 1.1 Test Cases](http://www.w3.org/TR/rdf11-testcases/) from W3C.
+Before you can run the complete suite of tests,
+you will have to download the test files from W3C server.
+Launch `make test/w3c/fetch` to download the necessary files
+and place them into `data/w3c`.
+
+
 Issues
 ------
 

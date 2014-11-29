@@ -28,7 +28,7 @@ module Data.RDF.Types (
   PrefixMappings(PrefixMappings),PrefixMapping(PrefixMapping),
 
   -- * Supporting types
-  BaseUrl(BaseUrl), NodeSelector, ParseFailure(ParseFailure),
+  BaseUrl(BaseUrl), NodeSelector, ParseFailure(ParseFailure)
 
 ) where
 
