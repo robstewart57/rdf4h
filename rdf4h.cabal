@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         1.2.5
+version:         1.2.7
 synopsis:        A library for RDF processing in Haskell
 description:     
   'RDF for Haskell' is a library for working with RDF in Haskell.
@@ -35,6 +35,10 @@ flag hpc
   description: Use HPC for tests
   default:     True
 
+flag network-uri
+   description: Get Network.URI from the network-uri package
+   default: True
+
 library
   exposed-modules: Data.RDF
                  , Data.RDF.Namespace
@@ -52,12 +56,17 @@ library
   else
     build-depends: base < 3
   build-depends:   parsec >= 3
-                 , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text
                  , unordered-containers
                  , hashable
+
+  if flag(network-uri)
+    build-depends: network-uri >= 2.6, network >= 2.6
+  else
+    build-depends: network-uri < 2.6, network < 2.6
+
   other-modules:   Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
@@ -71,12 +80,17 @@ executable rdf4h
   else
     build-depends: base >= 4 && < 6
   build-depends:   parsec >= 3
-                 , network >= 2.2.0.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , containers
                  , text
                  , hashable
+
+  if flag(network-uri)
+    build-depends: network-uri >= 2.6, network >= 2.6
+  else
+    build-depends: network-uri < 2.6, network < 2.6
+
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes ScopedTypeVariables MultiParamTypeClasses OverloadedStrings
   ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
@@ -92,7 +106,6 @@ test-suite test-rdf4h
                , test-framework-quickcheck2
                , test-framework-hunit >= 0.2.7
                , HTTP >= 4000.0.0
-               , network >= 2.2.0.0
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
                , bytestring
@@ -102,6 +115,12 @@ test-suite test-rdf4h
                , knob
                , unordered-containers
                , hashable
+
+  if flag(network-uri)
+    build-depends: network-uri >= 2.6, network >= 2.6
+  else
+    build-depends: network-uri < 2.6, network < 2.6
+
   other-modules: Data.RDF
                , Data.RDF.Namespace
                , Data.RDF.MGraph
