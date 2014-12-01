@@ -223,9 +223,9 @@ str_literal =
 t_quotedString :: GenParser ParseState T.Text
 t_quotedString = t_longString <|> t_string
 
--- a non-long string: any number of scharacters (echaracter without ") inside doublequotes.
+-- a non-long string: any number of scharacters (echaracter without ") inside doublequotes or singlequotes.
 t_string :: GenParser ParseState T.Text
-t_string = liftM T.concat (between (char '"') (char '"') (many t_scharacter))
+t_string = liftM T.concat (between (char '"') (char '"') (many t_scharacter_in_dquot) <|> between (char '\'') (char '\'') (many t_scharacter_in_squot))
 
 t_longString :: GenParser ParseState T.Text
 t_longString =
@@ -368,8 +368,8 @@ t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal dig
 
 -- characters used in (non-long) strings; any echaracters except ", or an escaped \"
 -- echaracter - #x22 ) | '\"'
-t_scharacter :: GenParser ParseState T.Text
-t_scharacter =
+t_scharacter_in_dquot :: GenParser ParseState T.Text
+t_scharacter_in_dquot =
   (try (string "\\\"") >> return (T.singleton '"'))
      <|> try (do {char '\\';
                   (char 't' >> return (T.singleton '\t')) <|>
@@ -377,6 +377,18 @@ t_scharacter =
                   (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1
      <|> unicode_escape
      <|> (non_ctrl_char_except "\\\"" >>= \s -> return $! s) -- echaracter part 2 minus "
+
+-- characters used in (non-long) strings; any echaracters except ', or an escaped \'
+-- echaracter - #x22 ) | '\''
+t_scharacter_in_squot :: GenParser ParseState T.Text
+t_scharacter_in_squot =
+  (try (string "\\'") >> return (T.singleton '\''))
+     <|> try (do {char '\\';
+                  (char 't' >> return (T.singleton '\t')) <|>
+                  (char 'n' >> return (T.singleton '\n')) <|>
+                  (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1
+     <|> unicode_escape
+     <|> (non_ctrl_char_except "\\'" >>= \s -> return $! s) -- echaracter part 2 minus '
 
 unicode_escape :: GenParser ParseState T.Text
 unicode_escape =
