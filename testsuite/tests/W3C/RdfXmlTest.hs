@@ -9,7 +9,7 @@ import W3C.Manifest
 
 import Data.RDF.Types
 import Data.RDF.Query
-import Text.RDF.RDF4H.TurtleParser
+import Text.RDF.RDF4H.XmlParser
 import Text.RDF.RDF4H.NTriplesParser
 import Data.RDF.TriplesGraph
 
@@ -50,5 +50,5 @@ isNotParsed = not . isParsed
 nodeURI :: Node -> String
 nodeURI = \(UNode u) -> T.unpack u
 
-testParser :: TurtleParser
-testParser = TurtleParser (Just mfBaseURI) Nothing
+testParser :: XmlParser
+testParser = XmlParser (Just mfBaseURI) Nothing
