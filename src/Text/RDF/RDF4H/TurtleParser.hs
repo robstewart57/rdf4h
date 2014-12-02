@@ -371,6 +371,7 @@ t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal dig
 t_scharacter_in_dquot :: GenParser ParseState T.Text
 t_scharacter_in_dquot =
   (try (string "\\\"") >> return (T.singleton '"'))
+     <|> (try (string "\\'") >> return (T.singleton '\''))
      <|> try (do {char '\\';
                   (char 't' >> return (T.singleton '\t')) <|>
                   (char 'n' >> return (T.singleton '\n')) <|>
@@ -383,6 +384,7 @@ t_scharacter_in_dquot =
 t_scharacter_in_squot :: GenParser ParseState T.Text
 t_scharacter_in_squot =
   (try (string "\\'") >> return (T.singleton '\''))
+     <|> (try (string "\\\"") >> return (T.singleton '"'))
      <|> try (do {char '\\';
                   (char 't' >> return (T.singleton '\t')) <|>
                   (char 'n' >> return (T.singleton '\n')) <|>
