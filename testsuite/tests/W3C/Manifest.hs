@@ -83,6 +83,18 @@ data TestEntry =
       comment :: T.Text,
       approval :: Node,
       action :: Node
+    } |
+    TestNTriplesPositiveSyntax {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node
+    } |
+    TestNTriplesNegativeSyntax {
+      name :: T.Text,
+      comment :: T.Text,
+      approval :: Node,
+      action :: Node
     }
 
 -- TODO: Perhaps these should be pulled from the manifest graph
@@ -110,7 +122,10 @@ loadManifest manifestPath baseIRI = do
 
 rdfToManifest :: TriplesGraph -> Manifest
 rdfToManifest rdf = Manifest desc tpls
-  where desc = lnodeText $ objectOf $ head $ query rdf (Just manifestNode) (Just rdfsComment) Nothing
+  where desc = lnodeText $ objectOf $ head descNode
+        -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
+        descNode = query rdf (Just manifestNode) (Just rdfsComment) Nothing
+                   ++ query rdf (Just manifestNode) (Just mfName) Nothing
         tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead
         collectionHead = objectOf $ head $ query rdf (Just manifestNode) (Just mfEntries) Nothing
         manifestNode = head $ manifestSubjectNodes rdf
@@ -129,6 +144,8 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#NegativeEntailmentTest") -> mkNegativeEntailmentTest ts rdf
     (UNode "http://www.w3.org/ns/rdftest#TestXMLEval") -> mkTestXMLEval ts
     (UNode "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax") -> mkTestXMLNegativeSyntax ts
+    (UNode "http://www.w3.org/ns/rdftest#TestNTriplesPositiveSyntax") -> mkTestNTriplesPositiveSyntax ts
+    (UNode "http://www.w3.org/ns/rdftest#TestNTriplesNegativeSyntax") -> mkTestNTriplesNegativeSyntax ts
     _ -> error "Unknown test case"
 
 mkTestTurtleEval :: Triples -> TestEntry
@@ -221,16 +238,32 @@ mkTestXMLNegativeSyntax ts = TestXMLNegativeSyntax {
                                action = objectByPredicate mfAction ts
                              }
 
+mkTestNTriplesPositiveSyntax :: Triples -> TestEntry
+mkTestNTriplesPositiveSyntax ts = TestNTriplesPositiveSyntax {
+                                    name = lnodeText $ objectByPredicate mfName ts,
+                                    comment = lnodeText $ objectByPredicate rdfsComment ts,
+                                    approval = objectByPredicate rdftApproval ts,
+                                    action = objectByPredicate mfAction ts
+                                  }
+
+mkTestNTriplesNegativeSyntax :: Triples -> TestEntry
+mkTestNTriplesNegativeSyntax ts = TestNTriplesPositiveSyntax {
+                                    name = lnodeText $ objectByPredicate mfName ts,
+                                    comment = lnodeText $ objectByPredicate rdfsComment ts,
+                                    approval = objectByPredicate rdftApproval ts,
+                                    action = objectByPredicate mfAction ts
+                                  }
+
 -- Filter the triples by given predicate and return the object of the first found triple.
 -- Raises an exception on errors.
 objectByPredicate :: Predicate -> Triples -> Object
-objectByPredicate p ts = objectOf $ fromJust $ L.find (\t -> predicateOf t == p) ts
+objectByPredicate p = objectOf . fromJust . L.find (\t -> predicateOf t == p)
 
 manifestSubjectNodes :: TriplesGraph -> [Subject]
 manifestSubjectNodes rdf = subjectNodes rdf [mfManifest]
 
 subjectNodes :: TriplesGraph -> [Object] -> [Subject]
-subjectNodes rdf ns = map subjectOf $ concatMap queryType ns
+subjectNodes rdf = (map subjectOf) . concatMap queryType
   where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
 -- | Text of the literal node.
