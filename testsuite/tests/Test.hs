@@ -8,6 +8,7 @@ import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
 import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleParser
 import qualified W3C.TurtleTest as W3CTurtleTest
 import qualified W3C.RdfXmlTest as W3CRdfXmlTest
+import qualified W3C.NTripleTest as W3CNTripleTest
 
 main :: IO ()
 main = defaultMain (  TriplesGraph.tests
@@ -16,4 +17,5 @@ main = defaultMain (  TriplesGraph.tests
                    ++ XmlParser.tests
                    ++ W3CTurtleTest.tests
                    ++ W3CRdfXmlTest.tests
+                   ++ W3CNTripleTest.tests
                    )
