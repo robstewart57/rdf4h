@@ -53,7 +53,7 @@ Example
       putStrLn $ "RDF contains literal 'foo': " ++ show (rdfContainsNode g1 node1)
       putStrLn $ "Isomorphism test: " ++ show (isIsomorphic g1 g2)
       putStrLn $ "Unsorted triples: " ++ show (triplesOf g2)
-      putStrLn $ "Sorted triples: "   ++ show ((sortTriples . triplesOf) g2)
+      putStrLn $ "Sorted triples: "   ++ show ((sort . triplesOf) g2)
       putStrLn $ "Query: " ++ show (query g1 Nothing Nothing (Just node1))
 
 

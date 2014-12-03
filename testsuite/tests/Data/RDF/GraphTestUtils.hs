@@ -36,7 +36,7 @@ p_mkRdf_triplesOf _triplesOf _mkRdf ts bUrl pms =
 -- duplicate input triples should not be returned
 p_mkRdf_no_dupes :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkRdf_no_dupes _triplesOf _mkRdf ts bUrl pms =
-  null ts || (sortTriples result == sortTriples (uordered ts))
+  null ts || (sort result == sort (uordered ts))
    where
     tsWithDupe = head ts : ts
     result = _triplesOf $ _mkRdf tsWithDupe bUrl pms
@@ -136,10 +136,10 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf rdf =
         all (not . tripleCompareFn t) notResults
 
 p_select_match_none :: RDF rdf => rdf -> Bool
-p_select_match_none rdf = sortTriples ts1 == sortTriples ts2
+p_select_match_none rdf = sort ts1 == sort ts2
     where
       ts1 = select rdf Nothing Nothing Nothing
-      ts2 = removeDupes (triplesOf rdf)
+      ts2 = (nub . triplesOf) rdf
 
 p_select_match_s :: RDF rdf => (rdf -> Triples) -> rdf -> Property
 p_select_match_s =
@@ -259,7 +259,7 @@ sameObj  t1 t2 = objectOf t1 == objectOf t2
 
 -- Convert a list of triples into a sorted list of unique triples.
 uordered :: Triples -> Triples
-uordered  =  nub . sortTriples
+uordered  =  sort . nub
 
 tripleFromGen :: RDF rdf => (rdf -> Triples) -> rdf -> Gen (Maybe Triple)
 tripleFromGen _triplesOf rdf =

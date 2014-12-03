@@ -2,9 +2,9 @@
 module Data.RDF.Query (
 
   -- * Query functions
-  sortTriples, equalSubjects, equalPredicates, equalObjects,
+  equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf, isEmpty,
-  rdfContainsNode, tripleContainsNode, removeDupes,
+  rdfContainsNode, tripleContainsNode,
   listSubjectsWithPredicate, listObjectsOfPredicate,
 
   -- * RDF graph functions
@@ -15,10 +15,6 @@ module Data.RDF.Query (
 import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
-
--- |Answer the given list of triples in sorted order.
-sortTriples :: Triples -> Triples
-sortTriples = sort
 
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
@@ -47,7 +43,6 @@ tripleContainsNode :: Node -> Triple -> Bool
 {-# INLINE tripleContainsNode #-}
 tripleContainsNode node t = 
  subjectOf t == node || predicateOf t == node || objectOf t == node
-
 
 -- |Determine whether two triples have equal subjects.
 equalSubjects :: Triple -> Triple -> Bool
@@ -90,12 +85,6 @@ fromEither res =
   case res of
     (Left err) -> error (show err)
     (Right rdf) -> rdf
-
--- |Remove duplicate triples, returning unique triples. This 
--- function may return the triples in a different order than 
--- given.
-removeDupes :: Triples -> Triples
-removeDupes =  map head . group . sort
 
 -- |This determines if two RDF representations are equal regardless of blank
 -- node names, triple order and prefixes.  In math terms, this is the \simeq

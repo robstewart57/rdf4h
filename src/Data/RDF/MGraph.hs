@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 -- |A simple graph implementation backed by 'Data.HashMap'.
 
-module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, select, query)
+module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, uniqTriplesOf, select, query)
 
 where
 
@@ -40,6 +40,7 @@ instance RDF MGraph where
   empty             = empty'
   mkRdf             = mkRdf'
   triplesOf         = triplesOf'
+  uniqTriplesOf     = undefined -- TODO
   select            = select'
   query             = query'
 
