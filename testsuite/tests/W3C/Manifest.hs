@@ -96,6 +96,7 @@ data TestEntry =
       approval :: Node,
       action :: Node
     }
+    deriving (Show)
 
 -- TODO: Perhaps these should be pulled from the manifest graph
 rdfType = unode $ mkUri rdf "type"

@@ -167,7 +167,7 @@ t_collection =
          (many (many t_ws >> try t_object >> many t_ws) >> popPred >>
          pushPred rdfRestNode >>
          addTripleForObject rdfNilNode >>
-         popPred)
+         popPred >> popSubj)
        finishColl
        return ()
 
