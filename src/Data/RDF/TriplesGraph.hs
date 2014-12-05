@@ -8,7 +8,7 @@
 -- functions of this graph (select, query) remove duplicates from their
 -- result triples (but triplesOf does not) since it is usually cheap
 -- to do so.
-module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, select, query)
+module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, uniqTriplesOf, select, query)
 
 where
 
@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types
+import Data.List (nub)
 
 -- |A simple implementation of the 'RDF' type class that represents
 -- the graph internally as a list of triples.
@@ -46,6 +47,7 @@ instance RDF TriplesGraph where
   empty             = empty'
   mkRdf             = mkRdf'
   triplesOf         = triplesOf'
+  uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
 
@@ -76,11 +78,14 @@ mkRdf' ts baseURL pms = TriplesGraph (ts, baseURL, pms)
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' (TriplesGraph (ts, _, _)) = ts
 
+uniqTriplesOf' :: TriplesGraph -> Triples
+uniqTriplesOf' = nub . expandTriples
+
 select' :: TriplesGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (TriplesGraph (ts, _, _)) s p o = removeDupes $ filter (matchSelect s p o) ts
+select' g s p o = filter (matchSelect s p o) $ uniqTriplesOf g
 
 query' :: TriplesGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (TriplesGraph (ts, _, _)) s p o = removeDupes $ filter (matchPattern s p o) ts
+query' g s p o = filter (matchPattern s p o) $ uniqTriplesOf g
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
 matchSelect s p o t =

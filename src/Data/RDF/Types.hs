@@ -15,7 +15,7 @@ module Data.RDF.Types (
   isUNode,isLNode,isBNode,
 
   -- * RDF Type
-  RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,select,query),
+  RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
 
   -- * Parsing RDF
   RdfParser(parseString,parseFile,parseURL),
@@ -206,7 +206,15 @@ class RDF rdf where
   mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> rdf
 
   -- |Return all triples in the RDF, as a list.
+  --
+  -- Note that this function returns a list of triples in the RDF as they
+  -- were added, without removing duplicates and without expanding namespaces.
   triplesOf :: rdf -> Triples
+
+  -- |Return unique triples in the RDF, as a list.
+  --
+  -- This function performs namespace expansion and removal of duplicates.
+  uniqTriplesOf :: rdf -> Triples
 
   -- |Select the triples in the RDF that match the given selectors.
   --
