@@ -36,7 +36,7 @@ p_mkRdf_triplesOf _triplesOf _mkRdf ts bUrl pms =
 -- duplicate input triples should not be returned
 p_mkRdf_no_dupes :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkRdf_no_dupes _triplesOf _mkRdf ts bUrl pms =
-  null ts || (sort result == sort (uordered ts))
+  null ts || (sort result == uordered ts)
    where
     tsWithDupe = head ts : ts
     result = _triplesOf $ _mkRdf tsWithDupe bUrl pms
@@ -320,7 +320,6 @@ arbitraryTs = do
   n <- sized (\_ -> choose (0, maxN))
   sequence [arbitrary | _ <- [1..n]]
 
-
 arbitraryT :: Gen Triple
 arbitraryT = elements test_triples
 
@@ -331,5 +330,3 @@ arbitraryS, arbitraryP, arbitraryO :: Gen Node
 arbitraryS = oneof $ map return $ unodes ++ bnodes
 arbitraryP = oneof $ map return unodes
 arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
-
-
