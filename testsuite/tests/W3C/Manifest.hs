@@ -288,12 +288,12 @@ lnodeText _ = error "Not a literal node"
 -- | (all triples with <rdf:first> and <rdf:rest> pairs).
 -- TODO: Looks useful. Move it to RDF4H lib?
 rdfCollectionToList :: TriplesGraph -> Node -> [Node]
+rdfCollectionToList _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")) = []
 rdfCollectionToList rdf tip = concatMap (tripleToList rdf) $ nextCollectionTriples rdf tip
 
 tripleToList :: TriplesGraph -> Triple -> [Node]
 tripleToList _ (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#first")) n@(UNode _)) = [n]
-tripleToList rdf (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")) tip@(BNodeGen _)) = rdfCollectionToList rdf tip
-tripleToList _ (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")) (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"))) = []
+tripleToList rdf (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")) tip) = rdfCollectionToList rdf tip
 tripleToList _ _ = error "Invalid collection format"
 
 nextCollectionTriples :: TriplesGraph -> Node -> Triples
