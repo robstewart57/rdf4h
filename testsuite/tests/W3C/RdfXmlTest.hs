@@ -39,6 +39,7 @@ mfEntryToTest (TestXMLEval nm _ _ act res) = do
 mfEntryToTest (TestXMLNegativeSyntax nm _ _ act) = do
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
+mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False

@@ -45,7 +45,7 @@ mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act) = do
 mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act) = do
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
-mfEntryToTest x = error $ "unaught TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False

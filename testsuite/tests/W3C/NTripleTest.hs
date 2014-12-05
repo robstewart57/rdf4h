@@ -8,7 +8,6 @@ import qualified Data.Text as T
 import W3C.Manifest
 
 import Data.RDF.Types
-import Data.RDF.Query
 import Text.RDF.RDF4H.NTriplesParser
 import Data.RDF.TriplesGraph
 
@@ -37,6 +36,7 @@ mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act) = do
 mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act) = do
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
+mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False
