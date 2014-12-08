@@ -107,8 +107,7 @@ t_qname =
      char ':'
      name <- option T.empty t_name
      (bUrl, _, _, pms, _, _, _, _) <- getState
-     absName <- return $ resolveQName bUrl pre pms
-     case absName of
+     case resolveQName bUrl pre pms of
        Just n -> return $ n `T.append` name
        Nothing -> error ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
