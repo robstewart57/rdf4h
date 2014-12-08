@@ -1,4 +1,3 @@
-
 module Data.RDF.Query (
 
   -- * Query functions
@@ -106,3 +105,4 @@ expandTriples' acc baseURL prefixMaps (t:rest) = expandTriples' (normalize baseU
         expandBaseUrl (Just _) triple' = triple'
         expandBaseUrl Nothing triple' = triple'
         expandPrefixes _ triple' = triple'
+-- TODO: write the actual implementation of `expandPrefixes` and `expandBaseUrl`

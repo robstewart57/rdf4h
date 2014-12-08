@@ -14,6 +14,9 @@ module Data.RDF.Types (
   -- * Node query function
   isUNode,isLNode,isBNode,
 
+  -- * Miscellaneous
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,
+
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
 
@@ -487,6 +490,47 @@ newtype PrefixMapping = PrefixMapping (T.Text, T.Text)
   deriving (Eq, Ord)
 instance Show PrefixMapping where
   show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (show prefix) (show uri)
+
+-----------------
+-- Miscellaneous helper functions used throughout the project
+
+-- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
+-- empty, then the base URL will be used if there is a base URL and if the map
+-- does not contain an entry for the empty prefix.
+resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> T.Text
+resolveQName mbaseUrl prefix (PrefixMappings pms') =
+  case (mbaseUrl, T.null prefix) of
+    (Just (BaseUrl base), True)  ->  Map.findWithDefault base T.empty pms'
+    (Nothing,             True)  ->  err1
+    (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
+  where
+    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
+    err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
+
+-- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
+absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
+absolutizeUrl mbUrl mdUrl urlFrag =
+  if isAbsoluteUri urlFrag then urlFrag else
+    (case (mbUrl, mdUrl) of
+         (Nothing, Nothing) -> urlFrag
+         (Just (BaseUrl bUrl), Nothing) -> bUrl `T.append` urlFrag
+         (Nothing, Just dUrl) -> if isHash urlFrag then
+                                     dUrl `T.append` urlFrag else urlFrag
+         (Just (BaseUrl bUrl), Just dUrl) -> (if isHash urlFrag then dUrl
+                                                  else bUrl)
+                                                 `T.append` urlFrag)
+  where
+    isHash bs' = bs' == "#"
+
+isAbsoluteUri :: T.Text -> Bool
+isAbsoluteUri = T.isInfixOf ":"
+
+{-# INLINE mkAbsoluteUrl #-}
+-- Make an absolute URL by returning as is if already an absolute URL and otherwise
+-- appending the URL to the given base URL.
+mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
+mkAbsoluteUrl base url =
+  if isAbsoluteUri url then url else base `T.append` url
 
 
 -----------------
