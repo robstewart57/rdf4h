@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 
 module Data.RDF.Types (
 
@@ -12,7 +12,7 @@ module Data.RDF.Types (
   unode,bnode,lnode,triple,
 
   -- * Node query function
-  isUNode,isLNode,isBNode,
+  isUNode,isLNode,isBNode,isAbsoluteUri,
 
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
@@ -41,6 +41,7 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Network.URI as Network (isAbsoluteURI)
 
 -------------------
 -- LValue and constructor functions
@@ -171,6 +172,10 @@ isBNode _            = False
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
+
+{-# INLINE isAbsoluteUri #-}
+isAbsoluteUri :: T.Text -> Bool
+isAbsoluteUri = Network.isAbsoluteURI . T.unpack
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where

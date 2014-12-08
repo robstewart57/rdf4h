@@ -426,10 +426,6 @@ absolutizeUrl mbUrl mdUrl urlFrag =
   where
     isHash bs' = T.length bs' == 1 && T.head bs' == '#'
 
-{-# INLINE isAbsoluteUri #-}
-isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = T.isInfixOf (T.pack [':'])
-
 newBaseUrl :: Maybe BaseUrl -> T.Text -> BaseUrl
 newBaseUrl Nothing                url = BaseUrl url
 newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
