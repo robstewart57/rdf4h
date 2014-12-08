@@ -497,17 +497,15 @@ instance Show PrefixMapping where
 -- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
 -- empty, then the base URL will be used if there is a base URL and if the map
 -- does not contain an entry for the empty prefix.
-resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> T.Text
+resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> Maybe T.Text
 resolveQName mbaseUrl prefix (PrefixMappings pms') =
   case (mbaseUrl, T.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base T.empty pms'
-    (Nothing,             True)  ->  err1
-    (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
-  where
-    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
-    err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
+    (Just (BaseUrl base), True)  ->  Just $ Map.findWithDefault base T.empty pms'
+    (Nothing,             True)  ->  Nothing
+    (_,                   _   )  ->  Map.lookup prefix pms'
 
--- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
+-- Resolve a URL fragment found on the right side of a prefix mapping
+-- by converting it to an absolute URL if possible.
 absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
 absolutizeUrl mbUrl mdUrl urlFrag =
   if isAbsoluteUri urlFrag then urlFrag else
@@ -522,6 +520,7 @@ absolutizeUrl mbUrl mdUrl urlFrag =
   where
     isHash bs' = bs' == "#"
 
+-- TODO: Replace it with isAbsoluteURI from `Network.URI`?
 isAbsoluteUri :: T.Text -> Bool
 isAbsoluteUri = T.isInfixOf ":"
 
