@@ -14,6 +14,9 @@ module Data.RDF.Query (
 import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
+import Data.RDF.Namespace (toPMList)
+import qualified Data.Text as T
+import Data.Maybe (catMaybes)
 
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
@@ -101,8 +104,28 @@ expandTriples rdf = expandTriples' [] (baseUrl rdf) (prefixMappings rdf) (triple
 expandTriples' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Triples -> Triples
 expandTriples' acc _ _ [] = acc
 expandTriples' acc baseURL prefixMaps (t:rest) = expandTriples' (normalize baseURL prefixMaps t : acc) baseURL prefixMaps rest
-  where normalize baseURL' prefixMaps' = expandPrefixes prefixMaps' . expandBaseUrl baseURL'
-        expandBaseUrl (Just _) triple' = triple'
+  where normalize baseURL' prefixMaps' = expandBaseUrl baseURL' . expandPrefixes prefixMaps'
+        expandBaseUrl (Just b') triple' = absolutizeTriple triple' b'
         expandBaseUrl Nothing triple' = triple'
-        expandPrefixes _ triple' = triple'
--- TODO: write the actual implementation of `expandPrefixes` and `expandBaseUrl`
+        expandPrefixes pms' triple' = expandTriple triple' pms'
+
+expandTriple :: Triple -> PrefixMappings -> Triple
+expandTriple t pms = triple (expandNode (subjectOf t) pms) (expandNode (predicateOf t) pms) (expandNode (objectOf t) pms)
+
+expandNode :: Node -> PrefixMappings -> Node
+expandNode (UNode n) pms = unode $ expandURI n pms
+expandNode n' _          = n'
+
+expandURI :: T.Text -> PrefixMappings -> T.Text
+expandURI x pms' = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) (toPMList pms')
+  where resourceTail :: T.Text -> (T.Text, T.Text) -> Maybe T.Text
+        resourceTail x' (p', u') = T.stripPrefix (T.append p' ":") x' >>= Just . T.append u'
+        firstExpandedOrOriginal :: a -> [a] -> a
+        firstExpandedOrOriginal orig' [] = orig'
+        firstExpandedOrOriginal _ (e:_)  = e
+
+absolutizeTriple :: Triple -> BaseUrl -> Triple
+absolutizeTriple t base = triple (absolutizeNode (subjectOf t) base) (absolutizeNode (predicateOf t) base) (absolutizeNode (objectOf t) base)
+  where absolutizeNode :: Node -> BaseUrl -> Node
+        absolutizeNode (UNode u') (BaseUrl b') = unode $ mkAbsoluteUrl b' u'
+        absolutizeNode n _ = n
