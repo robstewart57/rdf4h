@@ -35,4 +35,4 @@ coding examples in the src/Data/RDF.hs file.
 
 * Submit bug reports to W3C
 ** DONE Inconsistent "rdft:approved" / "rdfs:approved" in manifest.ttl
-** TODO Some "mf:Manifest" use "rdfs:comment", others - "mf:name" (TriG, N3, N4)
+** DONE Some "mf:Manifest" use "rdfs:comment", others - "mf:name" (TriG, N3, N4)
