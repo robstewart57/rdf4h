@@ -7,14 +7,17 @@ module Data.RDF.Query (
   listSubjectsWithPredicate, listObjectsOfPredicate,
 
   -- * RDF graph functions
-  isIsomorphic, expandTriples, fromEither
+  isIsomorphic, expandTriples, fromEither,
+
+  -- * Miscellaneous functions
+  expandTriple, expandNode, expandURI
 
 ) where
 
 import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
-import Data.RDF.Namespace (toPMList)
+import Data.RDF.Namespace (toPMList, uriOf, rdf)
 import qualified Data.Text as T
 import Data.Maybe (catMaybes)
 
@@ -109,14 +112,20 @@ expandTriples' acc baseURL prefixMaps (t:rest) = expandTriples' (normalize baseU
         expandBaseUrl Nothing triple' = triple'
         expandPrefixes pms' triple' = expandTriple triple' pms'
 
+-- |Expand the triple with the prefix map.
 expandTriple :: Triple -> PrefixMappings -> Triple
 expandTriple t pms = triple (expandNode (subjectOf t) pms) (expandNode (predicateOf t) pms) (expandNode (objectOf t) pms)
 
+-- |Expand the node with the prefix map.
+-- Only UNodes are expanded, other kinds of nodes are returned as-is.
 expandNode :: Node -> PrefixMappings -> Node
 expandNode (UNode n) pms = unode $ expandURI n pms
 expandNode n' _          = n'
 
+-- |Expand the URI with the prefix map.
+-- Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
 expandURI :: T.Text -> PrefixMappings -> T.Text
+expandURI "a" _  = T.append (uriOf rdf) "type"
 expandURI x pms' = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) (toPMList pms')
   where resourceTail :: T.Text -> (T.Text, T.Text) -> Maybe T.Text
         resourceTail x' (p', u') = T.stripPrefix (T.append p' ":") x' >>= Just . T.append u'
@@ -124,6 +133,7 @@ expandURI x pms' = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) 
         firstExpandedOrOriginal orig' [] = orig'
         firstExpandedOrOriginal _ (e:_)  = e
 
+-- |Prefixes relative URIs in the triple with BaseUrl.
 absolutizeTriple :: Triple -> BaseUrl -> Triple
 absolutizeTriple t base = triple (absolutizeNode (subjectOf t) base) (absolutizeNode (predicateOf t) base) (absolutizeNode (objectOf t) base)
   where absolutizeNode :: Node -> BaseUrl -> Node
