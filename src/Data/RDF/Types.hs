@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 
 module Data.RDF.Types (
 
@@ -44,6 +44,7 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Network.URI as Network (isURI)
 
 -------------------
 -- LValue and constructor functions
@@ -89,7 +90,7 @@ typedL val dtype = TypedL (canonicalize dtype val) dtype
 -- node ('BNode'), or a literal node ('LNode').
 data Node =
 
-  -- |An RDF URI reference. See
+  -- |An RDF URI reference. URIs conform to the RFC3986 standard. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
   UNode !T.Text
@@ -174,6 +175,10 @@ isBNode _            = False
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
+
+{-# INLINE isAbsoluteUri #-}
+isAbsoluteUri :: T.Text -> Bool
+isAbsoluteUri = Network.isURI . T.unpack
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where
@@ -519,10 +524,6 @@ absolutizeUrl mbUrl mdUrl urlFrag =
                                                  `T.append` urlFrag)
   where
     isHash bs' = bs' == "#"
-
--- TODO: Replace it with isAbsoluteURI from `Network.URI`?
-isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = T.isInfixOf ":"
 
 {-# INLINE mkAbsoluteUrl #-}
 -- Make an absolute URL by returning as is if already an absolute URL and otherwise

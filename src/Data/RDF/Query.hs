@@ -17,7 +17,7 @@ module Data.RDF.Query (
 import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
-import Data.RDF.Namespace (toPMList, uriOf, rdf)
+import qualified Data.RDF.Namespace as NS (toPMList, uriOf, rdf)
 import qualified Data.Text as T
 import Data.Maybe (catMaybes)
 
@@ -125,8 +125,8 @@ expandNode n' _          = n'
 -- |Expand the URI with the prefix map.
 -- Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
 expandURI :: T.Text -> PrefixMappings -> T.Text
-expandURI "a" _  = T.append (uriOf rdf) "type"
-expandURI x pms' = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) (toPMList pms')
+expandURI "a" _  = T.append (NS.uriOf NS.rdf) "type"
+expandURI x pms' = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) (NS.toPMList pms')
   where resourceTail :: T.Text -> (T.Text, T.Text) -> Maybe T.Text
         resourceTail x' (p', u') = T.stripPrefix (T.append p' ":") x' >>= Just . T.append u'
         firstExpandedOrOriginal :: a -> [a] -> a
