@@ -36,7 +36,7 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             -- see comment above p_query_matched_spo_no_dupes for why this is disabled
             -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
             , testProperty "query_unmatched_spo"        (p_query_unmatched_spo _triplesOf)
-            , testProperty "query_match_s"              (p_query_match_s _triplesOf)
+              testProperty "query_match_s"              (p_query_match_s _triplesOf)
             , testProperty "query_match_p"              (p_query_match_p _triplesOf)
             , testProperty "query_match_o"              (p_query_match_o _triplesOf)
             , testProperty "query_match_sp"             (p_query_match_sp _triplesOf)
@@ -86,6 +86,10 @@ p_mkRdf_no_dupes _uniqtriplesOf _mkRdf ts bUrl pms =
     tsWithDupe = head ts : ts
     result = _uniqtriplesOf $ _mkRdf tsWithDupe bUrl pms
 
+-- Note: in TriplesGraph and PatriciaTreeGraph `query` expands triples
+--       but `ts` here is not  necessarily expanded. What is the correct
+--       property this test should check?
+--
 -- query with all 3 wildcards should yield all triples in RDF
 p_query_match_none :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result

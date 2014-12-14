@@ -11,7 +11,6 @@ module Data.RDF.Query (
 
   -- * Miscellaneous functions
   expandTriple, expandNode, expandURI
-
 ) where
 
 import Prelude hiding (pred)

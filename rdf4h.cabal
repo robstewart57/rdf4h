@@ -45,6 +45,7 @@ library
                  , Data.RDF.Types
                  , Data.RDF.Query
                  , Data.RDF.MGraph
+                 , Data.RDF.PatriciaTreeGraph
                  , Data.RDF.TriplesGraph
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
@@ -56,6 +57,7 @@ library
   else
     build-depends: base < 3
   build-depends:   parsec >= 3
+                 , fgl
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text
@@ -121,6 +123,7 @@ test-suite test-rdf4h
                , knob
                , unordered-containers
                , hashable
+               , fgl
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
@@ -133,6 +136,7 @@ test-suite test-rdf4h
   other-modules: Data.RDF
                , Data.RDF.Namespace
                , Data.RDF.MGraph
+               , Data.RDF.PatriciaTreeGraph
                , Data.RDF.TriplesGraph
                , Text.RDF.RDF4H.NTriplesParser
                , Text.RDF.RDF4H.NTriplesSerializer
