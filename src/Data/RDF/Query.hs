@@ -1,4 +1,3 @@
-
 module Data.RDF.Query (
 
   -- * Query functions
@@ -8,13 +7,19 @@ module Data.RDF.Query (
   listSubjectsWithPredicate, listObjectsOfPredicate,
 
   -- * RDF graph functions
-  isIsomorphic, expandTriples, fromEither
+  isIsomorphic, expandTriples, fromEither,
+
+  -- * Miscellaneous functions
+  expandTriple, expandNode, expandURI
 
 ) where
 
 import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
+import qualified Data.RDF.Namespace as NS (toPMList, uriOf, rdf)
+import qualified Data.Text as T
+import Data.Maybe (catMaybes)
 
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
@@ -34,25 +39,30 @@ objectOf (Triple _ _ o)   = o
 -- |Answer if rdf contains node.
 rdfContainsNode :: forall rdf. (RDF rdf) => rdf -> Node -> Bool
 rdfContainsNode rdf node =
-  let ts = triplesOf rdf
-      xs = map (tripleContainsNode node) ts
+  let ts = uniqTriplesOf rdf
+      xs = map (tripleContainsNode $ normalize node) ts
+      normalize = absolutizeNode (baseUrl rdf) . expandNode (prefixMappings rdf)
   in elem True xs
 
 -- |Answer if triple contains node.
+-- Note that it doesn't perform namespace expansion!
 tripleContainsNode :: Node -> Triple -> Bool
 {-# INLINE tripleContainsNode #-}
 tripleContainsNode node t = 
  subjectOf t == node || predicateOf t == node || objectOf t == node
 
 -- |Determine whether two triples have equal subjects.
+-- Note that it doesn't perform namespace expansion!
 equalSubjects :: Triple -> Triple -> Bool
 equalSubjects (Triple s1 _ _) (Triple s2 _ _) = s1 == s2
 
 -- |Determine whether two triples have equal predicates.
+-- Note that it doesn't perform namespace expansion!
 equalPredicates :: Triple -> Triple -> Bool
 equalPredicates (Triple _ p1 _) (Triple _ p2 _) = p1 == p2
 
 -- |Determine whether two triples have equal objects.
+-- Note that it doesn't perform namespace expansion!
 equalObjects :: Triple -> Triple -> Bool
 equalObjects (Triple _ _ o1) (Triple _ _ o2) = o1 == o2
 
@@ -74,8 +84,9 @@ listObjectsOfPredicate rdf pred =
 
 listNodesWithPredicate :: RDF rdf => rdf -> Predicate -> (Triple -> Node) -> [Node]
 listNodesWithPredicate rdf pred f =
-  let ts = triplesOf rdf
-      xs = filter (\t -> predicateOf t == pred) ts
+  let ts = uniqTriplesOf rdf
+      xs = filter (\t -> predicateOf t == normalize pred) ts
+      normalize = absolutizeNode (baseUrl rdf) . expandNode (prefixMappings rdf)
   in map f xs
 
 -- |Convert a parse result into an RDF if it was successful
@@ -102,7 +113,34 @@ expandTriples rdf = expandTriples' [] (baseUrl rdf) (prefixMappings rdf) (triple
 expandTriples' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Triples -> Triples
 expandTriples' acc _ _ [] = acc
 expandTriples' acc baseURL prefixMaps (t:rest) = expandTriples' (normalize baseURL prefixMaps t : acc) baseURL prefixMaps rest
-  where normalize baseURL' prefixMaps' = expandPrefixes prefixMaps' . expandBaseUrl baseURL'
-        expandBaseUrl (Just _) triple' = triple'
-        expandBaseUrl Nothing triple' = triple'
-        expandPrefixes _ triple' = triple'
+  where normalize baseURL' prefixMaps' = absolutizeTriple baseURL' . expandTriple prefixMaps'
+
+-- |Expand the triple with the prefix map.
+expandTriple :: PrefixMappings -> Triple -> Triple
+expandTriple pms t = triple (expandNode pms $ subjectOf t) (expandNode pms $ predicateOf t) (expandNode pms $ objectOf t)
+
+-- |Expand the node with the prefix map.
+-- Only UNodes are expanded, other kinds of nodes are returned as-is.
+expandNode :: PrefixMappings -> Node -> Node
+expandNode pms (UNode n) = unode $ expandURI pms n
+expandNode _ n'          = n'
+
+-- |Expand the URI with the prefix map.
+-- Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
+expandURI :: PrefixMappings -> T.Text -> T.Text
+expandURI _ "a"  = T.append (NS.uriOf NS.rdf) "type"
+expandURI pms' x = firstExpandedOrOriginal x $ catMaybes $ map (resourceTail x) (NS.toPMList pms')
+  where resourceTail :: T.Text -> (T.Text, T.Text) -> Maybe T.Text
+        resourceTail x' (p', u') = T.stripPrefix (T.append p' ":") x' >>= Just . T.append u'
+        firstExpandedOrOriginal :: a -> [a] -> a
+        firstExpandedOrOriginal orig' [] = orig'
+        firstExpandedOrOriginal _ (e:_)  = e
+
+-- |Prefixes relative URIs in the triple with BaseUrl.
+absolutizeTriple :: Maybe BaseUrl -> Triple -> Triple
+absolutizeTriple base t = triple (absolutizeNode base $ subjectOf t) (absolutizeNode base $ predicateOf t) (absolutizeNode base $ objectOf t)
+
+-- |Prepends BaseUrl to UNodes with relative URIs.
+absolutizeNode :: Maybe BaseUrl -> Node -> Node
+absolutizeNode (Just (BaseUrl b')) (UNode u') = unode $ mkAbsoluteUrl b' u'
+absolutizeNode _ n                     = n

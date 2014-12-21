@@ -6,7 +6,7 @@ import Data.RDF.Types
 
 import Network.URI
 import Network.HTTP
-import Data.Char(intToDigit)
+import Data.Char (intToDigit)
 import Data.Text.Encoding (decodeUtf8)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
@@ -23,8 +23,8 @@ justTriples :: [Maybe Triple] -> [Triple]
 justTriples = map (fromMaybe (error "ParserUtils.justTriples")) .
               filter (/= Nothing)
 
--- | pars contents at URL in to and 'RDF'
-_parseURL :: RDF rdf => (T.Text -> Either ParseFailure rdf)  -> String -> IO (Either ParseFailure rdf)
+-- | Parse contents at URL into an 'RDF'.
+_parseURL :: RDF rdf => (T.Text -> Either ParseFailure rdf) -> String -> IO (Either ParseFailure rdf)
 _parseURL parseFunc url =
   maybe
     (return (Left (ParseFailure $ "Unable to parse URL: " ++ url)))
@@ -41,7 +41,7 @@ _parseURL parseFunc url =
                            (2, 0, 0) -> return $ parseFunc (decodeUtf8 (rspBody res))
                            _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
 
--- | construct HTTP GET request.
+-- | Construct HTTP GET request.
 request :: URI -> HTTPRequest B.ByteString
 request uri = Request { rqURI = uri,
                         rqMethod = GET,

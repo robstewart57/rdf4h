@@ -32,3 +32,7 @@ be inspired by the
 The haddock documentation is not very helpful. It would be good to add
 a verbose description of the RDF standard and a couple of simple
 coding examples in the src/Data/RDF.hs file.
+
+* Submit bug reports to W3C
+** DONE Inconsistent "rdft:approved" / "rdfs:approved" in manifest.ttl
+** DONE Some "mf:Manifest" use "rdfs:comment", others - "mf:name" (TriG, N3, N4)
