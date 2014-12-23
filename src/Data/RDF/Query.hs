@@ -39,9 +39,8 @@ objectOf (Triple _ _ o)   = o
 -- |Answer if rdf contains node.
 rdfContainsNode :: forall rdf. (RDF rdf) => rdf -> Node -> Bool
 rdfContainsNode rdf node =
-  let ts = uniqTriplesOf rdf
-      xs = map (tripleContainsNode $ normalize node) ts
-      normalize = absolutizeNode (baseUrl rdf) . expandNode (prefixMappings rdf)
+  let ts = triplesOf rdf
+      xs = map (tripleContainsNode node) ts
   in elem True xs
 
 -- |Answer if triple contains node.
@@ -84,9 +83,8 @@ listObjectsOfPredicate rdf pred =
 
 listNodesWithPredicate :: RDF rdf => rdf -> Predicate -> (Triple -> Node) -> [Node]
 listNodesWithPredicate rdf pred f =
-  let ts = uniqTriplesOf rdf
-      xs = filter (\t -> predicateOf t == normalize pred) ts
-      normalize = absolutizeNode (baseUrl rdf) . expandNode (prefixMappings rdf)
+  let ts = triplesOf rdf
+      xs = filter (\t -> predicateOf t == pred) ts
   in map f xs
 
 -- |Convert a parse result into an RDF if it was successful
