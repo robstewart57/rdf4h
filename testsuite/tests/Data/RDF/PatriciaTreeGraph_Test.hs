@@ -1,4 +1,4 @@
-module Data.RDF.PatriciaTreeGraph_Test (triplesOf',empty',mkRdf') where
+module Data.RDF.PatriciaTreeGraph_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
 import Data.RDF.PatriciaTreeGraph (PatriciaTreeGraph)
@@ -20,3 +20,6 @@ mkRdf' = mkRdf
 
 triplesOf' :: PatriciaTreeGraph -> Triples
 triplesOf' = triplesOf
+
+uniqTriplesOf' :: PatriciaTreeGraph -> Triples
+uniqTriplesOf' = uniqTriplesOf

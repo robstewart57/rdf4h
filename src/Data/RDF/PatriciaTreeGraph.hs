@@ -11,7 +11,6 @@ import qualified Data.IntMap as IntMap
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
-import qualified Data.Text as T
 
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
                             deriving (Show)
@@ -22,7 +21,7 @@ instance RDF PatriciaTreeGraph where
   addPrefixMappings = addPrefixMappings'
   empty             = empty'
   mkRdf             = mkRdf'
-  triplesOf         = uniqTriplesOf'
+  triplesOf         = triplesOf'
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
@@ -41,10 +40,6 @@ addPrefixMappings' (PatriciaTreeGraph (g, idxLookup, baseURL, pms)) pms' replace
 baseUrl' :: PatriciaTreeGraph -> Maybe BaseUrl
 baseUrl' (PatriciaTreeGraph _) = Nothing
 
--- in case we want to expand UNode nodes in each triple in mkRdf'
-expandNode (Just (BaseUrl b)) (UNode t) = UNode (b `T.append` t)
-expandNode _ node = node
-
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> PatriciaTreeGraph
 mkRdf' ts base' pms' =
     let xs = concatMap (\(Triple s _p o) -> [s,o]) ts
@@ -56,32 +51,30 @@ mkRdf' ts base' pms' =
         ledges = map (\(Triple s p o) ->
                           let si = fromJust $ Map.lookup s uriIdx
                               oi = fromJust $ Map.lookup o uriIdx
-                          in (si,oi,expandNode base' p)) ts
+                          in (si,oi,absolutizeNode base' p)) ts
 
         ptGraph = G.mkGraph lnodes ledges
 
     in PatriciaTreeGraph (ptGraph ,intIdx, base', pms')
 
-{- will this remain as an RDF method?
 triplesOf' :: PatriciaTreeGraph -> Triples
 triplesOf' (PatriciaTreeGraph (g,idxLookup,_,_)) =
     map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in Triple s p o) (G.labEdges g)
--}
 
 uniqTriplesOf' :: PatriciaTreeGraph -> Triples
 uniqTriplesOf' ptG@(PatriciaTreeGraph (g,idxLookup,_,_)) =
     nub $ map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
-             in expandTriple ptG (Triple s p o)) (G.labEdges g)
+             in expandTriple (prefixMappings ptG) (Triple s p o)) (G.labEdges g)
 
 select' :: PatriciaTreeGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' ptG@(PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
+select' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
     let mkTriples nodeIdx = map (\(p,subjIdx) ->
                                     let o = fromJust (IntMap.lookup nodeIdx idxLookup)
                                         s = fromJust (IntMap.lookup subjIdx idxLookup)
-                                    in expandTriple ptG (Triple s p o) )  -- expand the triple
+                                    in (Triple s p o) )
 
         cfun ( adjsIn , nodeIdx , _nodeLbl , _adjsOut ) =
             let ts | isJust maybeSubjSel && isNothing maybePredSel && isNothing maybeObjSel =
@@ -138,11 +131,11 @@ select' ptG@(PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubjSel maybePredSel mayb
     in concat $ DFS.dfsWith' cfun g
 
 query' :: PatriciaTreeGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' ptG@(PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
+query' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
     let mkTriples nodeIdx = map (\(p,subjIdx) ->
                               let o = fromJust (IntMap.lookup nodeIdx idxLookup)
                                   s = fromJust (IntMap.lookup subjIdx idxLookup)
-                              in expandTriple ptG (Triple s p o) ) -- expand the triple
+                              in (Triple s p o) )
 
         cfun ( adjsIn , nodeIdx , _nodeLbl , _adjsOut ) =
             let ts | isJust maybeSubj && isNothing maybePred && isNothing maybeObj =

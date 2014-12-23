@@ -9,8 +9,11 @@ module Data.RDF.Query (
   -- * RDF graph functions
   isIsomorphic, expandTriples, fromEither,
 
-  -- * Miscellaneous functions
-  expandTriple, expandNode, expandURI
+  -- * expansion functions
+  expandTriple, expandNode, expandURI,
+
+  -- * absolutizing functions
+  absolutizeTriple, absolutizeNode
 ) where
 
 import Prelude hiding (pred)

@@ -36,7 +36,7 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             -- see comment above p_query_matched_spo_no_dupes for why this is disabled
             -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
             , testProperty "query_unmatched_spo"        (p_query_unmatched_spo _triplesOf)
-              testProperty "query_match_s"              (p_query_match_s _triplesOf)
+            , testProperty "query_match_s"              (p_query_match_s _triplesOf)
             , testProperty "query_match_p"              (p_query_match_p _triplesOf)
             , testProperty "query_match_o"              (p_query_match_o _triplesOf)
             , testProperty "query_match_sp"             (p_query_match_sp _triplesOf)
