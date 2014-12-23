@@ -1,4 +1,4 @@
-module Data.RDF.TriplesGraph_Test (empty',triplesOf',mkRdf') where
+module Data.RDF.TriplesGraph_Test (empty',triplesOf',uniqTriplesOf',mkRdf') where
 
 import Control.Monad
 import qualified Data.Map as Map
@@ -20,3 +20,6 @@ mkRdf' = mkRdf
 
 triplesOf' :: TriplesGraph -> Triples
 triplesOf' = triplesOf
+
+uniqTriplesOf' :: TriplesGraph -> Triples
+uniqTriplesOf' = uniqTriplesOf

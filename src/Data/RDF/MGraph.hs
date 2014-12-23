@@ -40,7 +40,7 @@ instance RDF MGraph where
   empty             = empty'
   mkRdf             = mkRdf'
   triplesOf         = triplesOf'
-  uniqTriplesOf     = undefined -- TODO
+  uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
 
@@ -106,6 +106,10 @@ mergeT'' m s p o =
 triplesOf' :: MGraph -> Triples
 triplesOf' (MGraph ((spoMap, _), _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = HashMap.toList spoMap
+
+-- naive implementation for now
+uniqTriplesOf' :: MGraph -> Triples
+uniqTriplesOf' = nub . expandTriples
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
 tripsSubj s adjMap = concatMap (uncurry (tfsp s)) (HashMap.toList adjMap)

@@ -9,8 +9,8 @@ import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleParser
 import Data.RDF.GraphTestUtils
 
 main :: IO ()
-main = defaultMain (  graphTests "TriplesGraph" TriplesGraph.triplesOf' TriplesGraph.empty' TriplesGraph.mkRdf'
-                   ++ graphTests "MGraph" MGraph.triplesOf' MGraph.empty' MGraph.mkRdf'
+main = defaultMain (  graphTests "TriplesGraph" TriplesGraph.triplesOf' TriplesGraph.uniqTriplesOf' TriplesGraph.empty' TriplesGraph.mkRdf'
+                   ++ graphTests "MGraph" MGraph.triplesOf' MGraph.uniqTriplesOf' MGraph.empty' MGraph.mkRdf'
                    ++ TurtleParser.tests
                    ++ XmlParser.tests
                    )

@@ -26,14 +26,15 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 ----------------------------------------------------
 
 graphTests :: forall rdf. (Arbitrary rdf, RDF rdf, Show rdf)
-           => TestName -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> [Test]
-graphTests testGroupName _triplesOf _empty _mkRdf = [ testGroup testGroupName
+           => TestName -> (rdf -> Triples) -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> [Test]
+graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup testGroupName
             [ testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)
-            , testProperty "mkRdf_no_dupes"             (p_mkRdf_no_dupes _triplesOf _mkRdf)
+            , testProperty "mkRdf_no_dupes"             (p_mkRdf_no_dupes _uniqTriplesOf _mkRdf)
             , testProperty "query_match_none"           (p_query_match_none _mkRdf)
             , testProperty "query_matched_spo"          (p_query_matched_spo _triplesOf)
-            , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
+            -- see comment above p_query_matched_spo_no_dupes for why this is disabled
+            -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
             , testProperty "query_unmatched_spo"        (p_query_unmatched_spo _triplesOf)
             , testProperty "query_match_s"              (p_query_match_s _triplesOf)
             , testProperty "query_match_p"              (p_query_match_p _triplesOf)
@@ -76,13 +77,14 @@ p_mkRdf_triplesOf :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl ->
 p_mkRdf_triplesOf _triplesOf _mkRdf ts bUrl pms =
   uordered (_triplesOf (_mkRdf ts bUrl pms)) == uordered ts
 
--- duplicate input triples should not be returned
+-- duplicate input triples should not be returned when
+-- uniqTriplesof is used
 p_mkRdf_no_dupes :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
-p_mkRdf_no_dupes _triplesOf _mkRdf ts bUrl pms =
+p_mkRdf_no_dupes _uniqtriplesOf _mkRdf ts bUrl pms =
   null ts || (sort result == uordered ts)
    where
     tsWithDupe = head ts : ts
-    result = _triplesOf $ _mkRdf tsWithDupe bUrl pms
+    result = _uniqtriplesOf $ _mkRdf tsWithDupe bUrl pms
 
 -- query with all 3 wildcards should yield all triples in RDF
 p_query_match_none :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
@@ -102,6 +104,10 @@ p_query_matched_spo _triplesOf rdf =
             Nothing   ->  True
             (Just t') ->  [t'] == queryT rdf t'
 
+{- disabled:
+-- removing duplicates from `query` (and `select`) is deprecated, see
+--  https://github.com/cordawyn/rdf4h/commit/9dd4729908db8d2f80088706592adac81a0f3016
+--
 -- query as in p_query_matched_spo after duplicating a triple in the
 -- RDF, so that we can verify that the results just have 1, even
 -- if the RDF itself doesn't ensure that there are no dupes internally.
@@ -114,6 +120,7 @@ p_query_matched_spo_no_dupes _triplesOf _mkRdf rdf =
     f t = case t of
             Nothing   -> True
             Just t'   -> [t'] == queryT (mkRdfWithDupe _triplesOf _mkRdf rdf t') t'
+-}
 
 -- query with no wildcard and a triple no in the RDF should yield []
 p_query_unmatched_spo :: RDF rdf => (rdf -> Triples) -> rdf -> Triple -> Property
@@ -182,7 +189,11 @@ p_select_match_none :: RDF rdf => (rdf -> Triples) -> rdf -> Bool
 p_select_match_none _triplesOf_not_used rdf = sort ts1 == sort ts2
     where
       ts1 = select rdf Nothing Nothing Nothing
-      ts2 = (nub . triplesOf) rdf
+      -- ts2 = (nub . triplesOf) rdf
+
+      -- may have duplicates, see comments in
+      --   https://github.com/cordawyn/rdf4h/commit/9dd4729908db8d2f80088706592adac81a0f3016
+      ts2 = triplesOf rdf
 
 p_select_match_s :: RDF rdf => (rdf -> Triples) -> rdf -> Property
 p_select_match_s =

@@ -1,4 +1,4 @@
-module Data.RDF.MGraph_Test (triplesOf',empty',mkRdf') where
+module Data.RDF.MGraph_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
 import Data.RDF.MGraph (MGraph)
@@ -20,3 +20,6 @@ mkRdf' = mkRdf
 
 triplesOf' :: MGraph -> Triples
 triplesOf' = triplesOf
+
+uniqTriplesOf' :: MGraph -> Triples
+uniqTriplesOf' = uniqTriplesOf
