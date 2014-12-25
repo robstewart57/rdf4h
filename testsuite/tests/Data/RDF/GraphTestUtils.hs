@@ -28,13 +28,14 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 graphTests :: forall rdf. (Arbitrary rdf, RDF rdf, Show rdf)
            => TestName -> (rdf -> Triples) -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> [Test]
 graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup testGroupName
-            [ testProperty "empty"                      (p_empty _triplesOf _empty)
+            [
+              testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)
             , testProperty "mkRdf_no_dupes"             (p_mkRdf_no_dupes _uniqTriplesOf _mkRdf)
             , testProperty "query_match_none"           (p_query_match_none _mkRdf)
             , testProperty "query_matched_spo"          (p_query_matched_spo _triplesOf)
-            -- see comment above p_query_matched_spo_no_dupes for why this is disabled
-            -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
+            -- -- see comment above p_query_matched_spo_no_dupes for why this is disabled
+            -- -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
             , testProperty "query_unmatched_spo"        (p_query_unmatched_spo _triplesOf)
             , testProperty "query_match_s"              (p_query_match_s _triplesOf)
             , testProperty "query_match_p"              (p_query_match_p _triplesOf)
@@ -42,7 +43,7 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             , testProperty "query_match_sp"             (p_query_match_sp _triplesOf)
             , testProperty "query_match_so"             (p_query_match_so _triplesOf)
             , testProperty "query_match_po"             (p_query_match_po _triplesOf)
-            , testProperty "match_none"                 (p_select_match_none _triplesOf)
+            , testProperty "select_match_none"                 (p_select_match_none _triplesOf)
             , testProperty "select_match_s"             (p_select_match_s _triplesOf)
             , testProperty "select_match_p"             (p_select_match_p _triplesOf)
             , testProperty "select_match_o"             (p_select_match_o _triplesOf)
