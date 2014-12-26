@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, GeneralizedNewtypeDeriving #-}
 
 module Data.RDF.Types (
 
@@ -45,6 +45,7 @@ import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Network.URI as Network (isURI)
+import Control.DeepSeq (NFData,rnf)
 
 -------------------
 -- LValue and constructor functions
@@ -65,6 +66,11 @@ data LValue =
   -- the URI of the datatype of the value, respectively.
   | TypedL !T.Text  !T.Text
     deriving Generic
+
+instance NFData LValue where
+  rnf (PlainL t) = rnf t
+  rnf (PlainLL t1 t2) = rnf t1 `seq` rnf t2
+  rnf (TypedL t1 t2) = rnf t1 `seq` rnf t2
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
@@ -110,6 +116,12 @@ data Node =
   | LNode !LValue
     deriving Generic
 
+instance NFData Node where
+  rnf (UNode t) = rnf t
+  rnf (BNode b) = rnf b
+  rnf (BNodeGen bgen) = rnf bgen
+  rnf (LNode lvalue) = rnf lvalue
+
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
 
@@ -143,6 +155,9 @@ lnode = LNode
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple !Node !Node !Node
+
+instance NFData Triple where
+  rnf (Triple s p o) = rnf s `seq` rnf p `seq` rnf o
 
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
@@ -326,7 +341,7 @@ class RdfSerializer s where
 
 -- |The base URL of an RDF.
 newtype BaseUrl = BaseUrl T.Text
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, NFData)
 
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
@@ -482,7 +497,8 @@ instance Show Namespace where
 
 -- |An alias for a map from prefix to namespace URI.
 newtype PrefixMappings   = PrefixMappings (Map T.Text T.Text)
-  deriving (Eq, Ord)
+  deriving (Eq, Ord,NFData)
+
 instance Show PrefixMappings where
   -- This is really inefficient, but it's not used much so not what
   -- worth optimizing yet.

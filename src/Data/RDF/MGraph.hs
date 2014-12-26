@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 -- |A simple graph implementation backed by 'Data.HashMap'.
 
 module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, uniqTriplesOf, select, query)
@@ -6,6 +6,7 @@ module Data.RDF.MGraph(MGraph, empty, mkRdf, triplesOf, uniqTriplesOf, select, q
 where
 
 import Prelude hiding (pred)
+import Control.DeepSeq (NFData)
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
@@ -32,6 +33,7 @@ import Data.List
 --
 --  * 'query'    : O(log n)
 newtype MGraph = MGraph (TMaps, Maybe BaseUrl, PrefixMappings)
+                 deriving (NFData)
 
 instance RDF MGraph where
   baseUrl           = baseUrl'

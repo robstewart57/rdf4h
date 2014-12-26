@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
 -- for smallish graphs or for temporary graphs that will not be queried.
 -- It maintains the triples in the order that they are given in, and is
@@ -13,6 +15,7 @@ module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, uniqTriplesO
 where
 
 import Prelude hiding (pred)
+import Control.DeepSeq (NFData)
 import qualified Data.Map as Map
 import Data.RDF.Namespace
 import Data.RDF.Query
@@ -39,6 +42,7 @@ import Data.List (nub)
 --
 --  * 'query'    : O(n)
 newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
+                       deriving (NFData)
 
 instance RDF TriplesGraph where
   baseUrl           = baseUrl'
