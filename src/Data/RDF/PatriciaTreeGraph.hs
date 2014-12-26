@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances #-}
 
 module Data.RDF.PatriciaTreeGraph where
 
@@ -6,7 +6,7 @@ import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types
 
-import Control.DeepSeq
+import Control.DeepSeq (NFData)
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.PatriciaTree as PT
 import qualified Data.Graph.Inductive.Query.DFS as DFS
@@ -17,6 +17,8 @@ import Data.Maybe
 
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
                             deriving (Show,NFData)
+
+instance NFData (PT.Gr Node Node)
 
 instance RDF PatriciaTreeGraph where
   baseUrl           = baseUrl'

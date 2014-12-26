@@ -22,25 +22,16 @@ queryGr (maybeS,maybeP,maybeO,rdf) = query rdf maybeS maybeP maybeO
 selectGr :: RDF rdf => (NodeSelector,NodeSelector,NodeSelector,rdf) -> [Triple]
 selectGr (selectorS,selectorP,selectorO,rdf) = select rdf selectorS selectorP selectorO
 
-
--- `nf` should be used here, but there is currently no NFData instance
--- for the PatriciaTree implementation of `Graph` in the fgl library.
--- see commit message in
---   https://github.com/robstewart57/rdf4h/commit/c37c65565426dc4d48c6ba9a0d0a6ab044c74da5
---
--- Until fgl is patched, `whnf` is used, which isn't really appropriate
--- given the nested structures in the RDF implementatations.
-
 main :: IO ()
 main = defaultMain [
    env (readFile "countries.ttl") $ \ ~(ttl_countries) ->
    bgroup "parse" [
      bench "TriplesGraph" $
-       whnf (parseTurtle  :: String -> TriplesGraph) ttl_countries
+       nf (parseTurtle  :: String -> TriplesGraph) ttl_countries
    , bench "MGraph" $
-       whnf (parseTurtle  :: String -> MGraph) ttl_countries
+       nf (parseTurtle  :: String -> MGraph) ttl_countries
    , bench "PatriciaTreeGraph" $
-       whnf (parseTurtle  :: String -> PatriciaTreeGraph) ttl_countries
+       nf (parseTurtle  :: String -> PatriciaTreeGraph) ttl_countries
    ]
 
    ,
@@ -52,19 +43,19 @@ main = defaultMain [
      $ \ ~(patriciaTreeCountries,triplesGraph,mGraph) ->
    bgroup "query" [
      bench "TriplesGraph" $
-       whnf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,TriplesGraph) -> [Triple])
+       nf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,TriplesGraph) -> [Triple])
               (Just (UNode "http://telegraphis.net/data/countries/AF#AF"),
                Just (UNode "geographis:capital"),
                Just (UNode "http://telegraphis.net/data/capitals/AF/Kabul#Kabul"),
                triplesGraph)
    , bench "MGraph" $
-       whnf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,MGraph) -> [Triple])
+       nf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,MGraph) -> [Triple])
               (Just (UNode "http://telegraphis.net/data/countries/AF#AF"),
                Just (UNode "geographis:capital"),
                Just (UNode "http://telegraphis.net/data/capitals/AF/Kabul#Kabul"),
                mGraph)
    , bench "PatriciaTreeGraph" $
-       whnf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,PatriciaTreeGraph) -> [Triple])
+       nf (queryGr  :: (Maybe Node,Maybe Node,Maybe Node,PatriciaTreeGraph) -> [Triple])
               (Just (UNode "http://telegraphis.net/data/countries/AF#AF"),
                Just (UNode "geographis:capital"),
                Just (UNode "http://telegraphis.net/data/capitals/AF/Kabul#Kabul"),
@@ -80,23 +71,22 @@ main = defaultMain [
      $ \ ~(patriciaTreeCountries,triplesGraph,mGraph) ->
    bgroup "select" [
      bench "TriplesGraph" $
-       whnf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,TriplesGraph) -> [Triple])
+       nf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,TriplesGraph) -> [Triple])
               (Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                triplesGraph)
    , bench "MGraph" $
-       whnf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,MGraph) -> [Triple])
+       nf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,MGraph) -> [Triple])
               (Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                mGraph)
    , bench "PatriciaTreeGraph" $
-       whnf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,PatriciaTreeGraph) -> [Triple])
+       nf (selectGr  :: (NodeSelector,NodeSelector,NodeSelector,PatriciaTreeGraph) -> [Triple])
               (Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                Just (\case { (UNode n) -> T.length n > 12 ; _ -> False } ),
                patriciaTreeCountries)
    ]
-
  ]
