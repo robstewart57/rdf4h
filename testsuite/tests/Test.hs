@@ -29,6 +29,6 @@ main = defaultMain (
                          PatriciaTreeGraph.empty'
                          PatriciaTreeGraph.mkRdf'
 
-                  ++ TurtleParser.tests
-                  ++ XmlParser.tests
+                   ++ TurtleParser.tests
+                   ++ XmlParser.tests
                    )

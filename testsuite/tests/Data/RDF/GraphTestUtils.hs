@@ -34,8 +34,8 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             , testProperty "mkRdf_no_dupes"             (p_mkRdf_no_dupes _uniqTriplesOf _mkRdf)
             , testProperty "query_match_none"           (p_query_match_none _mkRdf)
             , testProperty "query_matched_spo"          (p_query_matched_spo _triplesOf)
-            -- -- see comment above p_query_matched_spo_no_dupes for why this is disabled
-            -- -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
+            -- see comment above p_query_matched_spo_no_dupes for why this is disabled
+            -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
             , testProperty "query_unmatched_spo"        (p_query_unmatched_spo _triplesOf)
             , testProperty "query_match_s"              (p_query_match_s _triplesOf)
             , testProperty "query_match_p"              (p_query_match_p _triplesOf)
