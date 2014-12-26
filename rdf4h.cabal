@@ -63,7 +63,7 @@ library
                  , text
                  , unordered-containers
                  , hashable
-
+                 , deepseq
   if impl(ghc < 7.6)
     build-depends: ghc-prim
 
@@ -90,6 +90,7 @@ executable rdf4h
                  , containers
                  , text
                  , hashable
+                 , deepseq
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
@@ -144,6 +145,17 @@ test-suite test-rdf4h
                , Text.RDF.RDF4H.TurtleSerializer
                , Text.RDF.RDF4H.XmlParser
   hs-source-dirs: src, testsuite/tests
+
+benchmark rdf4h-bench
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   bench
+  main-is:          MainCriterion.hs
+  build-depends:    base,
+                    criterion,
+                    rdf4h,
+                    text
+  ghc-options:      -Wall
+                    -O2
 
 source-repository head
   type:     git
