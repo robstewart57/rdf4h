@@ -13,7 +13,7 @@ import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.NTriplesParser
 import Data.RDF.TriplesGraph
 
-suiteFilesDir = "data/w3c/turtle/"
+suiteFilesDir = "data/w3c/turtle/TurtleTests/"
 
 mfPath = T.concat [suiteFilesDir, "manifest.ttl"]
 mfBaseURI = BaseUrl "http://www.w3.org/2013/TurtleTests/"
