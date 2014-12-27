@@ -84,22 +84,6 @@ mkRdf' ts base' pms' =
 
     in PatriciaTreeGraph (ptGraph ,intIdx, base', pms')
 
-{-
-        xs' = concatMap (\(Triple s _p o) -> [s,o]) ts
-        xs  = nub $ sort xs'
-        lnodes = zip [0..length xs-1] xs
-
-        uriIdx = Map.fromList (map (\(a,b) -> (b,a)) lnodes)
-        intIdx = IntMap.fromList lnodes
-
-        ledges = map (\(Triple s p o) ->
-                          let si = fromJust $ Map.lookup s uriIdx
-                              oi = fromJust $ Map.lookup o uriIdx
-                          in (si,oi,p)) ts
-
-        ptGraph = G.mkGraph lnodes ledges
--}
-
 triplesOf' :: PatriciaTreeGraph -> Triples
 triplesOf' (PatriciaTreeGraph (g,idxLookup,_,_)) =
     map (\(sIdx,oIdx,p) ->
