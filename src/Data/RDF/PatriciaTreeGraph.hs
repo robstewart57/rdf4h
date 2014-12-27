@@ -40,9 +40,52 @@ addPrefixMappings' (PatriciaTreeGraph (g, idxLookup, baseURL, pms)) pms' replace
 baseUrl' :: PatriciaTreeGraph -> Maybe BaseUrl
 baseUrl' (PatriciaTreeGraph _) = Nothing
 
+data AutoIncrMap = AutoIncrMap
+    { theMap :: Map.Map Node (Int,Node)
+    , idxPtr :: !Int }
+
+{-
+init       -> []
+insert www -> [0,www]
+insert ttt -> [1,ttt]
+insert ttt -> [1,ttt]
+-}
+insertIncr :: Node -> AutoIncrMap -> (Int,AutoIncrMap)
+insertIncr !node mp =
+    let x = Map.lookup node (theMap mp)
+    in if isJust x
+       then
+           let (i,_) = fromJust x
+           in (i,mp)
+       else
+           let curIdx = idxPtr mp
+               mp' = mp { idxPtr = curIdx + 1
+                        , theMap = Map.insert node (idxPtr mp, node) (theMap mp) }
+           in (curIdx, mp')
+
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> PatriciaTreeGraph
 mkRdf' ts base' pms' =
-    let xs' = concatMap (\(Triple s _p o) -> [s,o]) ts
+    -- step 1: subjects and objects assigned node ID (an Int)
+    let (mp,ledges) = foldl' f ((AutoIncrMap Map.empty 0),[]) ts
+
+        -- step 2: for all triples, create arc with
+        --         - predicate node the arc label
+        --         - subject the source node ID
+        --         - object the target node ID
+        f (mp',edges) (Triple s p o) =
+            let (sIdx,mp'')  = insertIncr s mp'
+                (oIdx,mp''') = insertIncr o mp''
+                edge = (sIdx,oIdx,p)
+            in (mp''',edge : edges)
+
+        lnodes = Map.elems (theMap mp)
+        intIdx = IntMap.fromList lnodes
+        ptGraph = G.mkGraph lnodes ledges
+
+    in PatriciaTreeGraph (ptGraph ,intIdx, base', pms')
+
+{-
+        xs' = concatMap (\(Triple s _p o) -> [s,o]) ts
         xs  = nub $ sort xs'
         lnodes = zip [0..length xs-1] xs
 
@@ -55,8 +98,7 @@ mkRdf' ts base' pms' =
                           in (si,oi,p)) ts
 
         ptGraph = G.mkGraph lnodes ledges
-
-    in PatriciaTreeGraph (ptGraph ,intIdx, base', pms')
+-}
 
 triplesOf' :: PatriciaTreeGraph -> Triples
 triplesOf' (PatriciaTreeGraph (g,idxLookup,_,_)) =
