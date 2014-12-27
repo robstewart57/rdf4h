@@ -125,6 +125,7 @@ test-suite test-rdf4h
                , unordered-containers
                , hashable
                , fgl
+               , deepseq
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
