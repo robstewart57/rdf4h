@@ -12,3 +12,6 @@ TAGS
 *#
 *.backup
 data/w3c/
+countries.ttl
+*.prof
+bench/MainCriterion
