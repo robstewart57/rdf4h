@@ -56,8 +56,7 @@ t_statement :: GenParser ParseState ()
 t_statement = d <|> t <|> void (many1 t_ws <?> "blankline-whitespace")
   where
     d = void
-      (try t_directive >> (many t_ws <?> "directive-whitespace1") >>
-      (char '.' <?> "end-of-directive-period") >>
+      (try t_directive >>
       (many t_ws <?> "directive-whitespace2"))
     t = void
       (t_triples >> (many t_ws <?> "triple-whitespace1") >>
@@ -68,7 +67,7 @@ t_triples :: GenParser ParseState ()
 t_triples = t_subject >> (many1 t_ws <?> "subject-predicate-whitespace") >> t_predicateObjectList >> resetSubjectPredicate
 
 t_directive :: GenParser ParseState ()
-t_directive = t_prefixID <|> t_base
+t_directive = t_prefixID <|> t_base <|> t_sparql_base
 
 t_resource :: GenParser ParseState T.Text
 t_resource =  try t_uriref <|> t_qname
@@ -79,6 +78,8 @@ t_prefixID =
      pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_prefixName
      char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
      uriFrag <- t_uriref
+     (many t_ws <?> "prefixID-whitespace")
+     (char '.' <?> "end-of-prefixID-period")
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
@@ -87,6 +88,17 @@ t_base :: GenParser ParseState ()
 t_base =
   do try (string "@base" <?> "@base-directive")
      many1 t_ws <?> "whitespace-after-@base"
+     urlFrag <- t_uriref
+     (many t_ws <?> "base-whitespace")
+     (char '.' <?> "end-of-base-period")
+     bUrl <- currBaseUrl
+     dUrl <- currDocUrl
+     updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
+
+t_sparql_base :: GenParser ParseState ()
+t_sparql_base =
+  do try (string "BASE" <?> "@sparql-base-directive")
+     many1 t_ws <?> "whitespace-after-BASE"
      urlFrag <- t_uriref
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
