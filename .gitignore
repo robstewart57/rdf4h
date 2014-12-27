@@ -11,8 +11,9 @@ TAGS
 *.dc
 *#
 *.backup
-
-/data/w3c
-
 /.cabal-sandbox
 cabal.sandbox.config
+data/w3c/
+countries.ttl
+*.prof
+bench/MainCriterion

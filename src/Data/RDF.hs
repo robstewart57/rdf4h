@@ -14,6 +14,7 @@ module Data.RDF (
   -- * Export RDF type class instances
   module Data.RDF.TriplesGraph,
   module Data.RDF.MGraph,
+  module Data.RDF.PatriciaTreeGraph,
 
   -- * Export RDF parsers and serializers
   module Text.RDF.RDF4H.NTriplesSerializer,
@@ -27,6 +28,7 @@ where
 import Data.RDF.Namespace
 import Data.RDF.TriplesGraph
 import Data.RDF.MGraph
+import Data.RDF.PatriciaTreeGraph
 import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleSerializer
 import Text.RDF.RDF4H.NTriplesParser

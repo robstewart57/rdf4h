@@ -12,8 +12,7 @@ module Data.RDF.Namespace(
   -- * Predefined namespace values
   rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2,
   standard_ns_mappings, ns_mappings
-)
-where
+) where
 
 import qualified Data.Text as T
 import Data.RDF.Types

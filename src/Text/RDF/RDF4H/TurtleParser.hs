@@ -107,7 +107,9 @@ t_qname =
      char ':'
      name <- option T.empty t_name
      (bUrl, _, _, pms, _, _, _, _) <- getState
-     return $ resolveQName bUrl pre pms `T.append` name
+     case resolveQName bUrl pre pms of
+       Just n -> return $ n `T.append` name
+       Nothing -> error ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
 t_subject :: GenParser ParseState ()
 t_subject =

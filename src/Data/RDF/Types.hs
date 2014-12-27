@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings, GeneralizedNewtypeDeriving #-}
 
 module Data.RDF.Types (
 
@@ -13,6 +13,9 @@ module Data.RDF.Types (
 
   -- * Node query function
   isUNode,isLNode,isBNode,
+
+  -- * Miscellaneous
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,
 
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
@@ -41,6 +44,8 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Network.URI as Network (isURI)
+import Control.DeepSeq (NFData,rnf)
 
 -------------------
 -- LValue and constructor functions
@@ -61,6 +66,11 @@ data LValue =
   -- the URI of the datatype of the value, respectively.
   | TypedL !T.Text  !T.Text
     deriving Generic
+
+instance NFData LValue where
+  rnf (PlainL t) = rnf t
+  rnf (PlainLL t1 t2) = rnf t1 `seq` rnf t2
+  rnf (TypedL t1 t2) = rnf t1 `seq` rnf t2
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
@@ -86,7 +96,7 @@ typedL val dtype = TypedL (canonicalize dtype val) dtype
 -- node ('BNode'), or a literal node ('LNode').
 data Node =
 
-  -- |An RDF URI reference. See
+  -- |An RDF URI reference. URIs conform to the RFC3986 standard. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
   UNode !T.Text
@@ -105,6 +115,12 @@ data Node =
   -- information.
   | LNode !LValue
     deriving Generic
+
+instance NFData Node where
+  rnf (UNode t) = rnf t
+  rnf (BNode b) = rnf b
+  rnf (BNodeGen bgen) = rnf bgen
+  rnf (LNode lvalue) = rnf lvalue
 
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Subject = Node
@@ -140,6 +156,9 @@ lnode = LNode
 -- more information.
 data Triple = Triple !Node !Node !Node
 
+instance NFData Triple where
+  rnf (Triple s p o) = rnf s `seq` rnf p `seq` rnf o
+
 -- |A list of triples. This is defined for convenience and readability.
 type Triples = [Triple]
 
@@ -171,6 +190,10 @@ isBNode _            = False
 isLNode :: Node -> Bool
 isLNode (LNode _) = True
 isLNode _         = False
+
+{-# INLINE isAbsoluteUri #-}
+isAbsoluteUri :: T.Text -> Bool
+isAbsoluteUri = Network.isURI . T.unpack
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where
@@ -318,7 +341,7 @@ class RdfSerializer s where
 
 -- |The base URL of an RDF.
 newtype BaseUrl = BaseUrl T.Text
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, NFData)
 
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
@@ -474,7 +497,8 @@ instance Show Namespace where
 
 -- |An alias for a map from prefix to namespace URI.
 newtype PrefixMappings   = PrefixMappings (Map T.Text T.Text)
-  deriving (Eq, Ord)
+  deriving (Eq, Ord,NFData)
+
 instance Show PrefixMappings where
   -- This is really inefficient, but it's not used much so not what
   -- worth optimizing yet.
@@ -487,6 +511,42 @@ newtype PrefixMapping = PrefixMapping (T.Text, T.Text)
   deriving (Eq, Ord)
 instance Show PrefixMapping where
   show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (show prefix) (show uri)
+
+-----------------
+-- Miscellaneous helper functions used throughout the project
+
+-- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
+-- empty, then the base URL will be used if there is a base URL and if the map
+-- does not contain an entry for the empty prefix.
+resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> Maybe T.Text
+resolveQName mbaseUrl prefix (PrefixMappings pms') =
+  case (mbaseUrl, T.null prefix) of
+    (Just (BaseUrl base), True)  ->  Just $ Map.findWithDefault base T.empty pms'
+    (Nothing,             True)  ->  Nothing
+    (_,                   _   )  ->  Map.lookup prefix pms'
+
+-- Resolve a URL fragment found on the right side of a prefix mapping
+-- by converting it to an absolute URL if possible.
+absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
+absolutizeUrl mbUrl mdUrl urlFrag =
+  if isAbsoluteUri urlFrag then urlFrag else
+    (case (mbUrl, mdUrl) of
+         (Nothing, Nothing) -> urlFrag
+         (Just (BaseUrl bUrl), Nothing) -> bUrl `T.append` urlFrag
+         (Nothing, Just dUrl) -> if isHash urlFrag then
+                                     dUrl `T.append` urlFrag else urlFrag
+         (Just (BaseUrl bUrl), Just dUrl) -> (if isHash urlFrag then dUrl
+                                                  else bUrl)
+                                                 `T.append` urlFrag)
+  where
+    isHash bs' = bs' == "#"
+
+{-# INLINE mkAbsoluteUrl #-}
+-- Make an absolute URL by returning as is if already an absolute URL and otherwise
+-- appending the URL to the given base URL.
+mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
+mkAbsoluteUrl base url =
+  if isAbsoluteUri url then url else base `T.append` url
 
 
 -----------------
