@@ -7,6 +7,7 @@ module Text.RDF.RDF4H.TurtleParser(
 
 where
 
+import Data.Char (toLower,toUpper)
 import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
@@ -67,7 +68,7 @@ t_triples :: GenParser ParseState ()
 t_triples = t_subject >> (many1 t_ws <?> "subject-predicate-whitespace") >> t_predicateObjectList >> resetSubjectPredicate
 
 t_directive :: GenParser ParseState ()
-t_directive = t_prefixID <|> t_base <|> t_sparql_base
+t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
 t_resource :: GenParser ParseState T.Text
 t_resource =  try t_uriref <|> t_qname
@@ -80,6 +81,16 @@ t_prefixID =
      uriFrag <- t_uriref
      (many t_ws <?> "prefixID-whitespace")
      (char '.' <?> "end-of-prefixID-period")
+     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
+     updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
+     return ()
+
+t_sparql_prefix :: GenParser ParseState ()
+t_sparql_prefix =
+  do try (caseInsensitiveString "PREFIX" <?> "@prefix-directive")
+     pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_prefixName
+     char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
+     uriFrag <- t_uriref
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
@@ -97,12 +108,20 @@ t_base =
 
 t_sparql_base :: GenParser ParseState ()
 t_sparql_base =
-  do try (string "BASE" <?> "@sparql-base-directive")
+  do try (caseInsensitiveString "BASE" <?> "@sparql-base-directive")
      many1 t_ws <?> "whitespace-after-BASE"
      urlFrag <- t_uriref
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
+
+-- Match the lowercase or uppercase form of 'c'
+caseInsensitiveChar :: Char -> GenParser ParseState Char
+caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
+
+-- Match the string 's', accepting either lowercase or uppercase form of each character
+caseInsensitiveString :: String -> GenParser ParseState String
+caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
 
 t_verb :: GenParser ParseState ()
 t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
