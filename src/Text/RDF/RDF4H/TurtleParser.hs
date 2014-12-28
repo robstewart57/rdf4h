@@ -49,10 +49,14 @@ type ParseState =
    [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
    Seq Triple)       -- the triples encountered while parsing; always added to on the right side
 
+-- grammar rules from http://www.w3.org/TR/turtle/#sec-grammar-grammar
+
+-- grammar rule: [1] turtleDoc
 t_turtleDoc :: GenParser ParseState (Seq Triple, PrefixMappings)
 t_turtleDoc =
   many t_statement >> (eof <?> "eof") >> getState >>= \(_, _, _, pms, _, _, _, ts) -> return (ts, pms)
 
+-- grammar rule: [2] statement
 t_statement :: GenParser ParseState ()
 t_statement = d <|> t <|> void (many1 t_ws <?> "blankline-whitespace")
   where
@@ -64,15 +68,19 @@ t_statement = d <|> t <|> void (many1 t_ws <?> "blankline-whitespace")
       (char '.' <?> "end-of-triple-period") >>
       (many t_ws <?> "triple-whitespace2"))
 
+-- grammar rule: [6] triples
 t_triples :: GenParser ParseState ()
 t_triples = t_subject >> (many1 t_ws <?> "subject-predicate-whitespace") >> t_predicateObjectList >> resetSubjectPredicate
 
+-- grammar rule: [3] directive
 t_directive :: GenParser ParseState ()
 t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
+-- grammar rule: [135s] iri
 t_resource :: GenParser ParseState T.Text
 t_resource =  try t_uriref <|> t_qname
 
+-- grammar rule: [4] prefixID
 t_prefixID :: GenParser ParseState ()
 t_prefixID =
   do try (string "@prefix" <?> "@prefix-directive")
@@ -85,6 +93,7 @@ t_prefixID =
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
 
+-- grammar rule: [6s] sparqlPrefix
 t_sparql_prefix :: GenParser ParseState ()
 t_sparql_prefix =
   do try (caseInsensitiveString "PREFIX" <?> "@prefix-directive")
@@ -95,6 +104,7 @@ t_sparql_prefix =
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
 
+-- grammar rule: [5] base
 t_base :: GenParser ParseState ()
 t_base =
   do try (string "@base" <?> "@base-directive")
@@ -106,6 +116,7 @@ t_base =
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
 
+-- grammar rule: [5s] sparqlBase
 t_sparql_base :: GenParser ParseState ()
 t_sparql_base =
   do try (caseInsensitiveString "BASE" <?> "@sparql-base-directive")
@@ -115,23 +126,17 @@ t_sparql_base =
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
 
--- Match the lowercase or uppercase form of 'c'
-caseInsensitiveChar :: Char -> GenParser ParseState Char
-caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
-
--- Match the string 's', accepting either lowercase or uppercase form of each character
-caseInsensitiveString :: String -> GenParser ParseState String
-caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
-
 t_verb :: GenParser ParseState ()
 t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
 
+-- grammar rule: [11] predicate
 t_predicate :: GenParser ParseState Node
 t_predicate = liftM UNode (t_resource <?> "resource")
 
 t_nodeID  :: GenParser ParseState T.Text
 t_nodeID = do { try (string "_:"); cs <- t_name; return $! "_:" `T.append` cs }
 
+-- grammar rules: [139s] PNAME_NS, [140s] PNAME_LN
 t_qname :: GenParser ParseState T.Text
 t_qname =
   do pre <- option T.empty (try t_prefixName)
@@ -142,6 +147,7 @@ t_qname =
        Just n -> return $ n `T.append` name
        Nothing -> error ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
+-- grammar rule: [10] subject
 t_subject :: GenParser ParseState ()
 t_subject =
   simpleBNode <|>
@@ -158,17 +164,20 @@ t_subject =
                 many t_ws)
 
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
+-- grammar rule: [7] predicateObjectlist
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList =
   do sepEndBy1 (t_verb >> many1 t_ws >> t_objectList >> popPred) (try (many t_ws >> char ';' >> many t_ws))
      return ()
 
+-- grammar rule: [8] objectlist
 t_objectList :: GenParser ParseState ()
 t_objectList = -- t_object actually adds the triples
   void
   ((t_object <?> "object") >>
   many (try (many t_ws >> char ',' >> many t_ws >> t_object)))
 
+-- grammar rule: [12] object
 t_object :: GenParser ParseState ()
 t_object =
   do inColl      <- isInColl          -- whether this object is in a collection
@@ -186,6 +195,7 @@ t_object =
 
 -- collection: '(' ws* itemList? ws* ')'
 -- itemList:      object (ws+ object)*
+-- grammar rule: [15] collection
 t_collection:: GenParser ParseState ()
 t_collection = 
   -- ( object1 object2 ) is short for:
@@ -590,3 +600,14 @@ handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
+
+--------------
+-- auxiliary parsing functions
+
+-- Match the lowercase or uppercase form of 'c'
+caseInsensitiveChar :: Char -> GenParser ParseState Char
+caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
+
+-- Match the string 's', accepting either lowercase or uppercase form of each character
+caseInsensitiveString :: String -> GenParser ParseState String
+caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
