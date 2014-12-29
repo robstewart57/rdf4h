@@ -78,7 +78,11 @@ t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
 -- grammar rule: [135s] iri
 t_resource :: GenParser ParseState T.Text
-t_resource =  try t_uriref <|> t_qname
+t_resource =  try t_uriref <|> t_prefixedName
+
+-- grammar rule: [136s] PrefixedName
+t_prefixedName :: GenParser ParseState T.Text
+t_prefixedName = t_pname_ln <|> t_pname_ns
 
 -- grammar rule: [4] prefixID
 t_prefixID :: GenParser ParseState ()
@@ -143,11 +147,43 @@ t_pname_ns =do
   char ':'
   return pre
 
--- TODO: remove -- grammar rules: [139s] PNAME_NS, [140s] PNAME_LN
-t_qname :: GenParser ParseState T.Text
-t_qname =
+-- grammar rules: [168s] PN_LOCAL
+t_pn_local :: GenParser ParseState T.Text
+t_pn_local = do
+  x <- t_pn_chars_u_str <|> string ":" <|> satisfy_str <|> t_plx
+  xs <- option "" $ do
+               ys <- many ( t_pn_chars_str <|> string "." <|> string ":" <|> t_plx )
+               return (concat ys)
+  return (T.pack (x ++ xs))
+    where
+      satisfy_str = satisfy (flip in_range [('0', '9')]) >>= \c -> return [c]
+      t_pn_chars_str = t_pn_chars >>= \c -> return [c]
+      t_pn_chars_u_str = t_pn_chars_u >>= \c -> return [c]
+
+-- PERCENT | PN_LOCAL_ESC
+-- grammar rules: [169s] PLX
+t_plx = t_percent <|> t_pn_local_esc_str
+    where
+      t_pn_local_esc_str = do
+        c <- t_pn_local_esc
+        return ([c])
+
+--        '%' HEX HEX
+-- grammar rules: [170s] PERCENT
+t_percent = do
+  char '%'
+  h1 <- t_hex
+  h2 <- t_hex
+  return ([h1,h2])
+
+-- grammar rules: [172s] PN_LOCAL_ESC
+t_pn_local_esc = char '\\' >> oneOf "_~.-!$&'()*+,;=/?#@%"
+
+-- grammar rules: [140s] PNAME_LN
+t_pname_ln :: GenParser ParseState T.Text
+t_pname_ln =
   do pre <- t_pname_ns
-     name <- option T.empty t_name
+     name <- t_pn_local
      (bUrl, _, _, pms, _, _, _, _) <- getState
      case resolveQName bUrl pre pms of
        Just n -> return $ n `T.append` name
@@ -418,6 +454,7 @@ t_pn_chars_base = try $ satisfy $ flip in_range blocks
 t_pn_chars_u :: GenParser ParseState Char
 t_pn_chars_u = t_pn_chars_base <|> char '_'
 
+-- grammar rules: [171s] HEX
 t_hex :: GenParser ParseState Char
 t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
 
