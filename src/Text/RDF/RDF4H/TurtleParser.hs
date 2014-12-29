@@ -24,7 +24,9 @@ import Control.Monad
 import Data.Maybe (fromMaybe)
 
 -- |An 'RdfParser' implementation for parsing RDF in the 
--- Turtle format. It takes optional arguments representing the base URL to use
+-- Turtle format. It is an implementation of W3C Turtle grammar rules at
+-- http://www.w3.org/TR/turtle/#sec-grammar-grammar .
+-- It takes optional arguments representing the base URL to use
 -- for resolving relative URLs in the document (may be overridden in the document
 -- itself using the \@base directive), and the URL to use for the document itself
 -- for resolving references to <> in the document.
@@ -48,8 +50,6 @@ type ParseState =
    [Predicate],      -- stack of current predicate nodes, if we've parsed a predicate but not finished the triple
    [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
    Seq Triple)       -- the triples encountered while parsing; always added to on the right side
-
--- grammar rules from http://www.w3.org/TR/turtle/#sec-grammar-grammar
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: GenParser ParseState (Seq Triple, PrefixMappings)
@@ -84,7 +84,7 @@ t_resource =  try t_uriref <|> t_qname
 t_prefixID :: GenParser ParseState ()
 t_prefixID =
   do try (string "@prefix" <?> "@prefix-directive")
-     pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_prefixName
+     pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
      char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
      uriFrag <- t_uriref
      (many t_ws <?> "prefixID-whitespace")
@@ -97,7 +97,7 @@ t_prefixID =
 t_sparql_prefix :: GenParser ParseState ()
 t_sparql_prefix =
   do try (caseInsensitiveString "PREFIX" <?> "@prefix-directive")
-     pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_prefixName
+     pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
      char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
      uriFrag <- t_uriref
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
@@ -136,11 +136,17 @@ t_predicate = liftM UNode (t_resource <?> "resource")
 t_nodeID  :: GenParser ParseState T.Text
 t_nodeID = do { try (string "_:"); cs <- t_name; return $! "_:" `T.append` cs }
 
--- grammar rules: [139s] PNAME_NS, [140s] PNAME_LN
+-- grammar rules: [139s] PNAME_NS
+t_pname_ns :: GenParser ParseState T.Text
+t_pname_ns =do
+  pre <- option T.empty (try t_pn_prefix)
+  char ':'
+  return pre
+
+-- TODO: remove -- grammar rules: [139s] PNAME_NS, [140s] PNAME_LN
 t_qname :: GenParser ParseState T.Text
 t_qname =
-  do pre <- option T.empty (try t_prefixName)
-     char ':'
+  do pre <- t_pname_ns
      name <- option T.empty t_name
      (bUrl, _, _, pms, _, _, _, _) <- getState
      case resolveQName bUrl pre pms of
@@ -338,11 +344,15 @@ t_language =
 identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
 identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( T.pack (i:r))
 
-t_prefixName :: GenParser ParseState T.Text
-t_prefixName = identifier t_nameStartCharMinusUnderscore t_nameChar
+-- grammar rule: [167s] PN_PREFIX
+t_pn_prefix :: GenParser ParseState T.Text
+t_pn_prefix = do
+  i <- try t_pn_chars_base
+  r <- option "" (many (try t_pn_chars <|> try (char '.')))
+  return (T.pack (i:r))
 
 t_name :: GenParser ParseState T.Text
-t_name = identifier t_nameStartChar t_nameChar
+t_name = identifier t_pn_chars_u t_pn_chars
 
 t_uriref :: GenParser ParseState T.Text
 t_uriref = between (char '<') (char '>') t_relativeURI
@@ -363,8 +373,8 @@ t_ucharacter =
   try (string "\\>") <|>
   liftM T.unpack (non_ctrl_char_except ">")
 
-t_nameChar :: GenParser ParseState Char
-t_nameChar = t_nameStartChar <|> char '-' <|> char '\x00B7' <|> satisfy f
+t_pn_chars :: GenParser ParseState Char
+t_pn_chars = t_pn_chars_u <|> char '-' <|> char '\x00B7' <|> satisfy f
   where
     f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
 
@@ -392,11 +402,9 @@ bs1 = return . T.singleton
 bs :: String -> GenParser ParseState T.Text
 bs = return . T.pack
 
-t_nameStartChar :: GenParser ParseState Char
-t_nameStartChar = char '_' <|> t_nameStartCharMinusUnderscore
-
-t_nameStartCharMinusUnderscore :: GenParser ParseState Char
-t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
+-- grammar rule: [163s] PN_CHARS_BASE
+t_pn_chars_base :: GenParser ParseState Char
+t_pn_chars_base = try $ satisfy $ flip in_range blocks
   where
     blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'),
               ('\x00D8', '\x00F6'), ('\x00F8', '\x02FF'),
@@ -405,6 +413,10 @@ t_nameStartCharMinusUnderscore = try $ satisfy $ flip in_range blocks
               ('\x2C00', '\x2FEF'), ('\x3001', '\xD7FF'),
               ('\xF900', '\xFDCF'), ('\xFDF0', '\xFFFD'),
               ('\x10000', '\xEFFFF')]
+
+-- grammar rule: [164s] PN_CHARS_U
+t_pn_chars_u :: GenParser ParseState Char
+t_pn_chars_u = t_pn_chars_base <|> char '_'
 
 t_hex :: GenParser ParseState Char
 t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
