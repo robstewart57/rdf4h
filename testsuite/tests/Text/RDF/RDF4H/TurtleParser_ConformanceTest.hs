@@ -3,7 +3,7 @@ module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 -- Testing imports
 import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
-import qualified Test.HUnit as T
+import qualified Test.HUnit as TU
 
 -- Import common libraries to facilitate tests
 import Control.Monad (liftM)
@@ -135,16 +135,16 @@ loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesGraph)
 loadExpectedGraph1 fname =
   liftM (parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname))) (TIO.readFile fname)
 
-assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> T.Assertion
-assertLoadSuccess idStr (Left (ParseFailure err)) = T.assertFailure $ idStr  ++ err
+assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> TU.Assertion
+assertLoadSuccess idStr (Left (ParseFailure err)) = TU.assertFailure $ idStr  ++ err
 assertLoadSuccess _     (Right _) = return ()
 assertLoadFailure _     (Left _)  = return ()
-assertLoadFailure idStr _         = T.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
+assertLoadFailure idStr _         = TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
 
-assertEquivalent :: RDF rdf => String -> Either ParseFailure rdf -> Either ParseFailure rdf -> T.Assertion
+assertEquivalent :: RDF rdf => String -> Either ParseFailure rdf -> Either ParseFailure rdf -> TU.Assertion
 assertEquivalent testname r1 r2 =
   case equiv of
-    Nothing    -> T.assert True
+    Nothing    -> TU.assert True
     (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
   where equiv = equivalent r1 r2
 

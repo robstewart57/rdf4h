@@ -11,6 +11,8 @@ TAGS
 *.dc
 *#
 *.backup
+/.cabal-sandbox
+cabal.sandbox.config
 data/w3c/
 countries.ttl
 *.prof

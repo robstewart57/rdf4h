@@ -129,6 +129,7 @@ test-suite test-rdf4h
                , unordered-containers
                , hashable
                , fgl
+               , deepseq
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
@@ -148,6 +149,7 @@ test-suite test-rdf4h
                , Text.RDF.RDF4H.TurtleParser
                , Text.RDF.RDF4H.TurtleSerializer
                , Text.RDF.RDF4H.XmlParser
+               , W3C.TurtleTest
   hs-source-dirs: src, testsuite/tests
 
 benchmark rdf4h-bench
