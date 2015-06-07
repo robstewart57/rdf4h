@@ -18,8 +18,6 @@ import Data.Maybe
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
                             deriving (Show,NFData)
 
-instance NFData (PT.Gr Node Node)
-
 instance RDF PatriciaTreeGraph where
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
