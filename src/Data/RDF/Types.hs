@@ -39,13 +39,17 @@ import Prelude hiding (pred)
 import qualified Data.Text as T
 import System.IO
 import Text.Printf
+import Data.Binary
 import Data.Map(Map)
 import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import Data.Text.Binary ()
 import qualified Network.URI as Network (isURI)
 import Control.DeepSeq (NFData,rnf)
+import GHC.Generics ()
+
 
 -------------------
 -- LValue and constructor functions
@@ -66,6 +70,8 @@ data LValue =
   -- the URI of the datatype of the value, respectively.
   | TypedL !T.Text  !T.Text
     deriving Generic
+
+instance Binary LValue
 
 instance NFData LValue where
   rnf (PlainL t) = rnf t
@@ -116,6 +122,8 @@ data Node =
   | LNode !LValue
     deriving Generic
 
+instance Binary Node
+
 instance NFData Node where
   rnf (UNode t) = rnf t
   rnf (BNode b) = rnf b
@@ -155,6 +163,9 @@ lnode = LNode
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple !Node !Node !Node
+            deriving (Generic)
+
+instance Binary Triple
 
 instance NFData Triple where
   rnf (Triple s p o) = rnf s `seq` rnf p `seq` rnf o
@@ -341,7 +352,9 @@ class RdfSerializer s where
 
 -- |The base URL of an RDF.
 newtype BaseUrl = BaseUrl T.Text
-  deriving (Eq, Ord, Show, NFData)
+  deriving (Eq, Ord, Show, NFData, Generic)
+
+instance Binary BaseUrl
 
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
@@ -497,7 +510,9 @@ instance Show Namespace where
 
 -- |An alias for a map from prefix to namespace URI.
 newtype PrefixMappings   = PrefixMappings (Map T.Text T.Text)
-  deriving (Eq, Ord,NFData)
+  deriving (Eq, Ord,NFData, Generic)
+
+instance Binary PrefixMappings
 
 instance Show PrefixMappings where
   -- This is really inefficient, but it's not used much so not what

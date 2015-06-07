@@ -64,6 +64,8 @@ library
                  , unordered-containers
                  , hashable
                  , deepseq
+                 , binary
+                 , text-binary
   if impl(ghc < 7.6)
     build-depends: ghc-prim
 
@@ -91,6 +93,8 @@ executable rdf4h
                  , text
                  , hashable
                  , deepseq
+                 , binary
+                 , text-binary
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim

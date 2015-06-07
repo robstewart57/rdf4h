@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving , DeriveGeneric #-}
 
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
 -- for smallish graphs or for temporary graphs that will not be queried.
@@ -16,11 +16,13 @@ where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)
+import Data.Binary
 import qualified Data.Map as Map
 import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types
 import Data.List (nub)
+import GHC.Generics
 
 -- |A simple implementation of the 'RDF' type class that represents
 -- the graph internally as a list of triples.
@@ -42,7 +44,9 @@ import Data.List (nub)
 --
 --  * 'query'    : O(n)
 newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
-                       deriving (NFData)
+                       deriving (Generic,NFData)
+
+instance Binary TriplesGraph
 
 instance RDF TriplesGraph where
   baseUrl           = baseUrl'
