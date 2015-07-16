@@ -31,30 +31,31 @@ The `rdf4h` library is split in to two parts.
 
 Example
 -------
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
 
-    {-# LANGUAGE OverloadedStrings #-}
+import Data.RDF
+import Data.RDF.TriplesGraph
+import Text.RDF.RDF4H.NTriplesParser
 
-    import Data.RDF
-    import Data.RDF.TriplesGraph
-    import Text.RDF.RDF4H.NTriplesParser
+rdfGraph1 :: IO TriplesGraph
+rdfGraph1 = fmap fromEither (parseFile NTriplesParser "test1.nt")
 
-    rdfGraph1 :: IO TriplesGraph
-    rdfGraph1 = fmap fromEither (parseFile NTriplesParser "test1.nt")
+rdfGraph2 :: IO TriplesGraph
+rdfGraph2 = fmap fromEither (parseFile NTriplesParser "test2.nt")
 
-    rdfGraph2 :: IO TriplesGraph
-    rdfGraph2 = fmap fromEither (parseFile NTriplesParser "test2.nt")
-
-    example :: IO ()
-    example = do
-      g1 <- rdfGraph1
-      g2 <- rdfGraph2
-      let node1 = lnode $ PlainL "foo"
-      putStrLn $ "Subjects of g1: " ++ show (map subjectOf (triplesOf g1))
-      putStrLn $ "RDF contains literal 'foo': " ++ show (rdfContainsNode g1 node1)
-      putStrLn $ "Isomorphism test: " ++ show (isIsomorphic g1 g2)
-      putStrLn $ "Unsorted triples: " ++ show (triplesOf g2)
-      putStrLn $ "Sorted triples: "   ++ show ((sort . triplesOf) g2)
-      putStrLn $ "Query: " ++ show (query g1 Nothing Nothing (Just node1))
+example :: IO ()
+example = do
+  g1 <- rdfGraph1
+  g2 <- rdfGraph2
+  let node1 = lnode $ PlainL "foo"
+  putStrLn $ "Subjects of g1: " ++ show (map subjectOf (triplesOf g1))
+  putStrLn $ "RDF contains literal 'foo': " ++ show (rdfContainsNode g1 node1)
+  putStrLn $ "Isomorphism test: " ++ show (isIsomorphic g1 g2)
+  putStrLn $ "Unsorted triples: " ++ show (triplesOf g2)
+  putStrLn $ "Sorted triples: "   ++ show ((sort . triplesOf) g2)
+  putStrLn $ "Query: " ++ show (query g1 Nothing Nothing (Just node1))
+```
 
 
 Development
