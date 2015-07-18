@@ -130,6 +130,8 @@ test-suite test-rdf4h
                , hashable
                , fgl
                , deepseq
+               , binary
+               , text-binary
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
