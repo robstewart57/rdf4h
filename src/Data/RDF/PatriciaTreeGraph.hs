@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns, CPP #-}
 
 module Data.RDF.PatriciaTreeGraph where
 
@@ -6,7 +6,7 @@ import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types
 
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData(rnf))
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.PatriciaTree as PT
 import qualified Data.Graph.Inductive.Query.DFS as DFS
@@ -17,6 +17,15 @@ import Data.Maybe
 
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
                             deriving (Show,NFData)
+
+#if MIN_VERSION_fgl(5,5,2)
+-- fgl 7616e7135c9401e98f4c7350c9f60108ea73e456
+-- adds those instances but they are not released yet
+#else
+-- fgl-5.5.1.0 and older don't have that instance
+instance NFData (PT.Gr Node Node)
+  where rnf x = seq x ()
+#endif
 
 instance RDF PatriciaTreeGraph where
   baseUrl           = baseUrl'
