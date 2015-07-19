@@ -13,7 +13,8 @@ TAGS
 *.backup
 /.cabal-sandbox
 cabal.sandbox.config
-data/w3c/
 countries.ttl
 *.prof
 bench/MainCriterion
+*.tar.gz
+*.zip
