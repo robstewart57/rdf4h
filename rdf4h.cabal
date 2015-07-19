@@ -27,14 +27,6 @@ flag small_base
   description: Choose the new smaller, split-up base package.
   default:     False
 
-flag tests
-  description: Build the tests
-  default:     False
-
-flag hpc
-  description: Use HPC for tests
-  default:     True
-
 flag network-uri
    description: Get Network.URI from the network-uri package
    default: True
@@ -130,6 +122,8 @@ test-suite test-rdf4h
                , hashable
                , fgl
                , deepseq
+               , binary
+               , text-binary
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
