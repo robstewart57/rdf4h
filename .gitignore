@@ -18,3 +18,15 @@ countries.ttl
 bench/MainCriterion
 *.tar.gz
 *.zip
+
+data/w3c/n3/README
+data/w3c/rdf-mt/LICENSE
+data/w3c/rdf-mt/README
+data/w3c/rdf-mt/convert-manifest.rb
+data/w3c/rdf-xml/._convert-manifest.rb
+data/w3c/rdf-xml/README
+data/w3c/rdf-xml/convert-manifest.rb
+data/w3c/trig/LICENSE
+data/w3c/trig/README
+data/w3c/turtle/TurtleTests/LICENSE
+data/w3c/turtle/TurtleTests/README
