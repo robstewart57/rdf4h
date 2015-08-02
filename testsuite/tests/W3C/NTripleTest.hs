@@ -3,7 +3,7 @@ module W3C.NTripleTest where
 import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as TU
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 
 import W3C.Manifest
 

@@ -20,7 +20,7 @@ import Prelude hiding (pred)
 import Data.List
 import Data.RDF.Types
 import qualified Data.RDF.Namespace as NS (toPMList, uriOf, rdf)
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import Data.Maybe (catMaybes)
 
 -- |Answer the subject node of the triple.

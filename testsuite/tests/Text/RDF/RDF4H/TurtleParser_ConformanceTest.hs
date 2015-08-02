@@ -11,8 +11,8 @@ import Data.RDF.GraphTestUtils
 import Data.RDF.Query
 import Data.RDF.TriplesGraph
 import Data.RDF.Types
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as TIO
 import Text.Printf
 import Text.RDF.RDF4H.TurtleParser
 

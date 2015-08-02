@@ -8,7 +8,7 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.NTriplesSerializer
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import Test.QuickCheck
 import Data.List
 import qualified Data.Set as Set

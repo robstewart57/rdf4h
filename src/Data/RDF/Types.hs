@@ -36,7 +36,7 @@ module Data.RDF.Types (
 ) where
 
 import Prelude hiding (pred)
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import System.IO
 import Text.Printf
 import Data.Binary
@@ -45,7 +45,7 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Text.Binary ()
+import Data.Text.Lazy.Binary ()
 import qualified Network.URI as Network (isURI)
 import Control.DeepSeq (NFData,rnf)
 import GHC.Generics ()

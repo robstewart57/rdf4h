@@ -7,9 +7,9 @@ import Data.RDF.Types
 import Network.URI
 import Network.HTTP
 import Data.Char (intToDigit)
-import Data.Text.Encoding (decodeUtf8)
-import qualified Data.ByteString.Char8 as B
-import qualified Data.Text as T
+import Data.Text.Lazy.Encoding (decodeUtf8)
+import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text.Lazy as T
 -- import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 

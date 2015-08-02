@@ -7,8 +7,8 @@ module Text.RDF.RDF4H.NTriplesSerializer(
 
 import Control.Monad (void)
 import Data.RDF.Types
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 import System.IO
 
 data NTriplesSerializer = NTriplesSerializer

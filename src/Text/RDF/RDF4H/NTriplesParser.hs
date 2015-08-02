@@ -11,9 +11,9 @@ import Text.RDF.RDF4H.ParserUtils
 import Data.Char(isLetter, isDigit, isLower)
 import qualified Data.Map as Map
 import Text.Parsec
-import Text.Parsec.Text
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import Text.Parsec.Text.Lazy
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as TIO
 import Control.Monad (liftM,void)
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the

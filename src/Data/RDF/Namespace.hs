@@ -14,7 +14,7 @@ module Data.RDF.Namespace(
   standard_ns_mappings, ns_mappings
 ) where
 
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import Data.RDF.Types
 import qualified Data.Map as Map
 

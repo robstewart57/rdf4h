@@ -10,8 +10,8 @@ where
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace hiding (rdf)
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as T
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.List

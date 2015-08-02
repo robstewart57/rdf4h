@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import Data.RDF.Query
 import Data.RDF.TriplesGraph (TriplesGraph)
 import Data.RDF.Types
-import qualified Data.Text as T (Text, unlines)
+import qualified Data.Text.Lazy as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser
  
 tests :: [Test]

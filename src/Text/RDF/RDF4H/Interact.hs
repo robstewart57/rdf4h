@@ -14,7 +14,7 @@
 
 module Text.RDF.RDF4H.Interact where
 
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 
 import Data.RDF.Types hiding (baseUrl)
 import Data.RDF.TriplesGraph()

@@ -12,8 +12,8 @@ import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.TurtleSerializer
 
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as TIO
 
 import System.Environment
 import System.IO

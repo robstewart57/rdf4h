@@ -11,7 +11,7 @@ import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.TurtleParser
 
-import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
 import qualified Data.List as L (find)
 import Data.Maybe (fromJust)
 
