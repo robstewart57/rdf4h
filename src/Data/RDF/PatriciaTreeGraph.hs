@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE CPP, GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
 
 module Data.RDF.PatriciaTreeGraph where
 
@@ -16,7 +16,11 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
+#if MIN_VERSION_fgl(5,5,0)
+                            deriving (Show)
+#else
                             deriving (Show,NFData)
+#endif
 
 instance NFData (PT.Gr Node Node)
   where rnf x = seq x ()
