@@ -16,7 +16,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
-                            deriving (Show,NFData)
+                            deriving (Show)
 
 instance NFData (PT.Gr Node Node)
   where rnf x = seq x ()

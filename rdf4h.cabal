@@ -49,7 +49,7 @@ library
   else
     build-depends: base < 3
   build-depends:   parsec >= 3
-                 , fgl <= 5.5.1.0
+                 , fgl >= 5.5.2.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text
@@ -120,7 +120,7 @@ test-suite test-rdf4h
                , knob
                , unordered-containers
                , hashable
-               , fgl <= 5.5.1.0
+               , fgl >= 5.5.2.0
                , deepseq
                , binary
                , text-binary
