@@ -45,7 +45,6 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Text.Lazy.Binary ()
 import qualified Network.URI as Network (isURI)
 import Control.DeepSeq (NFData,rnf)
 import GHC.Generics ()
