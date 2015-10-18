@@ -23,6 +23,7 @@ import qualified Data.RDF.Namespace as NS (toPMList, uriOf, rdf)
 import qualified Data.Text.Lazy as T
 import Data.Maybe (catMaybes)
 
+
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
 subjectOf :: Triple -> Node
@@ -101,9 +102,25 @@ fromEither res =
 -- node names, triple order and prefixes.  In math terms, this is the \simeq
 -- latex operator, or ~=
 isIsomorphic :: forall rdf1 rdf2. (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
-isIsomorphic g1 g2 = normalize g1 == normalize g2
-  where normalize :: forall rdf. (RDF rdf) => rdf -> Triples
-        normalize = sort . nub . expandTriples
+isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (normalize g2)
+  where
+    compareNodeUnlessBlank :: Node -> Node -> Bool
+    compareNodeUnlessBlank (BNode _)     (BNode _)     = True
+    compareNodeUnlessBlank (UNode n1)    (UNode n2)    = n1 == n2
+    compareNodeUnlessBlank (BNodeGen i1) (BNodeGen i2) = i1 == i2
+    compareNodeUnlessBlank (LNode l1)    (LNode l2)    = l1 == l2
+    compareNodeUnlessBlank (BNodeGen _)  (BNode _)     = True
+    compareNodeUnlessBlank (BNode _)     (BNodeGen _)  = True
+    compareNodeUnlessBlank _             _             = False
+
+    compareTripleUnlessBlank :: Triple -> Triple -> Bool
+    compareTripleUnlessBlank (Triple s1 p1 o1) (Triple s2 p2 o2) =
+        compareNodeUnlessBlank s1 s2 &&
+        compareNodeUnlessBlank p1 p2 &&
+        compareNodeUnlessBlank o1 o2
+
+    normalize :: forall rdf. (RDF rdf) => rdf -> Triples
+    normalize = sort . nub . expandTriples
 
 -- |Expand the triples in a graph with the prefix map and base URL for that
 -- graph.
