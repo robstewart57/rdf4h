@@ -116,7 +116,7 @@ getRDF = proc xml -> do
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple
 parseDescription' = proc (bUrl, rdf) -> do
                          desc <- isElem <<< getChildren -< rdf
-                         state <- arr (\(s, o) -> s { stateSubject = o }) <<< arr fst &&& arr2A mkNode -< (LParseState bUrl Nothing undefined, desc)
+                         state <- arr (\(s, o) -> s { stateSubject = o }) <<< arr fst &&& arr2A mkNode <<< updateState -< (LParseState bUrl Nothing undefined, desc)
                          triple <- parseDescription -< (state, desc)
                          returnA -< triple
 
@@ -154,6 +154,7 @@ isMetaAttr = isA (== "rdf:about")
          <+> isA (== "rdf:ID")
          <+> isA (== "xml:lang")
          <+> isA (== "rdf:parseType")
+         <+> isA (== "xml:base")
 
 -- |Read a children of an rdf:Description element.  These correspond to the Predicate portion of the Triple
 parsePredicatesFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
