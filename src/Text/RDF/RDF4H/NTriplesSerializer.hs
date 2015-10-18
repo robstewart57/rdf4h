@@ -7,6 +7,7 @@ module Text.RDF.RDF4H.NTriplesSerializer(
 
 import Control.Monad (void)
 import Data.RDF.Types
+import Data.RDF.Query (expandTriples)
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.IO as T
 import System.IO
@@ -26,7 +27,7 @@ instance RdfSerializer NTriplesSerializer where
   writeN    _     = _writeNode stdout
 
 _writeRdf :: RDF rdf => Handle -> rdf -> IO ()
-_writeRdf h = _writeTriples h . triplesOf
+_writeRdf h = _writeTriples h . expandTriples
 
 _writeTriples :: Handle -> Triples -> IO ()
 _writeTriples h = mapM_ (_writeTriple h)
