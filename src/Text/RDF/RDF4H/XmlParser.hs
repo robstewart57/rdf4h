@@ -144,7 +144,7 @@ parseAsResource n = updateState
 -- |Read the attributes of an rdf:Description element.  These correspond to the Predicate Object pairs of the Triple
 parsePredicatesFromAttr :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
 parsePredicatesFromAttr state = getAttrl
-    >>> (getName >>> neg isMetaAttr >>> mkUNode) &&& (getChildren >>> getText >>> arr (lnode . plainL . T.pack))
+    >>> (getName >>> neg isMetaAttr >>> mkUNode) &&& (getChildren >>> getText >>> arr (mkLiteralNode state))
     >>> arr (attachSubject (stateSubject state))
 
 -- | Arrow to determine if special processing is required for an attribute
