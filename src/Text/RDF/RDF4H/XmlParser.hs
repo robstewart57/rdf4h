@@ -104,7 +104,7 @@ addMetaData bUrlM dUrlM = mkelem "/"
 -- |Arrow that translates HXT XmlTree to an RDF representation
 getRDF :: forall rdf a. (RDF rdf, ArrowXml a, ArrowState GParseState a) => a XmlTree rdf
 getRDF = proc xml -> do
-            rdf <- hasName "rdf:RDF" <<< isElem <<< getChildren         -< xml
+            rdf <- hasName "rdf:RDF" `orElse` hasName "RDF" <<< isElem <<< getChildren         -< xml
             bUrl <- arr (BaseUrl . T.pack) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
             prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
             triples <- parseDescription' >. id -< (bUrl, rdf)
@@ -125,7 +125,7 @@ parseDescription :: forall a. (ArrowXml a, ArrowState GParseState a) => a (LPars
 parseDescription = updateState
                >>> (arr2A parsePredicatesFromAttr
                    <+> (second (getChildren >>> isElem) >>> parsePredicatesFromChildren)
-                   <+> (second (neg (hasName "rdf:Description")) >>> arr2A readTypeTriple))
+                   <+> (second (neg (hasName "rdf:Description") >>> neg (hasName "Description")) >>> arr2A readTypeTriple))
                >>. replaceLiElems [] (1 :: Int)
   where readTypeTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
         readTypeTriple state = getName >>> arr (Triple (stateSubject state) rdfType . unode . T.pack)
