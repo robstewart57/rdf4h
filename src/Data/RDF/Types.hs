@@ -138,11 +138,20 @@ type Predicate = Node
 -- |An alias for 'Node', defined for convenience and readability purposes.
 type Object = Node
 
--- |Return a URIRef node for the given bytetring URI.
+-- |Return a URIRef node for the given URI.
 {-# INLINE unode #-}
 unode :: T.Text -> Node
 unode = UNode
 
+-- |Validate a URI and return a URIRef node for it.
+--  TODO:
+--  1. unescape unicode literals out of the text
+--  2. check the validity of this unescaped URI using Network.URI
+--  3. if the unescaped URI is valid, the construct and return a Node
+-- unode :: T.Text -> Node
+-- unode = UNode
+
+        
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
 bnode :: T.Text ->  Node
