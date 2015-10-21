@@ -104,7 +104,8 @@ addMetaData bUrlM dUrlM = mkelem "/"
 -- |Arrow that translates HXT XmlTree to an RDF representation
 getRDF :: forall rdf a. (RDF rdf, ArrowXml a, ArrowState GParseState a) => a XmlTree rdf
 getRDF = proc xml -> do
-            rdf <- hasName "rdf:RDF" `orElse` hasName "RDF" <<< isElem <<< getChildren         -< xml
+--            rdf <- hasName "rdf:RDF" `orElse` hasName "RDF" <<< isElem <<< getChildren         -< xml
+            rdf <- isElem <<< getChildren -< xml
             bUrl <- arr (BaseUrl . T.pack) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
             prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
             triples <- parseDescription' >. id -< (bUrl, rdf)
