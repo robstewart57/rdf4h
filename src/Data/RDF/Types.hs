@@ -9,13 +9,13 @@ module Data.RDF.Types (
 
   -- * Constructor functions
   plainL,plainLL,typedL,
-  unode,bnode,lnode,triple,
+  unode,bnode,lnode,triple,unodeValidate,
 
   -- * Node query function
   isUNode,isLNode,isBNode,
 
   -- * Miscellaneous
-  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,fileSchemeToFilePath,
 
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
@@ -45,10 +45,9 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Network.URI as Network (isURI)
+import qualified Network.URI as Network (isURI,uriPath,parseURI)
 import Control.DeepSeq (NFData,rnf)
-import GHC.Generics ()
-
+import Text.Parsec
 
 -------------------
 -- LValue and constructor functions
@@ -143,14 +142,47 @@ type Object = Node
 unode :: T.Text -> Node
 unode = UNode
 
--- |Validate a URI and return a URIRef node for it.
---  TODO:
---  1. unescape unicode literals out of the text
---  2. check the validity of this unescaped URI using Network.URI
---  3. if the unescaped URI is valid, the construct and return a Node
--- unode :: T.Text -> Node
--- unode = UNode
+-- For background on 'unodeValidate', see:
+-- http://stackoverflow.com/questions/33250184/unescaping-unicode-literals-found-in-haskell-strings
 
+-- |Validate a URI and return it in a @Just UNode@ if it is
+--  valid, otherwise @Nothing@ is returned. Performs the following:
+--  
+--  1. unescape unicode RDF literals
+--  2. checks validity of this unescaped URI using 'isURI' from 'Network.URI'
+--  3. if the unescaped URI is valid then 'Node' constructed with 'UNode'
+unodeValidate :: T.Text -> Maybe Node
+unodeValidate t = if Network.isURI uri
+                  then Just (UNode (T.pack uri))
+                  else Nothing
+    where
+      Right uri = parse unicodeEscParser "" (T.unpack t) 
+      unicodeEscParser :: Stream s m Char => ParsecT s u m String
+      unicodeEscParser = do
+        ss <- many (try (do { _ <- char '\\'
+                            ; _ <- char 'u'
+                            ; pos1 <- digit
+                            ; pos2 <- digit
+                            ; pos3 <- digit
+                            ; pos4 <- digit
+                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
+                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+                   <|>
+                    try (do { _ <- char '\\'
+                            ; _ <- char 'u'
+                            ; pos1 <- digit
+                            ; pos2 <- digit
+                            ; pos3 <- digit
+                            ; pos4 <- digit
+                            ; pos5 <- digit
+                            ; pos6 <- digit
+                            ; pos7 <- digit
+                            ; pos8 <- digit
+                            ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
+                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+                   <|>
+                    (anyChar >>= \c -> return [c]))
+        return (concat ss :: String)
         
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
@@ -644,3 +676,16 @@ _decimalStr s =     -- haskell double parser doesn't handle '1.'..,
     '.' -> f (s `T.snoc` '0')
     _   -> f s
   where f s' = T.pack $ show (read $ T.unpack s' :: Double)
+
+-- | Removes "file://" schema from URIs in 'UNode' nodes
+fileSchemeToFilePath :: Node -> Maybe T.Text
+fileSchemeToFilePath node@(UNode fileScheme) =
+    if T.pack "file://" `T.isPrefixOf` fileScheme
+    then
+        maybe
+        Nothing
+        (Just . T.pack . Network.uriPath)
+        (Network.parseURI (T.unpack fileScheme))
+    else Nothing
+fileSchemeToFilePath node = Nothing
+
