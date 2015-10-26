@@ -4,11 +4,11 @@ RDF For Haskell
 [![Build Status](https://travis-ci.org/robstewart57/rdf4h.png)](https://travis-ci.org/robstewart57/rdf4h)
 
 rdf4h is a library for working with RDF in Haskell. At present it
-  includes parsers and serializers for RDF in the N-Triples and
-  Turtle formats, and parsing support for RDF/XML. It provides abilities such
-  as querying for triples containing a particular subject, predicate,
-  or object, or selecting triples that satisfy an arbitrary predicate
-  function.
+includes parsers and serializers for RDF in the N-Triples and Turtle
+formats, and parsing support for RDF/XML. It provides abilities such
+as querying for triples containing a particular subject, predicate, or
+object, or selecting triples that satisfy an arbitrary predicate
+function.
 
 Installation
 ------------
@@ -61,14 +61,10 @@ example = do
 Development
 -----------
 
-Writing tests is highly encouraged. Use `cabal test` to run the tests.
-
-Note however, that RDF4H test suite includes
-[RDF 1.1 Test Cases](http://www.w3.org/TR/rdf11-testcases/) from W3C.
-Before you can run the complete suite of tests,
-you will have to download the test files from W3C server.
-Launch `make test/w3c/fetch` to download the necessary files
-and place them into `data/w3c`.
+Contributions are welcome. A rewrite of the RDF type class API will
+happen in the future. Additions to `Data.RDF.Types` and
+`Data.RDF.Query`, fixes to the three parsers, and an RDF/XML
+serialiser would be great. Writing tests is highly encouraged.
 
 
 Issues
