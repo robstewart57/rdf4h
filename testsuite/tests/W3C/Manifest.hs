@@ -9,6 +9,7 @@ import Data.RDF.TriplesGraph
 import Data.RDF.Query
 import Data.RDF.Types
 import Data.RDF.Namespace
+import Safe
 import Text.RDF.RDF4H.TurtleParser
 
 import qualified Data.Text.Lazy as T
@@ -123,13 +124,14 @@ loadManifest manifestPath baseIRI = do
 
 rdfToManifest :: TriplesGraph -> Manifest
 rdfToManifest rdf = Manifest desc tpls
-  where desc = lnodeText $ objectOf $ head descNode
+  where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
         descNode = query rdf (Just manifestNode) (Just rdfsComment) Nothing
                    ++ query rdf (Just manifestNode) (Just mfName) Nothing
+--        descNode = query rdf (Just manifestNode) (Just mfName) Nothing
         tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead
-        collectionHead = objectOf $ head $ query rdf (Just manifestNode) (Just mfEntries) Nothing
-        manifestNode = head $ manifestSubjectNodes rdf
+        collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
+        manifestNode = headDef (error "manifestSubjectNodes yielding empty list") $ manifestSubjectNodes rdf
 
 rdfToTestEntry :: TriplesGraph -> Node -> TestEntry
 rdfToTestEntry rdf teSubject = triplesToTestEntry rdf $ query rdf (Just teSubject) Nothing Nothing
@@ -147,7 +149,7 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax") -> mkTestXMLNegativeSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesPositiveSyntax") -> mkTestNTriplesPositiveSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesNegativeSyntax") -> mkTestNTriplesNegativeSyntax ts
-    _ -> error "Unknown test case"
+    n -> error ("Unknown test case: " ++ show n)
 
 mkTestTurtleEval :: Triples -> TestEntry
 mkTestTurtleEval ts = TestTurtleEval {

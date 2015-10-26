@@ -1,9 +1,11 @@
 module W3C.NTripleTest where
 
+import Data.Maybe (fromJust)
 import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as TU
 import qualified Data.Text.Lazy as T
+import System.Directory
 
 import W3C.Manifest
 
@@ -21,7 +23,9 @@ tests = [ buildTest allNTripleTests ]
 
 allNTripleTests :: IO Test
 allNTripleTests = do
-  m <- loadManifest mfPath suiteFilesDir
+  dir <- getCurrentDirectory
+  let fileSchemeURI = T.pack ("file://" ++ dir ++ "/" ++ T.unpack suiteFilesDir)
+  m <- loadManifest mfPath fileSchemeURI
   return $ testGroup (T.unpack $ description m) $ map (buildTest . mfEntryToTest) $ entries m
 
 -- Functions to map manifest test entries to unit tests.
@@ -30,10 +34,12 @@ allNTripleTests = do
 -- just want to parse Manifest files.
 -- TODO: They should probably be moved to W3C.Manifest after all.
 mfEntryToTest :: TestEntry -> IO Test
-mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act) = do
+mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') = do
+  let act = (UNode . fromJust . fileSchemeToFilePath) act'
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
-mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act) = do
+mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') = do
+  let act = (UNode . fromJust . fileSchemeToFilePath) act'
   rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
