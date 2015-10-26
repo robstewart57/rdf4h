@@ -1,6 +1,6 @@
-{-# Language Arrows,OverloadedStrings #-}
+{-# Language Arrows,OverloadedStrings,DoAndIfThenElse #-}
 
--- |An parser for the RDF/XML format 
+-- |An parser for the RDF/XML format
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
 
 module Text.RDF.RDF4H.XmlParser(
@@ -9,21 +9,24 @@ module Text.RDF.RDF4H.XmlParser(
 
 import Control.Arrow (Arrow,(>>>),(<<<),(&&&),(***),arr,returnA)
 import Control.Arrow.ArrowState (ArrowState,nextState)
+import Control.Exception
 import Data.List (isPrefixOf)
 import qualified Data.Map as Map (fromList)
+import Data.Maybe
+import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
-import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode)
+import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import qualified Data.Text.Lazy as T (Text,pack,unpack)
 import qualified Data.Text.Lazy.IO as TIO
-import Text.XML.HXT.Core (ArrowXml,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
-
+import Text.XML.HXT.Core (ArrowXml,ArrowIf,ArrowChoice,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA,fatal)
+    
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
 
 -- |'XmlParser' is an instance of 'RdfParser'.
 instance RdfParser XmlParser where
-  parseString (XmlParser bUrl dUrl)  = parseXmlRDF bUrl dUrl 
+  parseString (XmlParser bUrl dUrl)  = parseXmlRDF bUrl dUrl
   parseFile   (XmlParser bUrl dUrl)  = parseFile' bUrl dUrl
   parseURL    (XmlParser bUrl dUrl)  = parseURL'  bUrl dUrl
 
@@ -40,6 +43,10 @@ data LParseState = LParseState { stateBaseUrl :: BaseUrl
                                }
   deriving(Show)
 
+data ParserException = ParserException String
+                     deriving (Show,Typeable)
+instance Exception ParserException
+
 -- |Parse the given file as a XML document. The arguments and return type have the same semantics
 -- as 'parseURL', except that the last String argument corresponds to a filesystem location rather
 -- than a location URI.
@@ -54,19 +61,19 @@ parseFile' bUrl dUrl fpath =
 --
 -- The @BaseUrl@ is used as the base URI within the document for resolving any relative URI references.
 -- It may be changed within the document using the @\@base@ directive. At any given point, the current
--- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or 
+-- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or
 -- if none given, the document URL given to @parseURL@. For example, if the @BaseUrl@ were
--- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@ 
+-- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@
 -- directive), then the relative URI would expand to @http:\/\/example.org\/b@.
 --
 -- The document URL is for the purpose of resolving references to 'this document' within the document,
 -- and may be different than the actual location URL from which the document is retrieved. Any reference
--- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is 
+-- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is
 -- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
 -- base URI against which the relative URI is resolved.
 --p
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseURL' :: forall rdf. (RDF rdf) => 
+parseURL' :: forall rdf. (RDF rdf) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
                  -> Maybe T.Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the XML document.
@@ -271,8 +278,10 @@ attrExpandURI state attr = getAttrValue attr &&& baseUrl >>> expandURI
   where baseUrl = constA (case stateBaseUrl state of BaseUrl b -> T.unpack b)
 
 -- |Make a UNode from an absolute string
-mkUNode :: forall a. (Arrow a) => a String Node
-mkUNode = arr (unode . T.pack)
+mkUNode :: forall a. (Arrow a, ArrowIf a) => a String Node
+mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (fromJust . unodeValidate . T.pack))
+                  , arr (\_ -> True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
+                  ]
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs
 mkRelativeNode :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Node
@@ -293,4 +302,3 @@ mkLiteralNode (LParseState _ Nothing _) content = (lnode . plainL . T.pack) cont
 mkBlankNode :: forall a b. (ArrowState GParseState a) => a b Node
 mkBlankNode = nextState (\gState -> gState { stateGenId = stateGenId gState + 1 })
     >>> arr (BNodeGen . stateGenId)
-

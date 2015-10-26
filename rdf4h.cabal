@@ -109,6 +109,8 @@ test-suite test-rdf4h
                , containers
                , text >= 1.2.1.0
                , knob
+               , directory
+               , safe
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim

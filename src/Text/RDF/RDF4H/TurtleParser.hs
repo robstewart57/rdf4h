@@ -8,6 +8,7 @@ module Text.RDF.RDF4H.TurtleParser(
 where
 
 import Data.Char (toLower,toUpper)
+import Data.Maybe
 import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
@@ -189,7 +190,7 @@ t_pname_ln =
      (bUrl, _, _, pms, _, _, _, _) <- getState
      case resolveQName bUrl pre pms of
        Just n -> return $ n `T.append` name
-       Nothing -> error ("Cannot resolve QName prefix: " ++ T.unpack pre)
+       Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
 -- grammar rule: [10] subject
 t_subject :: GenParser ParseState ()
@@ -199,14 +200,14 @@ t_subject =
   nodeId <|>
   between (char '[') (char ']') poList
   where
-    iri         = liftM UNode (try t_iri <?> "subject resource") >>= pushSubj
+    iri         = liftM unode (try t_iri <?> "subject resource") >>= pushSubj
     nodeId      = liftM BNode (try t_nodeID <?> "subject nodeID") >>= pushSubj
     simpleBNode = try (string "[]") >> nextIdCounter >>=  pushSubj . BNodeGen
     poList      = void
                 (nextIdCounter >>= pushSubj . BNodeGen >> many t_ws >>
                 t_predicateObjectList >>
                 many t_ws)
-
+    
 -- verb objectList (';' (verb objectList)?)*
 --
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
@@ -416,7 +417,10 @@ t_relativeURI =
   do frag <- liftM (T.pack . concat) (many t_ucharacter)
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
-     return $ absolutizeUrl bUrl dUrl frag
+     case unodeValidate (absolutizeUrl bUrl dUrl frag) of
+       Nothing -> unexpected ("Invalid URI in Turtle parser: " ++ show (absolutizeUrl bUrl dUrl frag))
+       Just (UNode t) -> return t
+--     return $ absolutizeUrl bUrl dUrl frag
 
 -- We make this String rather than T.Text because we want
 -- t_relativeURI (the only place it's used) to have chars so that
@@ -614,9 +618,9 @@ addTripleForObject :: Object -> GenParser ParseState ()
 addTripleForObject obj =
   do (bUrl, dUrl, i, pms, ss, ps, cs, ts) <- getState
      when (null ss) $
-       error $ "No Subject with which to create triple for: " ++ show obj
+       unexpected $ "No Subject with which to create triple for: " ++ show obj
      when (null ps) $
-       error $ "No Predicate with which to create triple for: " ++ show obj
+       unexpected $ "No Predicate with which to create triple for: " ++ show obj
      setState (bUrl, dUrl, i, pms, ss, ps, cs, ts |> Triple (head ss) (head ps) obj)
 
 -- |Parse the document at the given location URL as a Turtle document, using an optional @BaseUrl@
