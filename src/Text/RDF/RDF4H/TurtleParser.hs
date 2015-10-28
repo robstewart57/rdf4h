@@ -214,7 +214,7 @@ t_subject =
 -- grammar rule: [7] predicateObjectlist
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList =
-  do sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> many t_ws))
+  do sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> optional (char ';') >> many t_ws))
      return ()
 
 -- grammar rule: [8] objectlist
@@ -294,8 +294,8 @@ xsdBooleanUri = mkUri xsd "boolean"
 t_literal :: GenParser ParseState Node
 t_literal =
   try str_literal <|>
-  liftM (`mkLNode` xsdIntUri) (try t_integer)   <|>
   liftM (`mkLNode` xsdDoubleUri) (try t_double)  <|>
+  liftM (`mkLNode` xsdIntUri) (try t_integer)   <|>
   liftM (`mkLNode` xsdDecimalUri) (try t_decimal) <|>
   liftM (`mkLNode` xsdBooleanUri) t_boolean
   where
@@ -420,7 +420,6 @@ t_relativeURI =
      case unodeValidate (absolutizeUrl bUrl dUrl frag) of
        Nothing -> unexpected ("Invalid URI in Turtle parser: " ++ show (absolutizeUrl bUrl dUrl frag))
        Just (UNode t) -> return t
---     return $ absolutizeUrl bUrl dUrl frag
 
 -- We make this String rather than T.Text because we want
 -- t_relativeURI (the only place it's used) to have chars so that

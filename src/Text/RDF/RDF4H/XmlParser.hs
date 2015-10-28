@@ -18,7 +18,7 @@ import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import qualified Data.Text.Lazy as T (Text,pack,unpack)
 import qualified Data.Text.Lazy.IO as TIO
-import Text.XML.HXT.Core (ArrowXml,ArrowIf,ArrowChoice,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA,fatal)
+import Text.XML.HXT.Core (ArrowXml,ArrowIf,ArrowChoice,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA,fatal,canonicalizeAllNodes)
     
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
@@ -174,6 +174,7 @@ parsePredicatesFromChildren = updateState
         , second (hasAttrValue "rdf:parseType" (== "Collection")) :-> (listA (defaultA >>> arr id &&& mkBlankNode) >>> mkCollectionTriples >>> unlistA)
         , second (hasAttr "rdf:datatype") :-> arr2A getTypedTriple
         , second (hasAttr "rdf:resource") :-> arr2A getResourceTriple
+--        , second (hasAttr "rdf:nodeID") >>> hasAttr "rdf:ID" :-> ERROR.
         , second (hasAttr "rdf:nodeID") :-> arr2A getNodeIdTriple
         , second (hasAttr "rdf:ID") :-> (arr2A mkRelativeNode &&& defaultA >>> arr2A reifyTriple >>> unlistA)
         , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))

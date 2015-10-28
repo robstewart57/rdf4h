@@ -159,15 +159,7 @@ unodeValidate t = if Network.isURI uri
       Right uri = parse unicodeEscParser "" (T.unpack t) 
       unicodeEscParser :: Stream s m Char => ParsecT s u m String
       unicodeEscParser = do
-        ss <- many (try (do { _ <- char '\\'
-                            ; _ <- char 'u'
-                            ; pos1 <- digit
-                            ; pos2 <- digit
-                            ; pos3 <- digit
-                            ; pos4 <- digit
-                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
-                            ; return (read ("\"" ++ str ++ "\"") :: String)})
-                   <|>
+        ss <- many (
                     try (do { _ <- char '\\'
                             ; _ <- char 'u'
                             ; pos1 <- digit
@@ -179,6 +171,37 @@ unodeValidate t = if Network.isURI uri
                             ; pos7 <- digit
                             ; pos8 <- digit
                             ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
+                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+                   <|>
+                    try (do { _ <- char '\\'
+                            ; _ <- char 'U'
+                            ; pos1 <- digit
+                            ; pos2 <- digit
+                            ; pos3 <- digit
+                            ; pos4 <- digit
+                            ; pos5 <- digit
+                            ; pos6 <- digit
+                            ; pos7 <- digit
+                            ; pos8 <- digit
+                            ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
+                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+                   <|>
+                    try (do { _ <- char '\\'
+                            ; _ <- char 'u'
+                            ; pos1 <- digit
+                            ; pos2 <- digit
+                            ; pos3 <- digit
+                            ; pos4 <- digit
+                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
+                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+                   <|>
+                    try (do { _ <- char '\\'
+                            ; _ <- char 'U'
+                            ; pos1 <- digit
+                            ; pos2 <- digit
+                            ; pos3 <- digit
+                            ; pos4 <- digit
+                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
                             ; return (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
                     (anyChar >>= \c -> return [c]))
@@ -679,13 +702,9 @@ _decimalStr s =     -- haskell double parser doesn't handle '1.'..,
 
 -- | Removes "file://" schema from URIs in 'UNode' nodes
 fileSchemeToFilePath :: Node -> Maybe T.Text
-fileSchemeToFilePath node@(UNode fileScheme) =
+fileSchemeToFilePath (UNode fileScheme) =
     if T.pack "file://" `T.isPrefixOf` fileScheme
-    then
-        maybe
-        Nothing
-        (Just . T.pack . Network.uriPath)
-        (Network.parseURI (T.unpack fileScheme))
+    then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
     else Nothing
-fileSchemeToFilePath node = Nothing
+fileSchemeToFilePath _ = Nothing
 
