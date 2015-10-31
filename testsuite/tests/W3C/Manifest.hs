@@ -12,7 +12,7 @@ import Data.RDF.Namespace
 import Safe
 import Text.RDF.RDF4H.TurtleParser
 
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import qualified Data.List as L (find)
 import Data.Maybe (fromJust)
 

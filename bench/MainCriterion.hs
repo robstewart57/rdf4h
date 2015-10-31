@@ -5,7 +5,7 @@ module Main where
 import Criterion
 import Criterion.Main
 import Data.RDF
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 
 -- The `bills.102.rdf` XML file is needed to run this benchmark suite
 --

@@ -16,8 +16,8 @@ import Data.Maybe
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
-import qualified Data.Text.Lazy as T (Text,pack,unpack)
-import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text as T (Text,pack,unpack)
+import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,ArrowIf,ArrowChoice,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA,fatal,canonicalizeAllNodes)
     
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.

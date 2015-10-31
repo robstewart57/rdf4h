@@ -4,7 +4,7 @@ import Data.Maybe (fromJust)
 import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as TU
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import System.Directory
 
 import W3C.Manifest

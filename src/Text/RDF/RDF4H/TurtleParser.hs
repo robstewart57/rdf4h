@@ -13,10 +13,10 @@ import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec
-import Text.Parsec.Text.Lazy
+import Text.Parsec.Text
 import qualified Data.Map as Map
-import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.Sequence(Seq, (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F

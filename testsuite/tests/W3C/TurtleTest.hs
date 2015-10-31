@@ -4,7 +4,7 @@ import Test.Framework.Providers.API
 import Test.Framework.Providers.HUnit
 import qualified Test.HUnit as TU
 import Data.Maybe (fromJust)
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
 import Network.URI (parseURI,uriPath)
 import System.Directory (getCurrentDirectory)
 
