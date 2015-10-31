@@ -96,6 +96,15 @@ executable rdf4h
 test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
+  other-modules: Data.RDF.GraphTestUtils
+                 Data.RDF.MGraph_Test
+                 Data.RDF.PatriciaTreeGraph_Test
+                 Text.RDF.RDF4H.TurtleParser_ConformanceTest
+                 Text.RDF.RDF4H.XmlParser_Test
+                 Data.RDF.TriplesGraph_Test
+                 W3C.Manifest
+                 W3C.NTripleTest
+                 W3C.RdfXmlTest
   ghc-options:   -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fno-warn-name-shadowing -funbox-strict-fields
   extensions:    RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
   build-depends: base >= 4 && < 6
