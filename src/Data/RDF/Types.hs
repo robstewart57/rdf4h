@@ -144,6 +144,10 @@ unode = UNode
 
 -- For background on 'unodeValidate', see:
 -- http://stackoverflow.com/questions/33250184/unescaping-unicode-literals-found-in-haskell-strings
+--
+-- Escaped literals are defined in the Turtle spec, and is
+-- inherited by the NTriples and XML specification.
+-- http://www.w3.org/TR/turtle/#sec-escapes
 
 -- |Validate a URI and return it in a @Just UNode@ if it is
 --  valid, otherwise @Nothing@ is returned. Performs the following:
@@ -161,19 +165,6 @@ unodeValidate t = if Network.isURI uri
       unicodeEscParser = do
         ss <- many (
                     try (do { _ <- char '\\'
-                            ; _ <- char 'u'
-                            ; pos1 <- digit
-                            ; pos2 <- digit
-                            ; pos3 <- digit
-                            ; pos4 <- digit
-                            ; pos5 <- digit
-                            ; pos6 <- digit
-                            ; pos7 <- digit
-                            ; pos8 <- digit
-                            ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
-                            ; return (read ("\"" ++ str ++ "\"") :: String)})
-                   <|>
-                    try (do { _ <- char '\\'
                             ; _ <- char 'U'
                             ; pos1 <- digit
                             ; pos2 <- digit
@@ -188,15 +179,6 @@ unodeValidate t = if Network.isURI uri
                    <|>
                     try (do { _ <- char '\\'
                             ; _ <- char 'u'
-                            ; pos1 <- digit
-                            ; pos2 <- digit
-                            ; pos3 <- digit
-                            ; pos4 <- digit
-                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
-                            ; return (read ("\"" ++ str ++ "\"") :: String)})
-                   <|>
-                    try (do { _ <- char '\\'
-                            ; _ <- char 'U'
                             ; pos1 <- digit
                             ; pos2 <- digit
                             ; pos3 <- digit
