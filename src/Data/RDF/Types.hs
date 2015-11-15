@@ -15,7 +15,7 @@ module Data.RDF.Types (
   isUNode,isLNode,isBNode,
 
   -- * Miscellaneous
-  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,fileSchemeToFilePath,
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeURI,fileSchemeToFilePath,
 
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
@@ -151,19 +151,52 @@ unode = UNode
 
 -- |Validate a URI and return it in a @Just UNode@ if it is
 --  valid, otherwise @Nothing@ is returned. Performs the following:
---  
+--
 --  1. unescape unicode RDF literals
 --  2. checks validity of this unescaped URI using 'isURI' from 'Network.URI'
 --  3. if the unescaped URI is valid then 'Node' constructed with 'UNode'
 unodeValidate :: T.Text -> Maybe Node
-unodeValidate t = if Network.isURI uri
-                  then Just (UNode (T.pack uri))
+unodeValidate t = if Network.isURI (T.unpack uri)
+                  then Just (UNode uri)
                   else Nothing
     where
-      Right uri = parse unicodeEscParser "" (T.unpack t) 
+      uri = escapeURI t
+      -- Right uri = parse unicodeEscParser "" (T.unpack t)
+      -- unicodeEscParser :: Stream s m Char => ParsecT s u m String
+      -- unicodeEscParser = do
+      --   ss <- many (
+      --               try (do { _ <- char '\\'
+      --                       ; _ <- char 'U'
+      --                       ; pos1 <- digit
+      --                       ; pos2 <- digit
+      --                       ; pos3 <- digit
+      --                       ; pos4 <- digit
+      --                       ; pos5 <- digit
+      --                       ; pos6 <- digit
+      --                       ; pos7 <- digit
+      --                       ; pos8 <- digit
+      --                       ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
+      --                       ; return (read ("\"" ++ str ++ "\"") :: String)})
+      --              <|>
+      --               try (do { _ <- char '\\'
+      --                       ; _ <- char 'u'
+      --                       ; pos1 <- digit
+      --                       ; pos2 <- digit
+      --                       ; pos3 <- digit
+      --                       ; pos4 <- digit
+      --                       ; let str = ['\\','x',pos1,pos2,pos3,pos4]
+      --                       ; return (read ("\"" ++ str ++ "\"") :: String)})
+      --              <|>
+      --               (anyChar >>= \c -> return [c]))
+      --   return (concat ss :: String)
+
+escapeURI :: T.Text -> T.Text
+escapeURI t = T.pack uri
+    where
+      Right uri = parse unicodeEscParser "" (T.unpack t)
       unicodeEscParser :: Stream s m Char => ParsecT s u m String
       unicodeEscParser = do
-        ss <- many (
+                ss <- many (
                     try (do { _ <- char '\\'
                             ; _ <- char 'U'
                             ; pos1 <- digit
@@ -187,8 +220,9 @@ unodeValidate t = if Network.isURI uri
                             ; return (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
                     (anyChar >>= \c -> return [c]))
-        return (concat ss :: String)
-        
+                return (concat ss :: String)
+
+
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
 bnode :: T.Text ->  Node
@@ -368,26 +402,26 @@ class RdfSerializer s where
   writeH      :: forall rdf. (RDF rdf) => s -> rdf -> IO ()
 
   -- |Write some triples to a file handle using whatever configuration is specified
-  -- by the first argument. 
-  -- 
-  -- WARNING: if the serialization format has header-level information 
+  -- by the first argument.
+  --
+  -- WARNING: if the serialization format has header-level information
   -- that should be output (e.g., \@prefix declarations for Turtle), then you should
   -- use 'hWriteG' instead of this method unless you're sure this is safe to use, since
-  -- otherwise the resultant document will be missing the header information and 
+  -- otherwise the resultant document will be missing the header information and
   -- will not be valid.
   hWriteTs    :: s -> Handle  -> Triples -> IO ()
 
   -- |Write some triples to stdout; equivalent to @'hWriteTs' stdout@.
   writeTs     :: s -> Triples -> IO ()
 
-  -- |Write a single triple to the file handle using whatever configuration is 
+  -- |Write a single triple to the file handle using whatever configuration is
   -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
   hWriteT     :: s -> Handle  -> Triple  -> IO ()
 
   -- |Write a single triple to stdout; equivalent to @'hWriteT' stdout@.
   writeT      :: s -> Triple  -> IO ()
 
-  -- |Write a single node to the file handle using whatever configuration is 
+  -- |Write a single node to the file handle using whatever configuration is
   -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
   hWriteN     :: s -> Handle  -> Node    -> IO ()
 
@@ -689,4 +723,3 @@ fileSchemeToFilePath (UNode fileScheme) =
     then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
     else Nothing
 fileSchemeToFilePath _ = Nothing
-

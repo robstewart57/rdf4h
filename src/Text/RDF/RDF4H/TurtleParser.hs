@@ -1,4 +1,4 @@
--- |An 'RdfParser' implementation for the Turtle format 
+-- |An 'RdfParser' implementation for the Turtle format
 -- <http://www.w3.org/TeamSubmission/turtle/>.
 
 module Text.RDF.RDF4H.TurtleParser(
@@ -22,9 +22,8 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
-import Data.Maybe (fromMaybe)
 
--- |An 'RdfParser' implementation for parsing RDF in the 
+-- |An 'RdfParser' implementation for parsing RDF in the
 -- Turtle format. It is an implementation of W3C Turtle grammar rules at
 -- http://www.w3.org/TR/turtle/#sec-grammar-grammar .
 -- It takes optional arguments representing the base URL to use
@@ -38,7 +37,7 @@ data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe T.Text)
 
 -- |'TurtleParser' is an instance of 'RdfParser'.
 instance RdfParser TurtleParser where
-  parseString (TurtleParser bUrl dUrl)  = parseString' bUrl dUrl 
+  parseString (TurtleParser bUrl dUrl)  = parseString' bUrl dUrl
   parseFile   (TurtleParser bUrl dUrl)  = parseFile' bUrl dUrl
   parseURL    (TurtleParser bUrl dUrl)  = parseURL'  bUrl dUrl
 
@@ -139,6 +138,8 @@ t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
 -- grammar rule: [11] predicate
 t_predicate :: GenParser ParseState Node
 t_predicate = liftM UNode (t_iri <?> "resource")
+--  res <- t_iri <?> "resource"
+--  validateUNode res
 
 t_nodeID  :: GenParser ParseState T.Text
 t_nodeID = do { try (string "_:"); cs <- t_name; return $! "_:" `T.append` cs }
@@ -207,7 +208,7 @@ t_subject =
                 (nextIdCounter >>= pushSubj . BNodeGen >> many t_ws >>
                 t_predicateObjectList >>
                 many t_ws)
-    
+
 -- verb objectList (';' (verb objectList)?)*
 --
 -- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
@@ -244,7 +245,7 @@ t_object =
 -- itemList:      object (ws+ object)*
 -- grammar rule: [15] collection
 t_collection:: GenParser ParseState ()
-t_collection = 
+t_collection =
   -- ( object1 object2 ) is short for:
   -- [ rdf:first object1; rdf:rest [ rdf:first object2; rdf:rest rdf:nil ] ]
   -- ( ) is short for the resource:  rdf:nil
@@ -271,7 +272,7 @@ blank_as_obj =
   poList
   where
     genBlank = liftM BNodeGen (try (string "[]") >> nextIdCounter)
-    poList   = between (char '[') (char ']') $ 
+    poList   = between (char '[') (char ']') $
                  liftM BNodeGen nextIdCounter >>= \bSubj ->   -- generate new bnode
                   void
                   (addTripleForObject bSubj >>   -- add triple with bnode as object
@@ -417,9 +418,8 @@ t_relativeURI =
   do frag <- liftM (T.pack . concat) (many t_ucharacter)
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
-     case unodeValidate (absolutizeUrl bUrl dUrl frag) of
-       Nothing -> unexpected ("Invalid URI in Turtle parser: " ++ show (absolutizeUrl bUrl dUrl frag))
-       Just (UNode t) -> return t
+     let frag' = escapeURI frag
+     validateURI (absolutizeUrl bUrl dUrl frag')
 
 -- We make this String rather than T.Text because we want
 -- t_relativeURI (the only place it's used) to have chars so that
@@ -627,19 +627,19 @@ addTripleForObject obj =
 --
 -- The @BaseUrl@ is used as the base URI within the document for resolving any relative URI references.
 -- It may be changed within the document using the @\@base@ directive. At any given point, the current
--- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or 
+-- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or
 -- if none given, the document URL given to @parseURL@. For example, if the @BaseUrl@ were
--- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@ 
+-- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@
 -- directive), then the relative URI would expand to @http:\/\/example.org\/b@.
 --
 -- The document URL is for the purpose of resolving references to 'this document' within the document,
 -- and may be different than the actual location URL from which the document is retrieved. Any reference
--- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is 
+-- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is
 -- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
 -- base URI against which the relative URI is resolved.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseURL' :: forall rdf. (RDF rdf) => 
+parseURL' :: forall rdf. (RDF rdf) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
                  -> Maybe T.Text     -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the Turtle document.
@@ -658,7 +658,7 @@ parseFile' bUrl docUrl fpath =
   TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
--- |Parse the given string as a Turtle document. The arguments and return type have the same semantics 
+-- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
 parseString' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure rdf
@@ -670,6 +670,18 @@ handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
+
+validateUNode :: T.Text -> GenParser ParseState Node
+validateUNode t =
+    case unodeValidate t of
+      Nothing        -> unexpected ("Invalid URI in Turtle parser URI validation: " ++ show t)
+      Just u@(UNode{}) -> return u
+      Just node      -> unexpected ("Unexpected node in Turtle parser URI validation: " ++ show node)
+
+validateURI :: T.Text -> GenParser ParseState T.Text
+validateURI t = do
+    UNode uri <- validateUNode t
+    return uri
 
 --------------
 -- auxiliary parsing functions
