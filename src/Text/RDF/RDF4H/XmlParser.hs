@@ -18,7 +18,7 @@ import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import qualified Data.Text as T (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
-import Text.XML.HXT.Core (ArrowXml,ArrowIf,ArrowChoice,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA,fatal,canonicalizeAllNodes)
+import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
@@ -134,7 +134,7 @@ parseDescription = updateState
                    <+> (second (getChildren >>> isElem) >>> parsePredicatesFromChildren)
                    <+> (second (neg (hasName "rdf:Description") >>> neg (hasName "Description")) >>> arr2A readTypeTriple))
                >>. replaceLiElems [] (1 :: Int)
-  where readTypeTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
+  where readTypeTriple :: (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
         readTypeTriple state = getName >>> arr (Triple (stateSubject state) rdfType . unode . T.pack)
         replaceLiElems acc n (Triple s p o : rest) | p == (unode . T.pack) "rdf:li" =
             replaceLiElems (Triple s ((unode . T.pack) ("rdf:_" ++ show n)) o : acc) (n + 1) rest

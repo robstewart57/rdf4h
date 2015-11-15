@@ -156,7 +156,7 @@ writeLValue h lv pms =
 writeLiteralString:: Handle -> T.Text -> IO ()
 writeLiteralString h bs =
   do hPutChar h '"'
-     T.foldl' writeChar (return True) bs
+     void (T.foldl' writeChar (return True) bs)
      hPutChar h '"'
   where
     writeChar :: IO Bool -> Char -> IO Bool

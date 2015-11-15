@@ -89,12 +89,12 @@ t_prefixedName = do
 -- grammar rule: [4] prefixID
 t_prefixID :: GenParser ParseState ()
 t_prefixID =
-  do try (string "@prefix" <?> "@prefix-directive")
+  do void (try (string "@prefix" <?> "@prefix-directive"))
      pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
-     char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
+     void (char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
-     (many t_ws <?> "prefixID-whitespace")
-     (char '.' <?> "end-of-prefixID-period")
+     void (many t_ws <?> "prefixID-whitespace")
+     void (char '.' <?> "end-of-prefixID-period")
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
@@ -102,9 +102,9 @@ t_prefixID =
 -- grammar rule: [6s] sparqlPrefix
 t_sparql_prefix :: GenParser ParseState ()
 t_sparql_prefix =
-  do try (caseInsensitiveString "PREFIX" <?> "@prefix-directive")
+  do void (try (caseInsensitiveString "PREFIX" <?> "@prefix-directive"))
      pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
-     char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon")
+     void (char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
@@ -113,11 +113,11 @@ t_sparql_prefix =
 -- grammar rule: [5] base
 t_base :: GenParser ParseState ()
 t_base =
-  do try (string "@base" <?> "@base-directive")
-     many1 t_ws <?> "whitespace-after-@base"
+  do void (try (string "@base" <?> "@base-directive"))
+     void (many1 t_ws <?> "whitespace-after-@base")
      urlFrag <- t_iriref
-     (many t_ws <?> "base-whitespace")
-     (char '.' <?> "end-of-base-period")
+     void (many t_ws <?> "base-whitespace")
+     (void (char '.') <?> "end-of-base-period")
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
@@ -125,8 +125,8 @@ t_base =
 -- grammar rule: [5s] sparqlBase
 t_sparql_base :: GenParser ParseState ()
 t_sparql_base =
-  do try (caseInsensitiveString "BASE" <?> "@sparql-base-directive")
-     many1 t_ws <?> "whitespace-after-BASE"
+  do void (try (caseInsensitiveString "BASE" <?> "@sparql-base-directive"))
+     void (many1 t_ws <?> "whitespace-after-BASE")
      urlFrag <- t_iriref
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
@@ -142,13 +142,13 @@ t_predicate = liftM UNode (t_iri <?> "resource")
 --  validateUNode res
 
 t_nodeID  :: GenParser ParseState T.Text
-t_nodeID = do { try (string "_:"); cs <- t_name; return $! "_:" `T.append` cs }
+t_nodeID = do { void (try (string "_:")); cs <- t_name; return $! "_:" `T.append` cs }
 
 -- grammar rules: [139s] PNAME_NS
 t_pname_ns :: GenParser ParseState T.Text
 t_pname_ns =do
   pre <- option T.empty (try t_pn_prefix)
-  char ':'
+  void (char ':')
   return pre
 
 -- grammar rules: [168s] PN_LOCAL
@@ -166,6 +166,7 @@ t_pn_local = do
 
 -- PERCENT | PN_LOCAL_ESC
 -- grammar rules: [169s] PLX
+t_plx :: GenParser ParseState String
 t_plx = t_percent <|> t_pn_local_esc_str
     where
       t_pn_local_esc_str = do
@@ -174,13 +175,15 @@ t_plx = t_percent <|> t_pn_local_esc_str
 
 --        '%' HEX HEX
 -- grammar rules: [170s] PERCENT
+t_percent :: GenParser ParseState String
 t_percent = do
-  char '%'
+  void (char '%')
   h1 <- t_hex
   h2 <- t_hex
   return ([h1,h2])
 
 -- grammar rules: [172s] PN_LOCAL_ESC
+t_pn_local_esc :: GenParser ParseState Char
 t_pn_local_esc = char '\\' >> oneOf "_~.-!$&'()*+,;=/?#@%"
 
 -- grammar rules: [140s] PNAME_LN
@@ -215,8 +218,8 @@ t_subject =
 -- grammar rule: [7] predicateObjectlist
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList =
-  do sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> optional (char ';') >> many t_ws))
-     return ()
+  do void (sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> optional (char ';') >> many t_ws)))
+--     return ()
 
 -- grammar rule: [8] objectlist
 t_objectList :: GenParser ParseState ()
@@ -251,7 +254,7 @@ t_collection =
   -- ( ) is short for the resource:  rdf:nil
   between (char '(') (char ')') $
     do beginColl
-       many t_ws
+       void (many t_ws)
        emptyColl <- option True (try t_object  >> many t_ws >> return False)
        if emptyColl then void (addTripleForObject rdfNilNode) else
         void
@@ -259,7 +262,7 @@ t_collection =
          pushPred rdfRestNode >>
          addTripleForObject rdfNilNode >>
          popPred >> popSubj)
-       finishColl
+       void finishColl
        return ()
 
 blank_as_obj :: GenParser ParseState ()
@@ -320,13 +323,13 @@ t_string = liftM T.concat (between (char '"') (char '"') (many t_scharacter_in_d
 
 t_longString :: GenParser ParseState T.Text
 t_longString =
-    try ( do { tripleQuoteDbl;
+    try ( do { void tripleQuoteDbl;
                strVal <- liftM T.concat (many longString_char);
-               tripleQuoteDbl;
+               void tripleQuoteDbl;
                return strVal }) <|>
-    try ( do { tripleQuoteSingle;
+    try ( do { void tripleQuoteSingle;
                strVal <- liftM T.concat (many longString_char);
-               tripleQuoteSingle;
+               void tripleQuoteSingle;
                return strVal })
   where
     tripleQuoteDbl = count 3 (char '"')
@@ -345,11 +348,11 @@ t_double :: GenParser ParseState T.Text
 t_double =
   do sign <- sign_parser <?> "+-"
      rest <- try (do { ds <- many1 digit <?> "digit";
-                      char '.';
+                      void (char '.');
                       ds' <- many digit <?> "digit";
                       e <- t_exponent <?> "exponent";
                       return ( T.pack ds `T.snoc` '.' `T.append`  T.pack ds' `T.append` e) }) <|>
-             try (do { char '.';
+             try (do { void (char '.');
                        ds <- many1 digit <?> "digit";
                        e <- t_exponent <?> "exponent";
                        return ('.' `T.cons`  T.pack ds `T.append` e) }) <|>
@@ -364,8 +367,8 @@ sign_parser = option "" (oneOf "-+" >>= (\c -> return [c]))
 t_decimal :: GenParser ParseState T.Text
 t_decimal =
   do sign <- sign_parser
-     rest <- try (do ds <- many digit <?> "digit"; char '.'; ds' <- option "" (many digit); return (ds ++ ('.':ds')))
-             <|> try (do { char '.'; ds <- many1 digit <?> "digit"; return ('.':ds) })
+     rest <- try (do ds <- many digit <?> "digit"; void (char '.'); ds' <- option "" (many digit); return (ds ++ ('.':ds')))
+             <|> try (do { void (char '.'); ds <- many1 digit <?> "digit"; return ('.':ds) })
              <|> many1 digit <?> "digit"
      return $ T.pack sign `T.append`  T.pack rest
 
@@ -394,7 +397,7 @@ t_ws =
 t_language :: GenParser ParseState T.Text
 t_language =
   do initial <- many1 lower;
-     rest <- many (do {char '-'; cs <- many1 (lower <|> digit); return ( T.pack ('-':cs))})
+     rest <- many (do {void (char '-'); cs <- many1 (lower <|> digit); return ( T.pack ('-':cs))})
      return $! ( T.pack initial `T.append` T.concat rest)
 
 identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
@@ -446,7 +449,7 @@ longString_char =
   where
     specialChar     = oneOf "\t\n\r" >>= bs1
     escapedChar     =
-      do char '\\'
+      do void (char '\\')
          (char 't'  >> bs1 '\t') <|> (char 'n' >> bs1 '\n') <|> (char 'r' >> bs1 '\r') <|>
           (char '\\' >> bs1 '\\') <|> (char '"' >> bs1 '"')
     twoDoubleQuote  = string "\"\"" >> notFollowedBy (char '"') >> bs "\"\""
@@ -485,7 +488,7 @@ t_scharacter_in_dquot :: GenParser ParseState T.Text
 t_scharacter_in_dquot =
   (try (string "\\\"") >> return (T.singleton '"'))
      <|> (try (string "\\'") >> return (T.singleton '\''))
-     <|> try (do {char '\\';
+     <|> try (do {void (char '\\');
                   (char 't' >> return (T.singleton '\t')) <|>
                   (char 'n' >> return (T.singleton '\n')) <|>
                   (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1
@@ -498,7 +501,7 @@ t_scharacter_in_squot :: GenParser ParseState T.Text
 t_scharacter_in_squot =
   (try (string "\\'") >> return (T.singleton '\''))
      <|> (try (string "\\\"") >> return (T.singleton '"'))
-     <|> try (do {char '\\';
+     <|> try (do {void (char '\\');
                   (char 't' >> return (T.singleton '\t')) <|>
                   (char 'n' >> return (T.singleton '\n')) <|>
                   (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1

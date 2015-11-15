@@ -64,8 +64,8 @@ nt_triple    =
     skipMany1 nt_space
     obj <- nt_object
     skipMany nt_space
-    char '.'
-    many nt_space
+    void (char '.')
+    void (many nt_space)
     return $ Just (Triple subj pred obj)
 
 -- A literal is either a language literal (with optional language
