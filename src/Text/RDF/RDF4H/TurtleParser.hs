@@ -308,7 +308,8 @@ t_literal =
 
 str_literal :: GenParser ParseState Node
 str_literal =
-  do str <- t_quotedString <?> "quotedString"
+  do str' <- t_quotedString <?> "quotedString"
+     let str = escapeRDFSyntax str' 
      liftM (LNode . typedL str)
       (try (count 2 (char '^')) >> t_iri) <|>
       liftM (lnode . plainLL str) (char '@' >> t_language) <|>
@@ -421,7 +422,7 @@ t_relativeURI =
   do frag <- liftM (T.pack . concat) (many t_ucharacter)
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
-     let frag' = escapeURI frag
+     let frag' = escapeRDFSyntax frag
      validateURI (absolutizeUrl bUrl dUrl frag')
 
 -- We make this String rather than T.Text because we want

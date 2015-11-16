@@ -15,7 +15,7 @@ module Data.RDF.Types (
   isUNode,isLNode,isBNode,
 
   -- * Miscellaneous
-  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeURI,fileSchemeToFilePath,
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,
 
   -- * RDF Type
   RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
@@ -160,38 +160,10 @@ unodeValidate t = if Network.isURI (T.unpack uri)
                   then Just (UNode uri)
                   else Nothing
     where
-      uri = escapeURI t
-      -- Right uri = parse unicodeEscParser "" (T.unpack t)
-      -- unicodeEscParser :: Stream s m Char => ParsecT s u m String
-      -- unicodeEscParser = do
-      --   ss <- many (
-      --               try (do { _ <- char '\\'
-      --                       ; _ <- char 'U'
-      --                       ; pos1 <- digit
-      --                       ; pos2 <- digit
-      --                       ; pos3 <- digit
-      --                       ; pos4 <- digit
-      --                       ; pos5 <- digit
-      --                       ; pos6 <- digit
-      --                       ; pos7 <- digit
-      --                       ; pos8 <- digit
-      --                       ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
-      --                       ; return (read ("\"" ++ str ++ "\"") :: String)})
-      --              <|>
-      --               try (do { _ <- char '\\'
-      --                       ; _ <- char 'u'
-      --                       ; pos1 <- digit
-      --                       ; pos2 <- digit
-      --                       ; pos3 <- digit
-      --                       ; pos4 <- digit
-      --                       ; let str = ['\\','x',pos1,pos2,pos3,pos4]
-      --                       ; return (read ("\"" ++ str ++ "\"") :: String)})
-      --              <|>
-      --               (anyChar >>= \c -> return [c]))
-      --   return (concat ss :: String)
+      uri = escapeRDFSyntax t
 
-escapeURI :: T.Text -> T.Text
-escapeURI t = T.pack uri
+escapeRDFSyntax :: T.Text -> T.Text
+escapeRDFSyntax t = T.pack uri
     where
       Right uri = parse unicodeEscParser "" (T.unpack t)
       unicodeEscParser :: Stream s m Char => ParsecT s u m String
@@ -199,23 +171,23 @@ escapeURI t = T.pack uri
                 ss <- many (
                     try (do { _ <- char '\\'
                             ; _ <- char 'U'
-                            ; pos1 <- digit
-                            ; pos2 <- digit
-                            ; pos3 <- digit
-                            ; pos4 <- digit
-                            ; pos5 <- digit
-                            ; pos6 <- digit
-                            ; pos7 <- digit
-                            ; pos8 <- digit
+                            ; pos1 <- hexDigit
+                            ; pos2 <- hexDigit
+                            ; pos3 <- hexDigit
+                            ; pos4 <- hexDigit
+                            ; pos5 <- hexDigit
+                            ; pos6 <- hexDigit
+                            ; pos7 <- hexDigit
+                            ; pos8 <- hexDigit
                             ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
                             ; return (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
                     try (do { _ <- char '\\'
                             ; _ <- char 'u'
-                            ; pos1 <- digit
-                            ; pos2 <- digit
-                            ; pos3 <- digit
-                            ; pos4 <- digit
+                            ; pos1 <- hexDigit
+                            ; pos2 <- hexDigit
+                            ; pos3 <- hexDigit
+                            ; pos4 <- hexDigit
                             ; let str = ['\\','x',pos1,pos2,pos3,pos4]
                             ; return (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
