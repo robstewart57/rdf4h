@@ -149,7 +149,10 @@ t_pname_ns :: GenParser ParseState T.Text
 t_pname_ns =do
   pre <- option T.empty (try t_pn_prefix)
   void (char ':')
-  return pre
+  (bUrl, _, _, pms, _, _, _, _) <- getState
+  case resolveQName bUrl pre pms of
+    Just n -> return n
+    Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
 -- grammar rules: [168s] PN_LOCAL
 t_pn_local :: GenParser ParseState T.Text
@@ -191,10 +194,7 @@ t_pname_ln :: GenParser ParseState T.Text
 t_pname_ln =
   do pre <- t_pname_ns
      name <- t_pn_local
-     (bUrl, _, _, pms, _, _, _, _) <- getState
-     case resolveQName bUrl pre pms of
-       Just n -> return $ n `T.append` name
-       Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
+     return (pre `T.append` name)             
 
 -- grammar rule: [10] subject
 t_subject :: GenParser ParseState ()
