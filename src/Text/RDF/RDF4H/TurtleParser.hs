@@ -180,7 +180,7 @@ t_percent = do
   void (char '%')
   h1 <- t_hex
   h2 <- t_hex
-  return ([h1,h2])
+  return (['%',h1,h2])
 
 -- grammar rules: [172s] PN_LOCAL_ESC
 t_pn_local_esc :: GenParser ParseState Char
