@@ -1,4 +1,4 @@
-{-# Language Arrows,OverloadedStrings,DoAndIfThenElse #-}
+{-# Language Arrows,OverloadedStrings,DoAndIfThenElse,DeriveDataTypeable #-}
 
 -- |An parser for the RDF/XML format
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
