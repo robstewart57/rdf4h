@@ -10,9 +10,7 @@
 -- functions of this graph (select, query) remove duplicates from their
 -- result triples (but triplesOf does not) since it is usually cheap
 -- to do so.
-module Data.RDF.TriplesGraph(TriplesGraph, empty, mkRdf, triplesOf, uniqTriplesOf, select, query)
-
-where
+module Data.RDF.TriplesGraph (TriplesGraph) where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)

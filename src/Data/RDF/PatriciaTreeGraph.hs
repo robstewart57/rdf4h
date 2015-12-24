@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
 
-module Data.RDF.PatriciaTreeGraph where
+module Data.RDF.PatriciaTreeGraph (PatriciaTreeGraph) where
 
 import Data.RDF.Namespace
 import Data.RDF.Query
