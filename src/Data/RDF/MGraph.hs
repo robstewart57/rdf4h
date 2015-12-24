@@ -20,6 +20,39 @@ import Data.List
 
 -- |A map-based graph implementation.
 --
+-- This instance of 'RDF' is an adjacency map with each subject
+-- mapping to a mapping from a predicate node to to the adjacent nodes
+-- via that predicate.
+--
+-- Given the following triples graph::
+--
+-- @
+--   (http:\/\/example.com\/s1,http:\/\/example.com\/p1,http:\/\/example.com\/o1)
+--   (http:\/\/example.com\/s1,http:\/\/example.com\/p1,http:\/\/example.com\/o2)
+--   (http:\/\/example.com\/s1,http:\/\/example.com\/p2,http:\/\/example.com\/o1)
+--   (http:\/\/example.com\/s2,http:\/\/example.com\/p3,http:\/\/example.com\/o3)
+-- @
+--
+-- where
+--
+-- > hash "http://example.com/s1" = 1600134414
+-- > hash "http://example.com/s2" = 1600134413
+-- > hash "http://example.com/p1" = 1616912099
+-- > hash "http://example.com/p2" = 1616912096
+-- > hash "http://example.com/p3" = 1616912097
+-- > hash "http://example.com/o1" = 1935686794
+-- > hash "http://example.com/o2" = 1935686793
+-- > hash "http://example.com/o3" = 1935686792
+--
+-- the in-memory hashmap representation of the triples graph is:
+--
+-- @
+-- key:1600134414, value:(key:1616912099, value:[1935686794    -- (..\/s1,..\/p1,..\/o1)
+--                                              ,1935686793];  -- (..\/s1,..\/p1,..\/o2)
+--                        key:1616912096, value:[1935686794]); -- (..\/s1,..\/p2,..\/o1)
+-- key:1600134413, value:(key:1616912097, value:[1935686792])  -- (..\/s1,..\/p3,..\/o3)
+-- @
+--
 -- Worst-case time complexity of the graph functions, with respect
 -- to the number of triples, are:
 --
