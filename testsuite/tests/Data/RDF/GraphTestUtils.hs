@@ -43,7 +43,7 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             , testProperty "query_match_sp"             (p_query_match_sp _triplesOf)
             , testProperty "query_match_so"             (p_query_match_so _triplesOf)
             , testProperty "query_match_po"             (p_query_match_po _triplesOf)
-            , testProperty "select_match_none"                 (p_select_match_none _triplesOf)
+            , testProperty "select_match_none"          (p_select_match_none _triplesOf)
             , testProperty "select_match_s"             (p_select_match_s _triplesOf)
             , testProperty "select_match_p"             (p_select_match_p _triplesOf)
             , testProperty "select_match_o"             (p_select_match_o _triplesOf)
@@ -57,13 +57,14 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
 
 
 instance Arbitrary BaseUrl where
-  arbitrary = oneof $ map (return . BaseUrl . T.pack) ["http://example.com/a", "http://asdf.org/b"]
+  arbitrary = oneof $ map (return . BaseUrl . T.pack) ["http://example.com/a","http://asdf.org/b","http://asdf.org/c"]
   --coarbitrary = undefined
 
 instance Arbitrary PrefixMappings where
   arbitrary = oneof [return $ PrefixMappings Map.empty, return $ PrefixMappings $
                           Map.fromAscList [(T.pack "eg1", T.pack "http://example.com/1"),
-                                        (T.pack "eg2", T.pack "http://example.com/2")]]
+                                           (T.pack "eg2", T.pack "http://example.com/2"),
+                                           (T.pack "eg3", T.pack "http://example.com/3")]]
   --coarbitrary = undefined
 
 -- Test stubs, which just require the appropriate RDF impl function
