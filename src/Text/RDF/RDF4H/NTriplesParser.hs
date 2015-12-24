@@ -8,7 +8,7 @@ module Text.RDF.RDF4H.NTriplesParser(
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
-import Data.Char(isLetter, isDigit, isLower)
+import Data.Char(isLetter, isDigit, isLower,isAlphaNum)
 import qualified Data.Map as Map
 import Text.Parsec
 import Text.Parsec.Text
@@ -76,11 +76,11 @@ nt_triple    =
 -- the closing quote with ^^ followed by the URI of the datatype.
 nt_literal :: GenParser () LValue
 nt_literal = 
-  do lit_str <- between_chars '"' '"' inner_literal 
+  do lit_str <- between (char '"') (char '"') inner_literal
      liftM (plainLL lit_str) (char '@' >> nt_language) <|>
        liftM (typedL lit_str) (count 2 (char '^') >> nt_uriref) <|>
        return (plainL lit_str)
-  where inner_literal = liftM T.concat (manyTill inner_string (lookAhead $ char '"'))
+  where inner_literal = inner_string
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
@@ -118,7 +118,7 @@ nt_object =
 
 -- A URI reference is one or more nrab_character inside angle brackets.
 nt_uriref :: GenParser () T.Text
-nt_uriref = between_chars '<' '>' (liftM T.pack (many (satisfy ( /= '>'))))
+nt_uriref = between (char '<') (char '>') (liftM T.pack (many (satisfy ( /= '>'))))
 
 -- A node id is "_:" followed by a name.
 nt_nodeID :: GenParser () T.Text
@@ -141,7 +141,7 @@ nt_character   =   satisfy is_nonquote_char
 
 -- A character is any Unicode value from ASCII space to decimal 126 (tilde).
 is_character :: Char -> Bool
-is_character c =   c >= '\x0020' && c <= '\x007E'
+is_character = isAlphaNum
 
 -- A non-quote character is a character that isn't the double-quote character.
 is_nonquote_char :: Char -> Bool
@@ -194,9 +194,6 @@ b_ret = T.singleton '\r'
 b_nl  = T.singleton '\n'
 b_slash = T.singleton '\\'
 b_quote = T.singleton '"'
-
-between_chars :: Char -> Char -> GenParser () T.Text -> GenParser () T.Text
-between_chars start end parser = char start >> parser >>= \res -> char end >> return res
 
 parseString' :: forall rdf. (RDF rdf) => T.Text -> Either ParseFailure rdf
 parseString' bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
