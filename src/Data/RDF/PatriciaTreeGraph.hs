@@ -265,7 +265,9 @@ query' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts1 = if thisNode == fromJust maybeObj
                                  then mkTriples idxLookup thisNode adjsIn' []
                                  else []
-                           ts2 = mkTriples idxLookup thisNode [] adjsOut'
+                           ts2 = if thisNode == fromJust maybeSubj
+                                 then mkTriples idxLookup thisNode [] adjsOut'
+                                 else []
                        in ts1 ++ ts2
 
         cfun ( _ , _ , _ , _ ) = undefined  -- not sure why this pattern is needed to exhaust cfun arg patterns
