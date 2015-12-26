@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         1.3.6
+version:         1.4.0
 synopsis:        A library for RDF processing in Haskell
 description:
   'RDF for Haskell' is a library for working with RDF in Haskell.
@@ -19,7 +19,7 @@ cabal-version:   >= 1.8
 build-type:      Simple
 category:        RDF
 stability:       Experimental
-tested-with:     GHC==7.6.3, GHC==7.8.3
+tested-with:     GHC==7.6.3, GHC==7.8.3, GHC==7.10.2
 extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
 

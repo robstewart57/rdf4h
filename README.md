@@ -44,13 +44,11 @@ Example
 {-# LANGUAGE OverloadedStrings #-}
 
 import Data.RDF
-import Data.RDF.TriplesGraph
-import Text.RDF.RDF4H.NTriplesParser
 
-rdfGraph1 :: IO TriplesGraph
+rdfGraph1 :: IO TriplesList
 rdfGraph1 = fmap fromEither (parseFile NTriplesParser "test1.nt")
 
-rdfGraph2 :: IO TriplesGraph
+rdfGraph2 :: IO TriplesList
 rdfGraph2 = fmap fromEither (parseFile NTriplesParser "test2.nt")
 
 example :: IO ()
