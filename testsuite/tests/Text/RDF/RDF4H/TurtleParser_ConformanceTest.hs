@@ -9,7 +9,7 @@ import qualified Test.HUnit as TU
 import Control.Monad (liftM)
 import Data.RDF.GraphTestUtils
 import Data.RDF.Query
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 import Data.RDF.Types
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

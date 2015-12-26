@@ -11,7 +11,7 @@ import W3C.Manifest
 
 import Data.RDF.Types
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 
 suiteFilesDir = "data/w3c/n3/"
 

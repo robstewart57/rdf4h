@@ -17,8 +17,8 @@ module Text.RDF.RDF4H.Interact where
 import qualified Data.Text as T
 
 import Data.RDF.Types hiding (baseUrl)
-import Data.RDF.TriplesGraph()
-import Data.RDF.MGraph()
+import Data.RDF.Graph.TriplesGraph()
+import Data.RDF.Graph.MGraph()
 
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.TurtleParser

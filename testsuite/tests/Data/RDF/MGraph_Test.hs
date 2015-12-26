@@ -1,7 +1,7 @@
 module Data.RDF.MGraph_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
-import Data.RDF.MGraph (MGraph)
+import Data.RDF.Graph.MGraph (MGraph)
 import Data.RDF.GraphTestUtils
 import qualified Data.Map as Map
 import Control.Monad

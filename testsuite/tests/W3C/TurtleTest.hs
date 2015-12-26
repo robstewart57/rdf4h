@@ -14,7 +14,7 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 
 suiteFilesDir :: T.Text
 suiteFilesDir = "data/w3c/turtle/TurtleTests/"

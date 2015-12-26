@@ -4,7 +4,7 @@ import Control.Monad
 import qualified Data.Map as Map
 import Data.RDF.GraphTestUtils
 import Data.RDF.Namespace
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 import Data.RDF.Types
 import Test.QuickCheck.Arbitrary
 

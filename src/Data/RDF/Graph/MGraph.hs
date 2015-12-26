@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 -- |A simple graph implementation backed by 'Data.HashMap'.
 
-module Data.RDF.MGraph (MGraph) where
+module Data.RDF.Graph.MGraph (MGraph) where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)

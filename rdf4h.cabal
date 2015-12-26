@@ -36,9 +36,9 @@ library
                  , Data.RDF.Namespace
                  , Data.RDF.Types
                  , Data.RDF.Query
-                 , Data.RDF.MGraph
-                 , Data.RDF.PatriciaTreeGraph
-                 , Data.RDF.TriplesGraph
+                 , Data.RDF.Graph.MGraph
+                 , Data.RDF.Graph.PatriciaTreeGraph
+                 , Data.RDF.Graph.TriplesGraph
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
                  , Text.RDF.RDF4H.NTriplesParser

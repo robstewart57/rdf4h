@@ -10,7 +10,7 @@ import Test.HUnit (Assertion,assertBool,assertFailure)
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
 import Data.RDF.Query
-import Data.RDF.TriplesGraph (TriplesGraph)
+import Data.RDF.Graph.TriplesGraph (TriplesGraph)
 import Data.RDF.Types
 import qualified Data.Text as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser

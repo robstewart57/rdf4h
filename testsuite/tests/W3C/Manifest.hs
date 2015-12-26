@@ -5,7 +5,7 @@ module W3C.Manifest (
   TestEntry(..)
 ) where
 
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 import Data.RDF.Query
 import Data.RDF.Types
 import Data.RDF.Namespace

@@ -1,7 +1,7 @@
 module Data.RDF.PatriciaTreeGraph_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
-import Data.RDF.PatriciaTreeGraph (PatriciaTreeGraph)
+import Data.RDF.Graph.PatriciaTreeGraph (PatriciaTreeGraph)
 import Data.RDF.GraphTestUtils
 import qualified Data.Map as Map
 import Control.Monad

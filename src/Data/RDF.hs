@@ -12,9 +12,9 @@ module Data.RDF (
   module Data.RDF.Query,
 
   -- * Export RDF type class instances
-  module Data.RDF.TriplesGraph,
-  module Data.RDF.MGraph,
-  module Data.RDF.PatriciaTreeGraph,
+  module Data.RDF.Graph.TriplesGraph,
+  module Data.RDF.Graph.MGraph,
+  module Data.RDF.Graph.PatriciaTreeGraph,
 
   -- * Export RDF parsers and serializers
   module Text.RDF.RDF4H.NTriplesSerializer,
@@ -26,9 +26,9 @@ module Data.RDF (
 where
 
 import Data.RDF.Namespace
-import Data.RDF.TriplesGraph
-import Data.RDF.MGraph
-import Data.RDF.PatriciaTreeGraph
+import Data.RDF.Graph.TriplesGraph
+import Data.RDF.Graph.MGraph
+import Data.RDF.Graph.PatriciaTreeGraph
 import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleSerializer
 import Text.RDF.RDF4H.NTriplesParser

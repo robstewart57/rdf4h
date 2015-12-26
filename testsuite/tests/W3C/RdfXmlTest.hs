@@ -13,7 +13,7 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.XmlParser
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.TriplesGraph
+import Data.RDF.Graph.TriplesGraph
 
 suiteFilesDir = "data/w3c/rdf-xml/"
 
