@@ -36,9 +36,9 @@ library
                  , Data.RDF.Namespace
                  , Data.RDF.Types
                  , Data.RDF.Query
-                 , Data.RDF.Graph.MGraph
-                 , Data.RDF.Graph.PatriciaTreeGraph
-                 , Data.RDF.Graph.TriplesGraph
+                 , Data.RDF.Graph.IndexedS
+                 , Data.RDF.Graph.TriplesPatriciaTree
+                 , Data.RDF.Graph.TriplesList
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
                  , Text.RDF.RDF4H.NTriplesParser
@@ -97,11 +97,11 @@ test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
   other-modules: Data.RDF.GraphTestUtils
-                 Data.RDF.MGraph_Test
-                 Data.RDF.PatriciaTreeGraph_Test
+                 Data.RDF.Graph.IndexedS_Test
+                 Data.RDF.Graph.TriplesPatriciaTree_Test
+                 Data.RDF.Graph.TriplesList_Test
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
-                 Data.RDF.TriplesGraph_Test
                  W3C.Manifest
                  W3C.NTripleTest
                  W3C.RdfXmlTest

@@ -10,7 +10,7 @@ import Test.HUnit (Assertion,assertBool,assertFailure)
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
 import Data.RDF.Query
-import Data.RDF.Graph.TriplesGraph (TriplesGraph)
+import Data.RDF.Graph.TriplesList (TriplesList)
 import Data.RDF.Types
 import qualified Data.Text as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser
@@ -45,13 +45,13 @@ tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_si
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL
 
-testParse :: T.Text -> TriplesGraph -> Assertion
+testParse :: T.Text -> TriplesList -> Assertion
 testParse exRDF ex =
     case parsed of
       Right result ->
           assertBool
             ("expected: " ++ show ex ++ "but got: " ++ show result)
-            (isIsomorphic (result :: TriplesGraph) (ex :: TriplesGraph))
+            (isIsomorphic (result :: TriplesList) (ex :: TriplesList))
       Left (ParseFailure err) ->
           assertFailure err
   where parsed = parseString (XmlParser Nothing Nothing) exRDF

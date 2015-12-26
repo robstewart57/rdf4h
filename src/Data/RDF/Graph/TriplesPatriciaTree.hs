@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
 
-module Data.RDF.Graph.PatriciaTreeGraph (PatriciaTreeGraph) where
+module Data.RDF.Graph.TriplesPatriciaTree (TriplesPatriciaTree) where
 
 import Data.RDF.Namespace
 import Data.RDF.Query
@@ -14,10 +14,10 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
 
-newtype PatriciaTreeGraph = PatriciaTreeGraph (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
+newtype TriplesPatriciaTree = TriplesPatriciaTree (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
                             deriving (Show)
 
-instance RDF PatriciaTreeGraph where
+instance RDF TriplesPatriciaTree where
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -28,19 +28,19 @@ instance RDF PatriciaTreeGraph where
   select            = select'
   query             = query'
 
-empty' :: PatriciaTreeGraph
-empty' = PatriciaTreeGraph (G.empty,IntMap.empty, Nothing, PrefixMappings Map.empty)
+empty' :: TriplesPatriciaTree
+empty' = TriplesPatriciaTree (G.empty,IntMap.empty, Nothing, PrefixMappings Map.empty)
 
-prefixMappings' :: PatriciaTreeGraph -> PrefixMappings
-prefixMappings' (PatriciaTreeGraph (_,_,_,pms')) = pms'
+prefixMappings' :: TriplesPatriciaTree -> PrefixMappings
+prefixMappings' (TriplesPatriciaTree (_,_,_,pms')) = pms'
 
-addPrefixMappings' :: PatriciaTreeGraph -> PrefixMappings -> Bool -> PatriciaTreeGraph
-addPrefixMappings' (PatriciaTreeGraph (g, idxLookup, baseURL, pms)) pms' replace =
+addPrefixMappings' :: TriplesPatriciaTree -> PrefixMappings -> Bool -> TriplesPatriciaTree
+addPrefixMappings' (TriplesPatriciaTree (g, idxLookup, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  PatriciaTreeGraph (g, idxLookup, baseURL, merge pms pms')
+  in  TriplesPatriciaTree (g, idxLookup, baseURL, merge pms pms')
 
-baseUrl' :: PatriciaTreeGraph -> Maybe BaseUrl
-baseUrl' (PatriciaTreeGraph _) = Nothing
+baseUrl' :: TriplesPatriciaTree -> Maybe BaseUrl
+baseUrl' (TriplesPatriciaTree _) = Nothing
 
 data AutoIncrMap = AutoIncrMap
     { theMap :: Map.Map Node (Int,Node)
@@ -65,7 +65,7 @@ insertIncr !node mp =
                         , theMap = Map.insert node (idxPtr mp, node) (theMap mp) }
            in (curIdx, mp')
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> PatriciaTreeGraph
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesPatriciaTree
 mkRdf' ts base' pms' =
     -- step 1: subjects and objects assigned node ID (an Int)
     let (mp,ledges) = foldl' f ((AutoIncrMap Map.empty 0),[]) ts
@@ -84,16 +84,16 @@ mkRdf' ts base' pms' =
         intIdx = IntMap.fromList lnodes
         ptGraph = G.mkGraph lnodes ledges
 
-    in PatriciaTreeGraph (ptGraph ,intIdx, base', pms')
+    in TriplesPatriciaTree (ptGraph ,intIdx, base', pms')
 
-triplesOf' :: PatriciaTreeGraph -> Triples
-triplesOf' (PatriciaTreeGraph (g,idxLookup,_,_)) =
+triplesOf' :: TriplesPatriciaTree -> Triples
+triplesOf' (TriplesPatriciaTree (g,idxLookup,_,_)) =
     map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in Triple s p o) (G.labEdges g)
 
-uniqTriplesOf' :: PatriciaTreeGraph -> Triples
-uniqTriplesOf' ptG@(PatriciaTreeGraph (g,idxLookup,_,_)) =
+uniqTriplesOf' :: TriplesPatriciaTree -> Triples
+uniqTriplesOf' ptG@(TriplesPatriciaTree (g,idxLookup,_,_)) =
     nub $ map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in expandTriple (prefixMappings ptG) (Triple s p o)) (G.labEdges g)
@@ -111,8 +111,8 @@ mkTriples idxLookup thisNode adjsIn adjsOut =
                   ) adjsOut
     in ts1 ++ ts2
 
-select' :: PatriciaTreeGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
+select' :: TriplesPatriciaTree -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' (TriplesPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
 
     let cfun ( adjsIn , _nodeIdx , thisNode , adjsOut )
             | isNothing  maybeSubjSel && isNothing maybePredSel && isNothing maybeObjSel =
@@ -192,8 +192,8 @@ select' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObj
 
     in concat $ DFS.dfsWith' cfun g
 
-query' :: PatriciaTreeGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (PatriciaTreeGraph (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
+query' :: TriplesPatriciaTree -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' (TriplesPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
 
     let cfun ( adjsIn , _nodeIdx , thisNode , adjsOut )
             | isNothing  maybeSubj && isNothing maybePred && isNothing maybeObj =

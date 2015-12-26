@@ -11,7 +11,7 @@ import W3C.Manifest
 
 import Data.RDF.Types
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.Graph.TriplesGraph
+import Data.RDF.Graph.TriplesList
 
 suiteFilesDir = "data/w3c/n3/"
 
@@ -36,11 +36,11 @@ allNTripleTests = do
 mfEntryToTest :: TestEntry -> IO Test
 mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') = do
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
   return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
 mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') = do
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 

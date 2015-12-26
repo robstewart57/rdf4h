@@ -10,7 +10,7 @@
 -- functions of this graph (select, query) remove duplicates from their
 -- result triples (but triplesOf does not) since it is usually cheap
 -- to do so.
-module Data.RDF.Graph.TriplesGraph (TriplesGraph) where
+module Data.RDF.Graph.TriplesList (TriplesList) where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)
@@ -41,12 +41,12 @@ import GHC.Generics
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(n)
-newtype TriplesGraph = TriplesGraph (Triples, Maybe BaseUrl, PrefixMappings)
+newtype TriplesList = TriplesList (Triples, Maybe BaseUrl, PrefixMappings)
                        deriving (Generic,NFData)
 
-instance Binary TriplesGraph
+instance Binary TriplesList
 
-instance RDF TriplesGraph where
+instance RDF TriplesList where
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -57,40 +57,40 @@ instance RDF TriplesGraph where
   select            = select'
   query             = query'
 
-instance Show TriplesGraph where
+instance Show TriplesList where
   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 
-prefixMappings' :: TriplesGraph -> PrefixMappings
-prefixMappings' (TriplesGraph (_, _, pms)) = pms
+prefixMappings' :: TriplesList -> PrefixMappings
+prefixMappings' (TriplesList (_, _, pms)) = pms
 
-addPrefixMappings' :: TriplesGraph -> PrefixMappings -> Bool -> TriplesGraph
-addPrefixMappings' (TriplesGraph (ts, baseURL, pms)) pms' replace =
+addPrefixMappings' :: TriplesList -> PrefixMappings -> Bool -> TriplesList
+addPrefixMappings' (TriplesList (ts, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  TriplesGraph (ts, baseURL, merge pms pms')
+  in  TriplesList (ts, baseURL, merge pms pms')
   
-baseUrl' :: TriplesGraph -> Maybe BaseUrl
-baseUrl' (TriplesGraph (_, baseURL, _)) = baseURL
+baseUrl' :: TriplesList -> Maybe BaseUrl
+baseUrl' (TriplesList (_, baseURL, _)) = baseURL
 
-empty' :: TriplesGraph
-empty' = TriplesGraph ([], Nothing, PrefixMappings Map.empty)
+empty' :: TriplesList
+empty' = TriplesList ([], Nothing, PrefixMappings Map.empty)
 
 -- We no longer remove duplicates here, as it is very time consuming and is often not
 -- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes
 -- from the results of the select' and query' functions, since it is cheap to do
 -- there in most cases, but not when triplesOf' is called.
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesGraph
-mkRdf' ts baseURL pms = TriplesGraph (ts, baseURL, pms)
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesList
+mkRdf' ts baseURL pms = TriplesList (ts, baseURL, pms)
 
-triplesOf' :: TriplesGraph -> Triples
-triplesOf' (TriplesGraph (ts, _, _)) = ts
+triplesOf' :: TriplesList -> Triples
+triplesOf' (TriplesList (ts, _, _)) = ts
 
-uniqTriplesOf' :: TriplesGraph -> Triples
+uniqTriplesOf' :: TriplesList -> Triples
 uniqTriplesOf' = nub . expandTriples
 
-select' :: TriplesGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' :: TriplesList -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' g s p o = filter (matchSelect s p o) $ triplesOf g
 
-query' :: TriplesGraph -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' :: TriplesList -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
 query' g s p o = filter (matchPattern s p o) $ triplesOf g
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool

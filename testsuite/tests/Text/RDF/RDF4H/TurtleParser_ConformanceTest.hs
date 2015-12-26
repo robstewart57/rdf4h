@@ -9,7 +9,7 @@ import qualified Test.HUnit as TU
 import Control.Monad (liftM)
 import Data.RDF.GraphTestUtils
 import Data.RDF.Query
-import Data.RDF.Graph.TriplesGraph
+import Data.RDF.Graph.TriplesList
 import Data.RDF.Types
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -62,8 +62,8 @@ checkGoodOtherTest dir fname =
     inGr  <- loadInputGraph1 dir fname
     doGoodConformanceTest expGr inGr $ printf "test using file \"%s\"" fname
 
-doGoodConformanceTest   :: Either ParseFailure TriplesGraph -> 
-                           Either ParseFailure TriplesGraph -> 
+doGoodConformanceTest   :: Either ParseFailure TriplesList -> 
+                           Either ParseFailure TriplesList -> 
                            String -> IO Test
 doGoodConformanceTest expGr inGr testname = do
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
@@ -104,17 +104,17 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
 -- triples into a format so that they can be compared with the expected output triples.
-loadInputGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
+loadInputGraph :: String -> Int -> IO (Either ParseFailure TriplesList)
 loadInputGraph name n =
   TIO.readFile (fpath name n "ttl") >>=
   return . parseString (TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)) >>= return . handleLoad
 
-loadInputGraph1 :: String -> String -> IO (Either ParseFailure TriplesGraph)
+loadInputGraph1 :: String -> String -> IO (Either ParseFailure TriplesList)
 loadInputGraph1 dir fname =
   TIO.readFile (printf "%s/%s.ttl" dir fname :: String) >>=
   return . parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
 
-handleLoad :: Either ParseFailure TriplesGraph -> Either ParseFailure TriplesGraph
+handleLoad :: Either ParseFailure TriplesList -> Either ParseFailure TriplesList
 handleLoad res =
   case res of
     l@(Left _)  -> l
@@ -129,13 +129,13 @@ normalizeN :: Node -> Node
 normalizeN (BNodeGen i) = BNode (T.pack $ "_:genid" ++ show i)
 normalizeN n            = n
 
-loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesGraph)
+loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesList)
 loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")
-loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesGraph)
+loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesList)
 loadExpectedGraph1 fname =
   liftM (parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname))) (TIO.readFile fname)
 
-assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesGraph -> TU.Assertion
+assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesList -> TU.Assertion
 assertLoadSuccess idStr (Left (ParseFailure err)) = TU.assertFailure $ idStr  ++ err
 assertLoadSuccess _     (Right _) = return ()
 assertLoadFailure _     (Left _)  = return ()

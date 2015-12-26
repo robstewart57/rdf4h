@@ -13,7 +13,7 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.XmlParser
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.Graph.TriplesGraph
+import Data.RDF.Graph.TriplesList
 
 suiteFilesDir = "data/w3c/rdf-xml/"
 
@@ -39,12 +39,12 @@ mfEntryToTest :: TestEntry -> IO Test
 mfEntryToTest (TestXMLEval nm _ _ act' res') = do
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
   let res = (UNode . fromJust . fileSchemeToFilePath) res'
-  parsedRDF <- parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesGraph
-  expectedRDF <- parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesGraph
+  parsedRDF <- parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesList
+  expectedRDF <- parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesList
   return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
 mfEntryToTest (TestXMLNegativeSyntax nm _ _ act') = do
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesGraph)
+  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
   return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
