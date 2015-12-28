@@ -19,6 +19,45 @@ as querying for triples containing a particular subject, predicate, or
 object, or selecting triples that satisfy an arbitrary predicate
 function.
 
+
+RDF instance benchmarks
+-----------------------
+
+The following benchmark results were obtained running
+bench/MainCriterion.hs at commit
+3d86295b085ecfb9a944dc7b40bb668df38c2777 on 28 December 2015. The
+complete output from criterion are in
+`benchmark-results/criterion-results-28.12.2015.txt`.
+
+Mapping the `[Triple]` stream from the Turtle parser into each RDF
+instance:
+
+|                     | parse |
+|---------------------|-------|
+| HashMapS            | 19.7s |
+| MapSP               | 19.6s |
+| TriplesList         | 18.6s |
+| TriplesPatriciaTree | 22.0s |
+
+Benchmarking `query` results in microseconds:
+
+|                     | S | P | O | SP | PO | SO | SPO |
+|---------------------|-------|
+| HashMapS            | 29 | 2254 | 25640 | 0.5 | 0.3 | 4 | 0.5 | 
+| MapSP               | 9379 | 8518 | 1458 | 8 | 8639 | 9221 | 9379 |
+| TriplesList         | 11100 | 7600 | 9600 | 11100 | 7600 | 11100 | 1100 |
+| TriplesPatriciaTree | 206600 | 178700 | 188300 | 206800 |187400 | 174200 | 173600 |
+
+Benchmarking `select` results in microseconds:
+
+|                     | S | P | O | SP | PO | SO | SPO |
+|---------------------|-------|
+| HashMapS            | 275100 | 326400 | 112900 | 263700 | 111100 | 96680 | 95630 |
+| MapSP               | 12820 | 14610 | 13230 | 14950 | 14270 | 13420 | 14160 |
+| TriplesList         | 12620 | 10730 | 9961 | 12760 | 11080 | 11790 | 13080 | 
+| TriplesPatriciaTree | 243300 | 238600 | 204100 | 251000 | 210300 | 209400 | 211400 |
+
+
 Installation
 ------------
 

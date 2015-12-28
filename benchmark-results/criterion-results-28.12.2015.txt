@@ -1,0 +1,389 @@
+rdf4h-1.4.0: benchmarks
+Running 1 benchmarks...
+Benchmark rdf4h-bench: RUNNING...
+benchmarking parse/HashMapS
+time                 19.64 s    (19.49 s .. 19.75 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 19.63 s    (19.60 s .. 19.65 s)
+std dev              27.79 ms   (0.0 s .. 31.37 ms)
+variance introduced by outliers: 19% (moderately inflated)
+             
+benchmarking parse/MapSP
+time                 19.44 s    (NaN s .. 19.60 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 19.51 s    (19.47 s .. 19.55 s)
+std dev              50.69 ms   (0.0 s .. 57.62 ms)
+variance introduced by outliers: 19% (moderately inflated)
+             
+benchmarking parse/TriplesList
+time                 18.50 s    (18.24 s .. 18.76 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 18.41 s    (18.35 s .. 18.46 s)
+std dev              71.01 ms   (0.0 s .. 80.97 ms)
+variance introduced by outliers: 19% (moderately inflated)
+             
+benchmarking parse/ListPatriciaTree
+time                 21.80 s    (21.70 s .. 21.85 s)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 21.89 s    (21.85 s .. 21.91 s)
+std dev              36.69 ms   (0.0 s .. 41.52 ms)
+variance introduced by outliers: 19% (moderately inflated)
+             
+benchmarking query/TriplesList SPO
+time                 11.00 ms   (10.98 ms .. 11.03 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 10.99 ms   (10.97 ms .. 11.00 ms)
+std dev              35.65 μs   (24.30 μs .. 59.47 μs)
+             
+benchmarking query/TriplesList SP
+time                 11.12 ms   (11.10 ms .. 11.14 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.12 ms   (11.11 ms .. 11.14 ms)
+std dev              34.72 μs   (20.98 μs .. 56.92 μs)
+             
+benchmarking query/TriplesList S
+time                 11.06 ms   (11.05 ms .. 11.07 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.06 ms   (11.05 ms .. 11.08 ms)
+std dev              34.58 μs   (16.43 μs .. 67.03 μs)
+             
+benchmarking query/TriplesList PO
+time                 7.589 ms   (7.579 ms .. 7.596 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 7.600 ms   (7.590 ms .. 7.633 ms)
+std dev              45.45 μs   (10.37 μs .. 93.42 μs)
+             
+benchmarking query/TriplesList SO
+time                 11.06 ms   (11.04 ms .. 11.07 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.07 ms   (11.06 ms .. 11.09 ms)
+std dev              42.71 μs   (15.65 μs .. 79.51 μs)
+             
+benchmarking query/TriplesList P
+time                 7.581 ms   (7.559 ms .. 7.594 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 7.605 ms   (7.590 ms .. 7.670 ms)
+std dev              76.53 μs   (10.60 μs .. 170.4 μs)
+             
+benchmarking query/TriplesList O
+time                 9.595 ms   (9.572 ms .. 9.615 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.631 ms   (9.614 ms .. 9.697 ms)
+std dev              84.76 μs   (14.74 μs .. 170.8 μs)
+             
+benchmarking query/HashMapS SPO
+time                 516.2 ns   (515.6 ns .. 517.3 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 516.0 ns   (515.7 ns .. 516.6 ns)
+std dev              1.464 ns   (927.2 ps .. 2.294 ns)
+             
+benchmarking query/HashMapS SP
+time                 512.4 ns   (511.8 ns .. 513.3 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 512.2 ns   (511.8 ns .. 512.7 ns)
+std dev              1.441 ns   (1.002 ns .. 2.092 ns)
+             
+benchmarking query/HashMapS S
+time                 29.45 μs   (29.42 μs .. 29.49 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 29.44 μs   (29.42 μs .. 29.47 μs)
+std dev              86.67 ns   (60.07 ns .. 121.8 ns)
+             
+benchmarking query/HashMapS PO
+time                 316.4 ns   (316.0 ns .. 317.1 ns)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 316.4 ns   (316.1 ns .. 316.9 ns)
+std dev              1.233 ns   (697.5 ps .. 1.929 ns)
+             
+benchmarking query/HashMapS SO
+time                 3.550 μs   (3.547 μs .. 3.555 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 3.550 μs   (3.546 μs .. 3.555 μs)
+std dev              14.67 ns   (10.32 ns .. 19.95 ns)
+             
+benchmarking query/HashMapS P
+time                 2.254 ms   (2.250 ms .. 2.260 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 2.257 ms   (2.254 ms .. 2.263 ms)
+std dev              13.39 μs   (6.859 μs .. 24.85 μs)
+             
+benchmarking query/HashMapS O
+time                 25.64 ms   (22.89 ms .. 31.26 ms)
+                     0.926 R²   (0.871 R² .. 1.000 R²)
+mean                 23.53 ms   (22.93 ms .. 25.90 ms)
+std dev              2.490 ms   (69.82 μs .. 4.849 ms)
+variance introduced by outliers: 46% (moderately inflated)
+             
+benchmarking query/MapSP SPO
+time                 9.379 ms   (9.371 ms .. 9.391 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.387 ms   (9.379 ms .. 9.406 ms)
+std dev              31.68 μs   (16.41 μs .. 57.08 μs)
+             
+benchmarking query/MapSP SP
+time                 8.342 μs   (8.336 μs .. 8.352 μs)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 8.354 μs   (8.339 μs .. 8.411 μs)
+std dev              93.27 ns   (15.91 ns .. 196.2 ns)
+             
+benchmarking query/MapSP S
+time                 9.035 ms   (9.021 ms .. 9.048 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.056 ms   (9.047 ms .. 9.082 ms)
+std dev              42.20 μs   (13.44 μs .. 77.82 μs)
+             
+benchmarking query/MapSP PO
+time                 8.639 ms   (8.620 ms .. 8.651 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 8.652 ms   (8.640 ms .. 8.692 ms)
+std dev              55.44 μs   (17.08 μs .. 108.4 μs)
+             
+benchmarking query/MapSP SO
+time                 9.221 ms   (9.197 ms .. 9.237 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.257 ms   (9.237 ms .. 9.345 ms)
+std dev              97.79 μs   (13.70 μs .. 215.4 μs)
+             
+benchmarking query/MapSP P
+time                 8.518 ms   (8.500 ms .. 8.542 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 8.508 ms   (8.504 ms .. 8.516 ms)
+std dev              15.37 μs   (9.232 μs .. 26.75 μs)
+             
+benchmarking query/MapSP O
+time                 14.58 ms   (14.54 ms .. 14.64 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.59 ms   (14.57 ms .. 14.66 ms)
+std dev              80.75 μs   (18.39 μs .. 165.1 μs)
+             
+benchmarking query/TriplesPatriciaTree SPO
+time                 173.6 ms   (169.4 ms .. 180.3 ms)
+                     0.999 R²   (0.994 R² .. 1.000 R²)
+mean                 176.0 ms   (173.3 ms .. 179.5 ms)
+std dev              4.441 ms   (2.846 ms .. 6.011 ms)
+variance introduced by outliers: 12% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree SP
+time                 206.8 ms   (198.2 ms .. 212.5 ms)
+                     0.999 R²   (0.995 R² .. 1.000 R²)
+mean                 206.0 ms   (203.0 ms .. 209.9 ms)
+std dev              4.254 ms   (2.450 ms .. 6.485 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree S
+time                 206.6 ms   (199.4 ms .. 210.3 ms)
+                     0.999 R²   (0.997 R² .. 1.000 R²)
+mean                 204.7 ms   (201.8 ms .. 206.6 ms)
+std dev              3.253 ms   (1.792 ms .. 5.004 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree PO
+time                 187.4 ms   (179.6 ms .. 194.9 ms)
+                     0.998 R²   (0.993 R² .. 1.000 R²)
+mean                 187.0 ms   (183.9 ms .. 191.3 ms)
+std dev              4.844 ms   (2.681 ms .. 6.770 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree SO
+time                 174.2 ms   (169.2 ms .. 179.6 ms)
+                     0.999 R²   (0.995 R² .. 1.000 R²)
+mean                 175.3 ms   (172.7 ms .. 178.6 ms)
+std dev              4.032 ms   (2.244 ms .. 5.766 ms)
+variance introduced by outliers: 12% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree P
+time                 178.7 ms   (170.2 ms .. 184.0 ms)
+                     0.999 R²   (0.994 R² .. 1.000 R²)
+mean                 179.2 ms   (176.5 ms .. 183.4 ms)
+std dev              4.484 ms   (1.867 ms .. 6.700 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking query/TriplesPatriciaTree O
+time                 188.3 ms   (181.0 ms .. 194.5 ms)
+                     0.999 R²   (0.995 R² .. 1.000 R²)
+mean                 187.7 ms   (184.5 ms .. 190.5 ms)
+std dev              3.937 ms   (2.324 ms .. 5.990 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking select/TriplesList SPO
+time                 13.08 ms   (13.06 ms .. 13.09 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 13.07 ms   (13.06 ms .. 13.08 ms)
+std dev              31.74 μs   (26.16 μs .. 46.65 μs)
+             
+benchmarking select/TriplesList SP
+time                 12.76 ms   (12.74 ms .. 12.79 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 12.75 ms   (12.74 ms .. 12.77 ms)
+std dev              31.14 μs   (23.05 μs .. 45.53 μs)
+             
+benchmarking select/TriplesList S
+time                 12.62 ms   (12.59 ms .. 12.66 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 12.61 ms   (12.59 ms .. 12.62 ms)
+std dev              39.13 μs   (25.37 μs .. 62.31 μs)
+             
+benchmarking select/TriplesList PO
+time                 11.08 ms   (11.06 ms .. 11.09 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.07 ms   (11.07 ms .. 11.08 ms)
+std dev              20.85 μs   (16.53 μs .. 25.72 μs)
+             
+benchmarking select/TriplesList SO
+time                 11.79 ms   (11.78 ms .. 11.81 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 11.80 ms   (11.79 ms .. 11.82 ms)
+std dev              34.92 μs   (16.40 μs .. 69.35 μs)
+             
+benchmarking select/TriplesList P
+time                 10.73 ms   (10.71 ms .. 10.75 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 10.73 ms   (10.72 ms .. 10.74 ms)
+std dev              29.81 μs   (22.89 μs .. 45.30 μs)
+             
+benchmarking select/TriplesList O
+time                 9.961 ms   (9.948 ms .. 9.973 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 9.964 ms   (9.955 ms .. 9.975 ms)
+std dev              26.19 μs   (20.60 μs .. 34.53 μs)
+             
+benchmarking select/HashMapS SPO
+time                 95.63 ms   (95.41 ms .. 95.80 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 95.55 ms   (95.43 ms .. 95.65 ms)
+std dev              164.1 μs   (114.6 μs .. 239.7 μs)
+             
+benchmarking select/HashMapS SP
+time                 263.7 ms   (262.3 ms .. 264.8 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 263.6 ms   (263.3 ms .. 263.8 ms)
+std dev              319.6 μs   (156.3 μs .. 439.3 μs)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/HashMapS S
+time                 275.1 ms   (274.5 ms .. 275.5 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 275.7 ms   (275.4 ms .. 276.3 ms)
+std dev              557.9 μs   (14.20 μs .. 676.3 μs)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/HashMapS PO
+time                 111.1 ms   (111.0 ms .. 111.3 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 111.3 ms   (111.2 ms .. 111.4 ms)
+std dev              122.3 μs   (45.77 μs .. 201.1 μs)
+variance introduced by outliers: 11% (moderately inflated)
+             
+benchmarking select/HashMapS SO
+time                 96.68 ms   (96.39 ms .. 97.07 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 97.01 ms   (96.95 ms .. 97.09 ms)
+std dev              104.4 μs   (75.33 μs .. 138.9 μs)
+             
+benchmarking select/HashMapS P
+time                 326.4 ms   (325.0 ms .. 328.1 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 326.1 ms   (325.3 ms .. 326.5 ms)
+std dev              604.2 μs   (213.0 μs .. 798.2 μs)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/HashMapS O
+time                 112.9 ms   (112.8 ms .. 113.1 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 113.0 ms   (112.9 ms .. 113.1 ms)
+std dev              119.3 μs   (91.11 μs .. 156.4 μs)
+variance introduced by outliers: 11% (moderately inflated)
+             
+benchmarking select/MapSP SPO
+time                 14.16 ms   (14.14 ms .. 14.18 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.17 ms   (14.15 ms .. 14.18 ms)
+std dev              32.98 μs   (25.98 μs .. 42.18 μs)
+             
+benchmarking select/MapSP SP
+time                 14.95 ms   (14.93 ms .. 14.97 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.96 ms   (14.94 ms .. 14.98 ms)
+std dev              46.18 μs   (31.81 μs .. 75.17 μs)
+             
+benchmarking select/MapSP S
+time                 12.82 ms   (12.80 ms .. 12.84 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 12.81 ms   (12.81 ms .. 12.82 ms)
+std dev              26.03 μs   (19.93 μs .. 34.72 μs)
+             
+benchmarking select/MapSP PO
+time                 14.27 ms   (14.24 ms .. 14.29 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.27 ms   (14.25 ms .. 14.29 ms)
+std dev              42.22 μs   (22.97 μs .. 74.91 μs)
+             
+benchmarking select/MapSP SO
+time                 13.42 ms   (13.40 ms .. 13.43 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 13.41 ms   (13.40 ms .. 13.42 ms)
+std dev              32.34 μs   (24.47 μs .. 47.61 μs)
+             
+benchmarking select/MapSP P
+time                 14.61 ms   (14.59 ms .. 14.64 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 14.60 ms   (14.58 ms .. 14.62 ms)
+std dev              47.40 μs   (33.76 μs .. 68.53 μs)
+             
+benchmarking select/MapSP O
+time                 13.23 ms   (13.21 ms .. 13.24 ms)
+                     1.000 R²   (1.000 R² .. 1.000 R²)
+mean                 13.23 ms   (13.21 ms .. 13.24 ms)
+std dev              41.93 μs   (29.65 μs .. 60.29 μs)
+             
+benchmarking select/TriplesPatriciaTree SPO
+time                 211.4 ms   (204.3 ms .. 220.9 ms)
+                     0.999 R²   (0.997 R² .. 1.000 R²)
+mean                 211.0 ms   (208.4 ms .. 213.6 ms)
+std dev              3.283 ms   (1.849 ms .. 3.810 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree SP
+time                 251.0 ms   (229.9 ms .. 273.4 ms)
+                     0.998 R²   (0.997 R² .. 1.000 R²)
+mean                 250.5 ms   (246.7 ms .. 253.6 ms)
+std dev              4.327 ms   (2.092 ms .. 6.038 ms)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree S
+time                 243.3 ms   (215.5 ms .. 271.1 ms)
+                     0.997 R²   (0.993 R² .. 1.000 R²)
+mean                 244.3 ms   (239.5 ms .. 250.6 ms)
+std dev              6.319 ms   (2.192 ms .. 8.588 ms)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree PO
+time                 210.3 ms   (201.2 ms .. 220.8 ms)
+                     0.998 R²   (0.995 R² .. 1.000 R²)
+mean                 210.2 ms   (206.8 ms .. 213.1 ms)
+std dev              4.099 ms   (3.179 ms .. 4.863 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree SO
+time                 209.4 ms   (199.4 ms .. 221.3 ms)
+                     0.998 R²   (0.995 R² .. 1.000 R²)
+mean                 209.6 ms   (206.2 ms .. 212.5 ms)
+std dev              4.191 ms   (2.707 ms .. 4.915 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree P
+time                 238.6 ms   (216.1 ms .. 260.1 ms)
+                     0.998 R²   (0.996 R² .. 1.000 R²)
+mean                 240.0 ms   (235.6 ms .. 244.5 ms)
+std dev              4.923 ms   (2.610 ms .. 6.940 ms)
+variance introduced by outliers: 16% (moderately inflated)
+             
+benchmarking select/TriplesPatriciaTree O
+time                 204.1 ms   (187.0 ms .. 214.2 ms)
+                     0.998 R²   (0.996 R² .. 1.000 R²)
+mean                 205.0 ms   (201.7 ms .. 208.3 ms)
+std dev              4.165 ms   (3.268 ms .. 5.007 ms)
+variance introduced by outliers: 14% (moderately inflated)
+             
+Benchmark rdf4h-bench: FINISH
+Completed all 2 actions.
