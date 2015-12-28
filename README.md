@@ -25,8 +25,8 @@ RDF instance benchmarks
 
 The following benchmark results were obtained running
 bench/MainCriterion.hs at commit
-3d86295b085ecfb9a944dc7b40bb668df38c2777 on 28 December 2015. The
-complete output from criterion are in
+https://github.com/robstewart57/rdf4h/commit/3d86295b085ecfb9a944dc7b40bb668df38c2777
+on 28 December 2015. The complete output from criterion are in
 `benchmark-results/criterion-results-28.12.2015.txt`.
 
 Mapping the `[Triple]` stream from the Turtle parser into each RDF
