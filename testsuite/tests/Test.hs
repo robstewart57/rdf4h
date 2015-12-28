@@ -3,7 +3,7 @@ module Main where
 import Test.Framework (defaultMain)
 
 import qualified Data.RDF.Graph.TriplesList_Test as TriplesList
-import qualified Data.RDF.Graph.IndexedS_Test as IndexedS
+import qualified Data.RDF.Graph.HashMapS_Test as HashMapS
 import qualified Data.RDF.Graph.TriplesPatriciaTree_Test as TriplesPatriciaTree
 import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
 import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleParser
@@ -20,11 +20,11 @@ main = defaultMain (
                          TriplesList.empty'
                          TriplesList.mkRdf'
 
-                   ++ graphTests "IndexedS"
-                         IndexedS.triplesOf'
-                         IndexedS.uniqTriplesOf'
-                         IndexedS.empty'
-                         IndexedS.mkRdf'
+                   ++ graphTests "HashMapS"
+                         HashMapS.triplesOf'
+                         HashMapS.uniqTriplesOf'
+                         HashMapS.empty'
+                         HashMapS.mkRdf'
 
                    ++ graphTests "TriplesPatriciaTree"
                          TriplesPatriciaTree.triplesOf'

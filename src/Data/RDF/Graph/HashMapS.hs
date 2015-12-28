@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 -- |A simple graph implementation backed by 'Data.HashMap'.
 
-module Data.RDF.Graph.IndexedS (IndexedS) where
+module Data.RDF.Graph.HashMapS (HashMapS) where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)
@@ -63,10 +63,10 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype IndexedS = IndexedS (TMaps, Maybe BaseUrl, PrefixMappings)
+newtype HashMapS = HashMapS (TMaps, Maybe BaseUrl, PrefixMappings)
                  deriving (NFData)
 
-instance RDF IndexedS where
+instance RDF HashMapS where
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -77,7 +77,7 @@ instance RDF IndexedS where
   select            = select'
   query             = query'
 
-instance Show IndexedS where
+instance Show HashMapS where
   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 
 -- some convenience type alias for readability
@@ -92,22 +92,22 @@ type TMap   = HashMap Node AdjacencyMap
 type TMaps  = (TMap, TMap)
 
 
-baseUrl' :: IndexedS -> Maybe BaseUrl
-baseUrl' (IndexedS (_, baseURL, _)) = baseURL
+baseUrl' :: HashMapS -> Maybe BaseUrl
+baseUrl' (HashMapS (_, baseURL, _)) = baseURL
 
-prefixMappings' :: IndexedS -> PrefixMappings
-prefixMappings' (IndexedS (_, _, pms)) = pms
+prefixMappings' :: HashMapS -> PrefixMappings
+prefixMappings' (HashMapS (_, _, pms)) = pms
 
-addPrefixMappings' :: IndexedS -> PrefixMappings -> Bool -> IndexedS
-addPrefixMappings' (IndexedS (ts, baseURL, pms)) pms' replace = 
+addPrefixMappings' :: HashMapS -> PrefixMappings -> Bool -> HashMapS
+addPrefixMappings' (HashMapS (ts, baseURL, pms)) pms' replace = 
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  IndexedS (ts, baseURL, merge pms pms')
+  in  HashMapS (ts, baseURL, merge pms pms')
 
-empty' :: IndexedS
-empty' = IndexedS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
+empty' :: HashMapS
+empty' = HashMapS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> IndexedS
-mkRdf' ts baseURL pms = IndexedS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> HashMapS
+mkRdf' ts baseURL pms = HashMapS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
@@ -136,12 +136,12 @@ mergeT'' m s p o =
     get = HashMap.lookupDefault Set.empty
 
 -- 3 following functions support triplesOf
-triplesOf' :: IndexedS -> Triples
-triplesOf' (IndexedS ((spoMap, _), _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' :: HashMapS -> Triples
+triplesOf' (HashMapS ((spoMap, _), _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = HashMap.toList spoMap
 
 -- naive implementation for now
-uniqTriplesOf' :: IndexedS -> Triples
+uniqTriplesOf' :: HashMapS -> Triples
 uniqTriplesOf' = nub . expandTriples
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
@@ -152,8 +152,8 @@ tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
 tripsForSubjPred s p adjs = map (Triple s p) (Set.toList adjs)
 
 -- supports select
-select' :: IndexedS -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (IndexedS ((spoMap,_),_,_)) subjFn predFn objFn =
+select' :: HashMapS -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' (HashMapS ((spoMap,_),_,_)) subjFn predFn objFn =
   map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> TMap -> HashSet (Node, Node, Node)
@@ -181,8 +181,8 @@ sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
 sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
-query' :: IndexedS -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
-query' (IndexedS (m,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
+query' :: HashMapS -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
+query' (HashMapS (m,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
   where f (s, p, o) = Triple s p o
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> TMaps -> HashSet (Node, Node, Node)
