@@ -72,6 +72,8 @@ selectBench label gr =
    , bench (label ++ " SP")  $ nf selectGr (subjSelect,predSelect,selectNothing,gr)
    , bench (label ++ " S")   $ nf selectGr (subjSelect,selectNothing,selectNothing,gr)
    , bench (label ++ " PO")  $ nf selectGr (selectNothing,predSelect,objSelect,gr)
+   , bench (label ++ " SO")  $ nf selectGr (subjSelect,selectNothing,objSelect,gr)
+   , bench (label ++ " P")   $ nf selectGr (selectNothing,predSelect,selectNothing,gr)
    , bench (label ++ " O")   $ nf selectGr (selectNothing,selectNothing,objSelect,gr)
    ]
 
@@ -93,5 +95,7 @@ queryBench label gr =
    , bench (label ++ " SP")  $ nf queryGr (subjQuery,predQuery,queryNothing,gr)
    , bench (label ++ " S")   $ nf queryGr (subjQuery,queryNothing,queryNothing,gr)
    , bench (label ++ " PO")  $ nf queryGr (queryNothing,predQuery,objQuery,gr)
+   , bench (label ++ " SO")  $ nf queryGr (subjQuery,queryNothing,objQuery,gr)
+   , bench (label ++ " P")   $ nf queryGr (queryNothing,predQuery,queryNothing,gr)
    , bench (label ++ " O")   $ nf queryGr (queryNothing,queryNothing,objQuery,gr)
    ]
