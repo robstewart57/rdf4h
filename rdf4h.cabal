@@ -37,6 +37,7 @@ library
                  , Data.RDF.Types
                  , Data.RDF.Query
                  , Data.RDF.Graph.HashMapS
+                 , Data.RDF.Graph.MapSP
                  , Data.RDF.Graph.TriplesPatriciaTree
                  , Data.RDF.Graph.TriplesList
                  , Text.RDF.RDF4H.TurtleParser
@@ -98,6 +99,7 @@ test-suite test-rdf4h
   main-is:       Test.hs
   other-modules: Data.RDF.GraphTestUtils
                  Data.RDF.Graph.HashMapS_Test
+                 Data.RDF.Graph.MapSP_Test
                  Data.RDF.Graph.TriplesPatriciaTree_Test
                  Data.RDF.Graph.TriplesList_Test
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest

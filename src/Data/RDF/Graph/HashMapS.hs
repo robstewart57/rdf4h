@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
--- |A simple graph implementation backed by 'Data.HashMap'.
+-- |A graph implementation mapping hashed S to a mapping of
+--  hashed P to hashed O, backed by 'Data.HashMap'.
 
 module Data.RDF.Graph.HashMapS (HashMapS) where
 
@@ -181,7 +182,7 @@ sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
 sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
-query' :: HashMapS -> Maybe Node -> Maybe Predicate -> Maybe Node -> Triples
+query' :: HashMapS -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
 query' (HashMapS (m,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
   where f (s, p, o) = Triple s p o
 
