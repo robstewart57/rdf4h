@@ -27,12 +27,14 @@ main :: IO ()
 main = defaultMain [
    env (readFile "bills.102.ttl") $ \ ~(ttl_countries) ->
    bgroup "parse" [
-     bench "TriplesGraph" $
-       nf (parseTurtle  :: String -> TriplesGraph) ttl_countries
-   , bench "MGraph" $
-       nf (parseTurtle  :: String -> MGraph) ttl_countries
-   , bench "PatriciaTreeGraph" $
-       nf (parseTurtle  :: String -> PatriciaTreeGraph) ttl_countries
+     bench "HashMapS" $
+       nf (parseTurtle  :: String -> HashMapS) ttl_countries
+   , bench "MapSP" $
+       nf (parseTurtle  :: String -> MapSP) ttl_countries
+   , bench "TriplesList" $
+       nf (parseTurtle  :: String -> TriplesList) ttl_countries
+   , bench "ListPatriciaTree" $
+       nf (parseTurtle  :: String -> TriplesPatriciaTree) ttl_countries
    ]
 
    ,
@@ -40,24 +42,28 @@ main = defaultMain [
            let (Right rdf1) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: PatriciaTreeGraph,rdf2 :: TriplesGraph,rdf3 :: MGraph) )
-     $ \ ~(patriciaTreeCountries,triplesGraph,mGraph) ->
+           let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP) )
+     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP) ->
    bgroup "query"
-     (queryBench "TriplesGraph" triplesGraph
-     ++ queryBench "MGraph" mGraph
-     ++ queryBench "PatriciaTreeGraph" patriciaTreeCountries)
+     (queryBench "TriplesList" triplesList
+     ++ queryBench "HashMapS" hashMapS
+     ++ queryBench "MapSP" mapSP
+     ++ queryBench "TriplesPatriciaTree" triplesPatriciaTree)
 
    ,
    env (do ttl_countries <- readFile "bills.102.ttl"
            let (Right rdf1) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: PatriciaTreeGraph,rdf2 :: TriplesGraph,rdf3 :: MGraph) )
-     $ \ ~(patriciaTreeCountries,triplesGraph,mGraph) ->
+           let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP) )
+     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP) ->
    bgroup "select"
-     (selectBench "TriplesGraph" triplesGraph
-     ++ selectBench "MGraph" mGraph
-     ++ selectBench "PatriciaTreeGraph" patriciaTreeCountries)
+     (selectBench "TriplesList" triplesList
+     ++ selectBench "HashMapS" hashMapS
+     ++ selectBench "MapSP" mapSP
+     ++ selectBench "TriplesPatriciaTree" triplesPatriciaTree)
  ]
 
 selectBench :: forall rdf. RDF rdf => String -> rdf -> [Benchmark]

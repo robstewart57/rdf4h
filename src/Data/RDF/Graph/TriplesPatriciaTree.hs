@@ -6,6 +6,7 @@ import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types
 
+import Control.DeepSeq (NFData)
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.PatriciaTree as PT
 import qualified Data.Graph.Inductive.Query.DFS as DFS
@@ -15,7 +16,7 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 newtype TriplesPatriciaTree = TriplesPatriciaTree (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
-                            deriving (Show)
+                            deriving (Show,NFData)
 
 instance RDF TriplesPatriciaTree where
   baseUrl           = baseUrl'
