@@ -67,7 +67,7 @@ data LValue =
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
   | TypedL !T.Text  !T.Text
-    deriving Generic
+    deriving (Generic,Show)
 
 instance Binary LValue
 
@@ -118,7 +118,7 @@ data Node =
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
   | LNode !LValue
-    deriving Generic
+    deriving (Generic,Show)
 
 instance Binary Node
 
@@ -214,7 +214,7 @@ lnode = LNode
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple !Node !Node !Node
-            deriving (Generic)
+            deriving (Generic,Show)
 
 instance Binary Triple
 
@@ -523,23 +523,6 @@ compareLValue (TypedL l1 t1) (TypedL l2 t2) =
     LT -> LT
 
 instance Hashable LValue
-
--- String representations of the various data types; generally NTriples-like.
-
-instance Show Triple where
-  show (Triple s p o) =
-    printf "Triple(%s,%s,%s)" (show s) (show p) (show o)
-
-instance Show Node where
-  show (UNode uri)                   = "UNode(" ++ show uri ++ ")"
-  show (BNode  i)                    = "BNode(" ++ show i ++ ")"
-  show (BNodeGen genId)              = "BNodeGen(" ++ show genId ++ ")"
-  show (LNode lvalue)                = "LNode(" ++ show lvalue ++ ")"
-
-instance Show LValue where
-  show (PlainL lit)               = "PlainL(" ++ T.unpack lit ++ ")"
-  show (PlainLL lit lang)         = "PlainLL(" ++ T.unpack lit ++ ", " ++ T.unpack lang ++ ")"
-  show (TypedL lit dtype)         = "TypedL(" ++ T.unpack lit ++ "," ++ show dtype ++ ")"
 
 ------------------------
 -- Prefix mappings
