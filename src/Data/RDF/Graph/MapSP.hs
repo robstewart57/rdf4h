@@ -74,9 +74,10 @@ empty' :: MapSP
 empty' = MapSP (Map.empty, Nothing, PrefixMappings Map.empty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MapSP
-mkRdf' ts baseURL pms = MapSP (foldr insertNewObj Map.empty ts, baseURL, pms)
-  where
-    insertNewObj (Triple s p o) = Map.insertWith (++) (s,p) [o]
+mkRdf' triples baseURL pms = MapSP (tsMap, baseURL, pms)
+    where
+      tsMap = sortAndGroup triples
+      sortAndGroup xs = Map.fromListWith (++) [((s,p), [o]) | Triple s p o <- xs]
 
 triplesOf' :: MapSP -> Triples
 triplesOf' (MapSP (tsMap,_,_)) = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . Map.toList) tsMap
