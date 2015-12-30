@@ -4,6 +4,7 @@ import Test.Framework (defaultMain)
 
 import qualified Data.RDF.Graph.TriplesList_Test as TriplesList
 import qualified Data.RDF.Graph.HashMapS_Test as HashMapS
+import qualified Data.RDF.Graph.HashMapSP_Test as HashMapSP
 import qualified Data.RDF.Graph.MapSP_Test as MapSP
 import qualified Data.RDF.Graph.TriplesPatriciaTree_Test as TriplesPatriciaTree
 import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
@@ -26,6 +27,12 @@ main = defaultMain (
                          HashMapS.uniqTriplesOf'
                          HashMapS.empty'
                          HashMapS.mkRdf'
+
+                   ++ graphTests "HashMapSP"
+                         HashMapSP.triplesOf'
+                         HashMapSP.uniqTriplesOf'
+                         HashMapSP.empty'
+                         HashMapSP.mkRdf'
 
                    ++ graphTests "MapSP"
                          MapSP.triplesOf'

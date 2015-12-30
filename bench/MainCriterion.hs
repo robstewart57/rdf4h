@@ -29,6 +29,8 @@ main = defaultMain [
    bgroup "parse" [
      bench "HashMapS" $
        nf (parseTurtle  :: String -> HashMapS) ttl_countries
+   , bench "HashMapSP" $
+       nf (parseTurtle  :: String -> HashMapSP) ttl_countries
    , bench "MapSP" $
        nf (parseTurtle  :: String -> MapSP) ttl_countries
    , bench "TriplesList" $
@@ -43,12 +45,14 @@ main = defaultMain [
            let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP) )
-     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP) ->
+           let (Right rdf5) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP,rdf5::HashMapSP) )
+     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP,hashMapSP) ->
    bgroup "query"
      (queryBench "TriplesList" triplesList
      ++ queryBench "HashMapS" hashMapS
      ++ queryBench "MapSP" mapSP
+     ++ queryBench "HashMapSP" hashMapSP
      ++ queryBench "TriplesPatriciaTree" triplesPatriciaTree)
 
    ,
@@ -57,12 +61,14 @@ main = defaultMain [
            let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
            let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP) )
-     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP) ->
+           let (Right rdf5) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP,rdf5 :: HashMapSP) )
+     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP,hashMapSP) ->
    bgroup "select"
      (selectBench "TriplesList" triplesList
      ++ selectBench "HashMapS" hashMapS
      ++ selectBench "MapSP" mapSP
+     ++ selectBench "HashMapSP" hashMapSP
      ++ selectBench "TriplesPatriciaTree" triplesPatriciaTree)
  ]
 
