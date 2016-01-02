@@ -5,4 +5,3 @@ extra-deps: []
 flags:
   rdf4h:
     network-uri: true
-    small_base: true

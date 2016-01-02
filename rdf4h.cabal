@@ -23,10 +23,6 @@ tested-with:     GHC==7.6.3, GHC==7.8.3, GHC==7.10.2
 extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
 
-flag small_base
-  description: Choose the new smaller, split-up base package.
-  default:     False
-
 flag network-uri
    description: Get Network.URI from the network-uri package
    default: True
@@ -46,11 +42,11 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
-  if flag(small_base)
-    build-depends: base >= 3, bytestring, directory, containers
-  else
-    build-depends: base < 3
-  build-depends:   parsec >= 3
+  build-depends:   base >= 3
+                 , bytestring
+                 , directory
+                 , containers
+                 , parsec >= 3
                  , fgl >= 5.5.2.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
@@ -76,11 +72,8 @@ library
 
 executable rdf4h
   main-is:         src/Rdf4hParseMain.hs
-  if flag(small_base)
-    build-depends: base >= 3, bytestring
-  else
-    build-depends: base >= 4 && < 6
-  build-depends:   rdf4h
+  build-depends:   base >= 4 && < 6
+                 , rdf4h
                  , containers
                  , text >= 1.2.1.0
 
