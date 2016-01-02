@@ -40,30 +40,34 @@ nt_ntripleDoc = manyTill nt_line eof
 nt_line :: GenParser () (Maybe Triple)
 nt_line       = 
     skipMany nt_space >>
-     (nt_comment <|> nt_triple <|> nt_empty) >>=
-     \res -> nt_eoln >> return res
+     ((nt_comment >>= \res -> return res)
+      <|> (nt_triple >>= \res -> nt_eoln >> return res)
+      <|> (nt_empty >>= \res -> nt_eoln >> return res))
+     >>= \res -> return res
 
--- A comment consists of an initial # character, followed by any number of
--- characters except cr or lf. The spec is redundant in specifying that
--- comment is hash followed by "character - (cr | lf)", since character
--- is already defined as the range #x0020-#x007E, so cr #x000D and
--- lf #x000A are both already excluded. This returns Nothing as we are
--- ignoring comments for now.
 nt_comment :: GenParser () (Maybe Triple)
-nt_comment   = char '#' >> skipMany nt_character >> return Nothing
+nt_comment   = char '#' >> manyTill anyChar nt_eoln >> return Nothing
 
 -- A triple consists of whitespace-delimited subject, predicate, and object,
 -- followed by optional whitespace and a period, and possibly more
 -- whitespace.
+--
+-- NTriples W3C test "minimal_whitespace" proposes no space:
+--
+-- "tests absense of whitespace between subject, predicate, object and
+-- end-of-statement"
+--
+-- `optional` lets this nt_triple parser succeed even if there is not
+-- a space or tab character between resources or the object and the '.'.
 nt_triple :: GenParser () (Maybe Triple)
 nt_triple    =
   do
     subj <- nt_subject
-    skipMany1 nt_space
+    optional (skipMany1 nt_space)
     pred <- nt_predicate
-    skipMany1 nt_space
+    optional (skipMany1 nt_space)
     obj <- nt_object
-    skipMany nt_space
+    optional (skipMany1 nt_space)
     void (char '.')
     void (many nt_space)
     return $ Just (Triple subj pred obj)
@@ -134,10 +138,6 @@ nt_name =
 
 isLetterOrDigit :: Char -> Bool
 isLetterOrDigit c = isLetter c || isDigit c
-
--- An nt_character is any character except a double quote character.
-nt_character :: GenParser () Char
-nt_character   =   satisfy is_nonquote_char
 
 -- A character is any Unicode value from ASCII space to decimal 126 (tilde).
 is_character :: Char -> Bool
