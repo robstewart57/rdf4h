@@ -100,10 +100,13 @@ data TestEntry =
     deriving (Show)
 
 -- TODO: Perhaps these should be pulled from the manifest graph
+rdfType,rdfsComment,rdftApproval,rdfsApproval,mfName,mfManifest,mfAction,
+  mfResult,mfEntries,mfEntailmentRegime,mfRecognizedDatatypes,mfUnrecognizedDatatypes :: Node
+
 rdfType = unode $ mkUri rdf "type"
 rdfsComment = unode $ mkUri rdfs "comment"
-rdftTestTurtleEval = unode "http://www.w3.org/ns/rdftest#TestTurtleEval"
-rdftTestTurtleNegativeEval = unode "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval"
+-- rdftTestTurtleEval = unode "http://www.w3.org/ns/rdftest#TestTurtleEval"
+-- rdftTestTurtleNegativeEval = unode "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval"
 rdftApproval = unode "http://www.w3.org/ns/rdftest#approval"
 rdfsApproval = unode $ mkUri rdfs "approval" -- FIXME: incorrect namespace "rdfs:approval" in rdf-mt/manifest.ttl, must be "rdft:approval"
 mfName = unode "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#name"

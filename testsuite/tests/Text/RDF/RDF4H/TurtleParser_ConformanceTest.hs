@@ -2,7 +2,6 @@ module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 
 -- Testing imports
 import Test.Tasty
-import Test.Tasty.Providers
 import Test.Tasty.HUnit as TU
 
 -- Import common libraries to facilitate tests

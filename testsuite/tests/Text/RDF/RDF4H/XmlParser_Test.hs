@@ -4,7 +4,6 @@ module Text.RDF.RDF4H.XmlParser_Test where
 
 -- Testing imports
 import Test.Tasty
-import Test.Tasty.Providers
 import Test.Tasty.HUnit
 
 -- Import common libraries to facilitate tests

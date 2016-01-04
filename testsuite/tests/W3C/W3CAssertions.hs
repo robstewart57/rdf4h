@@ -6,9 +6,13 @@ import qualified Test.HUnit as TU
 import           Test.Tasty
 import           W3C.Manifest
 
+runManifestTests :: (TestEntry -> TestTree) -> Manifest -> TestTree
 runManifestTests mfEntryToTest manifest = 
     testGroup (T.unpack $ description manifest) $ map mfEntryToTest $ entries manifest
-              
+
+assertIsIsomorphic :: forall rdf1 rdf2.
+                      (RDF rdf1, RDF rdf2) =>
+                      IO rdf1 -> IO rdf2 -> IO ()
 assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
@@ -30,4 +34,5 @@ isParsed (Right _) = True
 
 nodeURI :: Node -> String
 nodeURI (UNode u) = T.unpack u
+nodeURI node = error $ "W3CAssertions: unexpected node in `nodeURI`: " ++ show node
 

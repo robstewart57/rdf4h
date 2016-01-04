@@ -1,8 +1,5 @@
 module Data.RDF.GraphTestUtils where
 
-import Control.Applicative ((<$>))
-import Data.ByteString (pack)
-import qualified Data.ByteString.Char8 as C
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
@@ -16,14 +13,9 @@ import Control.Monad
 import System.Directory (removeFile)
 import System.IO.Unsafe(unsafePerformIO)
 import System.IO
-import System.IO.Temp
 
-import Test.Tasty -- (Test,TestName,testGroup)
-import Test.Tasty.Providers
+import Test.Tasty
 import Test.Tasty.QuickCheck
-
--- import Test.Framework (Test,TestName,testGroup)
--- import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck.Monadic (assert, monadicIO,run)
 
 ----------------------------------------------------

@@ -2,10 +2,8 @@ module W3C.NTripleTest where
 
 import Data.Maybe (fromJust)
 import Test.Tasty
-import Test.Tasty.Providers
 import qualified Test.Tasty.HUnit as TU
 import qualified Data.Text as T
-import System.Directory
 
 import W3C.Manifest
 import W3C.W3CAssertions

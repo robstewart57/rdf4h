@@ -2,10 +2,8 @@ module W3C.RdfXmlTest where
 
 import Data.Maybe (fromJust)
 import Test.Tasty
-import Test.Tasty.Providers
 import qualified Test.Tasty.HUnit as TU
 import qualified Data.Text as T
-import System.Directory
 
 import W3C.Manifest
 import W3C.W3CAssertions
@@ -37,6 +35,7 @@ mfEntryToTest (TestXMLNegativeSyntax nm _ _ act') =
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
+mfBaseURIXml :: BaseUrl
 mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
 
 testParser :: XmlParser
