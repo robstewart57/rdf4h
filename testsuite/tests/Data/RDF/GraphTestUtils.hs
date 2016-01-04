@@ -3,7 +3,6 @@ module Data.RDF.GraphTestUtils where
 import Control.Applicative ((<$>))
 import Data.ByteString (pack)
 import qualified Data.ByteString.Char8 as C
-import Data.Knob
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
@@ -14,8 +13,10 @@ import Data.List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
+import System.Directory (removeFile)
 import System.IO.Unsafe(unsafePerformIO)
 import System.IO
+import System.IO.Temp
 
 import Test.Tasty -- (Test,TestName,testGroup)
 import Test.Tasty.Providers
@@ -404,11 +405,12 @@ arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
 p_reverseRdfTest :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Property
 p_reverseRdfTest _mkRdf = monadicIO $ do
     fileContents <- Test.QuickCheck.Monadic.run $ do
-      knob <- newKnob (pack [])
-      h <- newFileHandle knob "test.rdf" WriteMode
-      hWriteRdf NTriplesSerializer h rdfGraph
-      hClose h
-      C.unpack <$> Data.Knob.getContents knob
+      (pathFile,hFile) <- openTempFile "." "tmp."
+      hWriteRdf NTriplesSerializer hFile rdfGraph
+      hClose hFile
+      contents <- readFile pathFile
+      removeFile pathFile
+      return contents
     let expected = "<file:///this/is/not/a/palindrome> <file:///this/is/not/a/palindrome> \"literal string\" .\n"
     assert $ expected == fileContents
 

@@ -107,9 +107,6 @@ test-suite test-rdf4h
   extensions:    RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
   build-depends: base >= 4 && < 6
                , rdf4h
-               , test-framework >= 0.2.3
-               , test-framework-quickcheck2
-               , test-framework-hunit >= 0.2.7
                , tasty
                , tasty-hunit
                , tasty-quickcheck
@@ -118,9 +115,9 @@ test-suite test-rdf4h
                , bytestring
                , containers
                , text >= 1.2.1.0
-               , knob
                , directory
                , safe
+               , temporary
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
