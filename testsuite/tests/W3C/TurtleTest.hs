@@ -1,14 +1,16 @@
 module W3C.TurtleTest where
 
-import Test.Framework.Providers.API
-import Test.Framework.Providers.HUnit
-import qualified Test.HUnit as TU
+import Test.Tasty
+import Test.Tasty.Providers
+import qualified Test.Tasty.HUnit as TU
+
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 import Network.URI (parseURI,uriPath)
 import System.Directory (getCurrentDirectory)
 
 import W3C.Manifest
+import W3C.W3CAssertions
 
 import Data.RDF.Types
 import Data.RDF.Query
@@ -22,52 +24,29 @@ suiteFilesDir = "data/w3c/turtle/TurtleTests/"
 mfPath = T.concat [suiteFilesDir, "manifest.ttl"]
 mfBaseURI = BaseUrl "http://www.w3.org/2013/TurtleTests/"
 
-tests :: [Test]
-tests = [ buildTest allTurtleTests ]
+tests :: Manifest -> TestTree
+tests = runManifestTests mfEntryToTest
 
-allTurtleTests :: IO Test
-allTurtleTests = do
-  dir <- getCurrentDirectory
-  let fileSchemeURI = T.pack ("file://" ++ dir ++ "/" ++ T.unpack suiteFilesDir)
-  m <- loadManifest mfPath fileSchemeURI
-  return $ testGroup (T.unpack $ description m) $ map (buildTest . mfEntryToTest) $ entries m
-
-
--- Functions to map manifest test entries to unit tests.
--- They are defined here to avoid cluttering W3C.Manifest
--- with functions that may not be needed to those who
--- just want to parse Manifest files.
--- TODO: They should probably be moved to W3C.Manifest after all.
-mfEntryToTest :: TestEntry -> IO Test
-mfEntryToTest (TestTurtleEval nm _ _ act' res') = do
+mfEntryToTest :: TestEntry -> TestTree
+mfEntryToTest (TestTurtleEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  let res = (UNode . fromJust . fileSchemeToFilePath) res'
-  parsedRDF <- parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesList
-  expectedRDF <- parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesList
-  return $ testCase (T.unpack nm) $ TU.assert $ isIsomorphic parsedRDF expectedRDF
-mfEntryToTest (TestTurtleNegativeEval nm _ _ act') = do
+      res = (UNode . fromJust . fileSchemeToFilePath) res'
+      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesList
+      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesList
+  in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
+mfEntryToTest (TestTurtleNegativeEval nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
-  return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
-mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act') = do
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+  in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
+mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
-  return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
-mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act') = do
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+  in TU.testCase (T.unpack nm) $ assertIsParsed rdf
+mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
-  return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+  in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
-
-isParsed :: Either a b -> Bool
-isParsed (Left _) = False
-isParsed (Right _) = True
-
-isNotParsed :: Either a b -> Bool
-isNotParsed = not . isParsed
-
-nodeURI :: Node -> String
-nodeURI = \(UNode u) -> T.unpack u
 
 testParser :: TurtleParser
 testParser = TurtleParser (Just mfBaseURI) Nothing

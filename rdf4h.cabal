@@ -102,6 +102,7 @@ test-suite test-rdf4h
                  W3C.Manifest
                  W3C.NTripleTest
                  W3C.RdfXmlTest
+                 W3C.W3CAssertions
   ghc-options:   -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fno-warn-name-shadowing -funbox-strict-fields
   extensions:    RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
   build-depends: base >= 4 && < 6
@@ -109,6 +110,9 @@ test-suite test-rdf4h
                , test-framework >= 0.2.3
                , test-framework-quickcheck2
                , test-framework-hunit >= 0.2.7
+               , tasty
+               , tasty-hunit
+               , tasty-quickcheck
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
                , bytestring

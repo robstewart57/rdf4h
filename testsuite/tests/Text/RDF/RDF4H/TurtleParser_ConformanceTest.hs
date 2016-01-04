@@ -1,9 +1,9 @@
 module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
 
 -- Testing imports
-import Test.Framework.Providers.API
-import Test.Framework.Providers.HUnit
-import qualified Test.HUnit as TU
+import Test.Tasty
+import Test.Tasty.Providers
+import Test.Tasty.HUnit as TU
 
 -- Import common libraries to facilitate tests
 import Control.Monad (liftM)
@@ -16,8 +16,8 @@ import qualified Data.Text.IO as TIO
 import Text.Printf
 import Text.RDF.RDF4H.TurtleParser
 
-tests :: [Test]
-tests = [ testGroup "TurtleParser" allCTests ]
+tests :: TestTree
+tests = testGroup "TurtleParser" allCTests
 
 -- A list of other tests to run, each entry of which is (directory, fname_without_ext).
 otherTestFiles :: [(String, String)]
@@ -41,40 +41,38 @@ mtestBaseUri = Just $ BaseUrl $ T.pack testBaseUri
 fpath :: String -> Int -> String -> String
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 
-allCTests :: [Test]
+allCTests :: [TestTree]
 allCTests = ts1 ++ ts2 ++ ts3
    where
-        ts1 = map (buildTest . checkGoodConformanceTest) [0..30]
-        ts2 = map (buildTest . checkBadConformanceTest) [0..14]
-        ts3 = map (buildTest . uncurry checkGoodOtherTest) otherTestFiles
+        ts1 = map (checkGoodConformanceTest) [0..30]
+        ts2 = map (checkBadConformanceTest) [0..14]
+        ts3 = map (uncurry checkGoodOtherTest) otherTestFiles
 
-checkGoodConformanceTest :: Int -> IO Test
+checkGoodConformanceTest :: Int -> TestTree
 checkGoodConformanceTest i =
-  do
-    expGr <- loadExpectedGraph "test" i
-    inGr  <- loadInputGraph    "test" i
-    doGoodConformanceTest expGr inGr (printf "test %d" i :: String)
+  let expGr = loadExpectedGraph "test" i
+      inGr  = loadInputGraph    "test" i
+  in doGoodConformanceTest expGr inGr (printf "test %d" i :: String)
 
-checkGoodOtherTest :: String -> String -> IO Test
+checkGoodOtherTest :: String -> String -> TestTree
 checkGoodOtherTest dir fname =
-  do 
-    expGr <- loadExpectedGraph1 (printf "%s/%s.out" dir fname :: String)
-    inGr  <- loadInputGraph1 dir fname
-    doGoodConformanceTest expGr inGr $ printf "test using file \"%s\"" fname
+    let expGr = loadExpectedGraph1 (printf "%s/%s.out" dir fname :: String)
+        inGr  = loadInputGraph1 dir fname
+    in doGoodConformanceTest expGr inGr $ printf "test using file \"%s\"" fname
 
-doGoodConformanceTest   :: Either ParseFailure TriplesList -> 
-                           Either ParseFailure TriplesList -> 
-                           String -> IO Test
-doGoodConformanceTest expGr inGr testname = do
+doGoodConformanceTest   :: IO (Either ParseFailure TriplesList) -> 
+                           IO (Either ParseFailure TriplesList) -> 
+                           String -> TestTree
+doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    return $ testGroup (printf "Conformance %s" testname) $ map (uncurry testCase) [("Loading expected graph data", t1), ("Loading input graph data", t2), ("Comparing graphs", t3)]
+    in testGroup (printf "Conformance %s" testname) $ map (uncurry testCase) [("Loading expected graph data", t1), ("Loading input graph data", t2), ("Comparing graphs", t3)]
 
-checkBadConformanceTest :: Int -> IO Test
-checkBadConformanceTest i = do
-  let t = loadInputGraph "bad" i >>= assertLoadFailure (show i)
-  return $ testCase (printf "Loading test %d (negative)" i) t
+checkBadConformanceTest :: Int -> TestTree
+checkBadConformanceTest i =
+  let t = assertLoadFailure (show i) (loadInputGraph "bad" i)
+  in testCase (printf "Loading test %d (negative)" i) t
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
@@ -135,18 +133,26 @@ loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesList)
 loadExpectedGraph1 fname =
   liftM (parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname))) (TIO.readFile fname)
 
-assertLoadSuccess, assertLoadFailure :: String -> Either ParseFailure TriplesList -> TU.Assertion
-assertLoadSuccess idStr (Left (ParseFailure err)) = TU.assertFailure $ idStr  ++ err
-assertLoadSuccess _     (Right _) = return ()
-assertLoadFailure _     (Left _)  = return ()
-assertLoadFailure idStr _         = TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
+assertLoadSuccess, assertLoadFailure :: String -> IO (Either ParseFailure TriplesList) -> TU.Assertion
+assertLoadSuccess idStr exprGr = do
+  g <- exprGr
+  case g of
+    Left (ParseFailure err) -> TU.assertFailure $ idStr  ++ err
+    Right _ -> return ()
 
-assertEquivalent :: RDF rdf => String -> Either ParseFailure rdf -> Either ParseFailure rdf -> TU.Assertion
-assertEquivalent testname r1 r2 =
-  case equiv of
+assertLoadFailure idStr exprGr = do
+  g <- exprGr
+  case g of
+    Left _ -> return ()
+    Right _ -> TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
+
+assertEquivalent :: RDF rdf => String -> IO (Either ParseFailure rdf) -> IO (Either ParseFailure rdf) -> TU.Assertion
+assertEquivalent testname r1 r2 = do
+  gr1 <- r1
+  gr2 <- r2
+  case equivalent gr1 gr2 of
     Nothing    -> TU.assert True
     (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
-  where equiv = equivalent r1 r2
 
 mkDocUrl :: String -> String -> Int -> Maybe T.Text
 mkDocUrl baseDocUrl fname testNum = Just $ T.pack $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum

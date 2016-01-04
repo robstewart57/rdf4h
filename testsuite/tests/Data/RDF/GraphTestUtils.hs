@@ -17,8 +17,12 @@ import Control.Monad
 import System.IO.Unsafe(unsafePerformIO)
 import System.IO
 
-import Test.Framework (Test,TestName,testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Tasty -- (Test,TestName,testGroup)
+import Test.Tasty.Providers
+import Test.Tasty.QuickCheck
+
+-- import Test.Framework (Test,TestName,testGroup)
+-- import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck.Monadic (assert, monadicIO,run)
 
 ----------------------------------------------------
@@ -26,8 +30,8 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 ----------------------------------------------------
 
 graphTests :: forall rdf. (Arbitrary rdf, RDF rdf, Show rdf)
-           => TestName -> (rdf -> Triples) -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> [Test]
-graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup testGroupName
+           => TestName -> (rdf -> Triples) -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> TestTree
+graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = testGroup testGroupName
             [
               testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)
@@ -53,7 +57,6 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = [ testGroup t
             , testProperty "select_match_spo"           (p_select_match_spo _triplesOf)
             , testProperty "reversed RDF handle write"  (p_reverseRdfTest _mkRdf)
             ]
-        ]
 
 
 instance Arbitrary BaseUrl where
@@ -400,7 +403,7 @@ arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
 
 p_reverseRdfTest :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Property
 p_reverseRdfTest _mkRdf = monadicIO $ do
-    fileContents <- run $ do
+    fileContents <- Test.QuickCheck.Monadic.run $ do
       knob <- newKnob (pack [])
       h <- newFileHandle knob "test.rdf" WriteMode
       hWriteRdf NTriplesSerializer h rdfGraph

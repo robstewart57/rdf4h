@@ -3,9 +3,9 @@ module Text.RDF.RDF4H.XmlParser_Test where
 -- todo: QuickCheck tests
 
 -- Testing imports
-import Test.Framework (Test,testGroup)
-import Test.Framework.Providers.HUnit
-import Test.HUnit (Assertion,assertBool,assertFailure)
+import Test.Tasty
+import Test.Tasty.Providers
+import Test.Tasty.HUnit
 
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
@@ -15,32 +15,30 @@ import Data.RDF.Types
 import qualified Data.Text as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser
  
-tests :: [Test]
-tests = [ testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simpleStriping1
-                                            , testCase "simpleStriping2" test_simpleStriping2
-                                            , testCase "simpleSingleton1" test_simpleSingleton1
-                                            , testCase "simpleSingleton2" test_simpleSingleton2
-                                            , testCase "example07" test_parseXmlRDF_example07
-                                            , testCase "example08" test_parseXmlRDF_example08
-                                            , testCase "example09" test_parseXmlRDF_example09
-                                            , testCase "example10" test_parseXmlRDF_example10
-                                            , testCase "example11" test_parseXmlRDF_example11
-                                            , testCase "example12" test_parseXmlRDF_example12
-                                            , testCase "example13" test_parseXmlRDF_example13
-                                            , testCase "example14" test_parseXmlRDF_example14
-                                            , testCase "example15" test_parseXmlRDF_example15
-                                            , testCase "example16" test_parseXmlRDF_example16
-                                            , testCase "example17" test_parseXmlRDF_example17
-                                            , testCase "example18" test_parseXmlRDF_example18
-                                            , testCase "example19" test_parseXmlRDF_example19
-                                            , testCase "example20" test_parseXmlRDF_example20
-                                            , testCase "vCardPersonal" test_parseXmlRDF_vCardPersonal
-                                            , testCase "NML" test_parseXmlRDF_NML
-                                            , testCase "NML2" test_parseXmlRDF_NML2
-                                            , testCase "NML3" test_parseXmlRDF_NML3
-                                            ]
-        ]
-
+tests :: TestTree
+tests = testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simpleStriping1
+                                          , testCase "simpleStriping2" test_simpleStriping2
+                                          , testCase "simpleSingleton1" test_simpleSingleton1
+                                          , testCase "simpleSingleton2" test_simpleSingleton2
+                                          , testCase "example07" test_parseXmlRDF_example07
+                                          , testCase "example08" test_parseXmlRDF_example08
+                                          , testCase "example09" test_parseXmlRDF_example09
+                                          , testCase "example10" test_parseXmlRDF_example10
+                                          , testCase "example11" test_parseXmlRDF_example11
+                                          , testCase "example12" test_parseXmlRDF_example12
+                                          , testCase "example13" test_parseXmlRDF_example13
+                                          , testCase "example14" test_parseXmlRDF_example14
+                                          , testCase "example15" test_parseXmlRDF_example15
+                                          , testCase "example16" test_parseXmlRDF_example16
+                                          , testCase "example17" test_parseXmlRDF_example17
+                                          , testCase "example18" test_parseXmlRDF_example18
+                                          , testCase "example19" test_parseXmlRDF_example19
+                                          , testCase "example20" test_parseXmlRDF_example20
+                                          , testCase "vCardPersonal" test_parseXmlRDF_vCardPersonal
+                                          , testCase "NML" test_parseXmlRDF_NML
+                                          , testCase "NML2" test_parseXmlRDF_NML2
+                                          , testCase "NML3" test_parseXmlRDF_NML3
+                                          ]
 
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL

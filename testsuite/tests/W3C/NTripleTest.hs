@@ -1,58 +1,37 @@
 module W3C.NTripleTest where
 
 import Data.Maybe (fromJust)
-import Test.Framework.Providers.API
-import Test.Framework.Providers.HUnit
-import qualified Test.HUnit as TU
+import Test.Tasty
+import Test.Tasty.Providers
+import qualified Test.Tasty.HUnit as TU
 import qualified Data.Text as T
 import System.Directory
 
 import W3C.Manifest
+import W3C.W3CAssertions
 
 import Data.RDF.Types
 import Text.RDF.RDF4H.NTriplesParser
 import Data.RDF.Graph.TriplesList
 
-suiteFilesDir = "data/w3c/n3/"
-
-mfPath = T.concat [suiteFilesDir, "manifest.ttl"]
-mfBaseURI = BaseUrl "http://www.w3.org/2013/N-TriplesTests/"
-
-tests :: [Test]
-tests = [ buildTest allNTripleTests ]
-
-allNTripleTests :: IO Test
-allNTripleTests = do
-  dir <- getCurrentDirectory
-  let fileSchemeURI = T.pack ("file://" ++ dir ++ "/" ++ T.unpack suiteFilesDir)
-  m <- loadManifest mfPath fileSchemeURI
-  return $ testGroup (T.unpack $ description m) $ map (buildTest . mfEntryToTest) $ entries m
+tests :: Manifest -> TestTree
+tests = runManifestTests mfEntryToTest
 
 -- Functions to map manifest test entries to unit tests.
 -- They are defined here to avoid cluttering W3C.Manifest
 -- with functions that may not be needed to those who
 -- just want to parse Manifest files.
 -- TODO: They should probably be moved to W3C.Manifest after all.
-mfEntryToTest :: TestEntry -> IO Test
-mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') = do
+mfEntryToTest :: TestEntry -> TestTree
+mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
-  return $ testCase (T.unpack nm) $ TU.assert $ isParsed rdf
-mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') = do
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+  in TU.testCase (T.unpack nm) $ assertIsParsed rdf
+mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-  rdf <- parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
-  return $ testCase (T.unpack nm) $ TU.assert $ isNotParsed rdf
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+  in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
-
-isParsed :: Either a b -> Bool
-isParsed (Left _) = False
-isParsed (Right _) = True
-
-isNotParsed :: Either a b -> Bool
-isNotParsed = not . isParsed
-
-nodeURI :: Node -> String
-nodeURI = \(UNode u) -> T.unpack u
 
 testParser :: NTriplesParser
 testParser = NTriplesParser
