@@ -4,7 +4,7 @@ module Data.RDF.Query (
   equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf, isEmpty,
   rdfContainsNode, tripleContainsNode,
-  listSubjectsWithPredicate, listObjectsOfPredicate,
+  subjectsWithPredicate, objectsOfPredicate,
 
   -- * RDF graph functions
   isIsomorphic, expandTriples, fromEither,
@@ -50,7 +50,7 @@ rdfContainsNode rdf node =
 -- Note that it doesn't perform namespace expansion!
 tripleContainsNode :: Node -> Triple -> Bool
 {-# INLINE tripleContainsNode #-}
-tripleContainsNode node t = 
+tripleContainsNode node t =
  subjectOf t == node || predicateOf t == node || objectOf t == node
 
 -- |Determine whether two triples have equal subjects.
@@ -75,20 +75,12 @@ isEmpty rdf =
   in null ts
 
 -- |Lists of all subjects of triples with the given predicate.
-listSubjectsWithPredicate :: RDF rdf => rdf -> Predicate -> [Subject]
-listSubjectsWithPredicate rdf pred =
-  listNodesWithPredicate rdf pred subjectOf
+subjectsWithPredicate :: RDF rdf => rdf -> Predicate -> [Subject]
+subjectsWithPredicate rdf pred = map subjectOf $ query rdf Nothing (Just pred) Nothing
 
 -- |Lists of all objects of triples with the given predicate.
-listObjectsOfPredicate :: RDF rdf => rdf -> Predicate -> [Object]
-listObjectsOfPredicate rdf pred =
-  listNodesWithPredicate rdf pred objectOf
-
-listNodesWithPredicate :: RDF rdf => rdf -> Predicate -> (Triple -> Node) -> [Node]
-listNodesWithPredicate rdf pred f =
-  let ts = triplesOf rdf
-      xs = filter (\t -> predicateOf t == pred) ts
-  in map f xs
+objectsOfPredicate :: RDF rdf => rdf -> Predicate -> [Object]
+objectsOfPredicate rdf pred = map objectOf $ query rdf Nothing (Just pred) Nothing
 
 -- |Convert a parse result into an RDF if it was successful
 -- and error and terminate if not.
