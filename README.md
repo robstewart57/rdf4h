@@ -68,7 +68,7 @@ class RdfParser p where
 For example, to parse an NTriple file:
 
 ```haskell
-Right (rdf::TriplesList) <- parseFile NTriplesParser "../data/w3c/n3/literal.nt"
+Right (rdf::TriplesList) <- parseFile NTriplesParser "literal.nt"
 ```
 
 To parse Turtle at a URL:
@@ -225,10 +225,20 @@ file of your executable or library. The same applies for users of the
 Running tests
 -------------
 
-Writing tests is highly encouraged. The testsuite is implemented with
-the [tasty](https://hackage.haskell.org/package/tasty) test
-framework. It provides a way of running all rdf4h library tests or
-just specific test groups.
+Writing tests is highly encouraged. The library contains two kinds of
+tests:
+
+1. **W3C parser unit tests** for the XML, Turtle and NTriples formats
+   using HUint. These tests remain in sync with
+   https://github.com/w3c/rdf-tests .
+
+2. **Property based API tests** for RDF graph querying using
+   QuickCheck.
+
+These tests are unifed with the
+[tasty](https://hackage.haskell.org/package/tasty) test framework. It
+provides a way of running all rdf4h library tests or just specific
+test groups.
 
 To run all library tests with stack or cabal:
 
