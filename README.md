@@ -239,10 +239,13 @@ These tests are unifed with the
 provides a way of running all rdf4h library tests or just specific
 test groups.
 
-First, obtain the W3C parser unit testsuite. The following command
-fetches the W3C unit test files to a rdf-tests/ directory:
+If you've never initialised the rdf-tests repository in your rdf4h clone:
 
     $ git submodule update --init --recursive
+
+To run the parser tests against the latest W3C test files:
+
+    $ git submodule foreach git pull origin gh-pages
 
 To run all library tests with stack or cabal:
 
