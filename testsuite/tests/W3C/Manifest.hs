@@ -100,11 +100,12 @@ data TestEntry =
     deriving (Show)
 
 -- TODO: Perhaps these should be pulled from the manifest graph
-rdfType,rdfsComment,rdftApproval,rdfsApproval,mfName,mfManifest,mfAction,
+rdfType,rdfsComment,rdfsLabel,rdftApproval,rdfsApproval,mfName,mfManifest,mfAction,
   mfResult,mfEntries,mfEntailmentRegime,mfRecognizedDatatypes,mfUnrecognizedDatatypes :: Node
 
 rdfType = unode $ mkUri rdf "type"
 rdfsComment = unode $ mkUri rdfs "comment"
+rdfsLabel = unode $ mkUri rdfs "label"
 -- rdftTestTurtleEval = unode "http://www.w3.org/ns/rdftest#TestTurtleEval"
 -- rdftTestTurtleNegativeEval = unode "http://www.w3.org/ns/rdftest#TestTurtleNegativeEval"
 rdftApproval = unode "http://www.w3.org/ns/rdftest#approval"
@@ -129,7 +130,7 @@ rdfToManifest :: TriplesList -> Manifest
 rdfToManifest rdf = Manifest desc tpls
   where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
-        descNode = query rdf (Just manifestNode) (Just rdfsComment) Nothing
+        descNode = query rdf (Just manifestNode) (Just rdfsLabel) Nothing
                    ++ query rdf (Just manifestNode) (Just mfName) Nothing
 --        descNode = query rdf (Just manifestNode) (Just mfName) Nothing
         tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead

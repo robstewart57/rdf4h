@@ -20,9 +20,9 @@ import System.Directory (getCurrentDirectory)
 import W3C.Manifest
 
 suiteFilesDirTurtle,suiteFilesDirXml,suiteFilesDirNTriples :: T.Text
-suiteFilesDirTurtle = "data/w3c/turtle/TurtleTests/"
-suiteFilesDirXml = "data/w3c/rdf-xml/"
-suiteFilesDirNTriples = "data/w3c/n3/"
+suiteFilesDirTurtle = "rdf-tests/turtle/"
+suiteFilesDirXml = "rdf-tests/rdf-xml/"
+suiteFilesDirNTriples = "rdf-tests/ntriples/"
 
 mfPathTurtle,mfPathXml,mfPathNTriples :: T.Text
 mfPathTurtle = T.concat [suiteFilesDirTurtle, "manifest.ttl"]
@@ -49,7 +49,7 @@ main = do
 
   nTriplesManifest <-
          loadManifest mfPathNTriples (fileSchemeUri suiteFilesDirNTriples)
-  
+
   -- run tests
   defaultMain
        (testGroup "rdf4h tests"
@@ -65,7 +65,7 @@ main = do
           HashMapS.uniqTriplesOf'
           HashMapS.empty'
           HashMapS.mkRdf'
-            
+
         , graphTests "HashMapSP"
           HashMapSP.triplesOf'
           HashMapSP.uniqTriplesOf'
