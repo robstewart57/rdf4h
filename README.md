@@ -153,8 +153,7 @@ Development wishlist
 
 * To improve the benchmarked performance of the existing `RDF`
   instances, and to add new optimised instances of `RDF`. Pull
-  requests welcome! See the "Adding new RDF implementations" section
-  below.
+  requests of this kind especially welcome!
 
 * Add new benchmarks to the criterion benchmark suite in the `bench/`
   directory. It currently benchmarks all `RDF` instances for `query`
