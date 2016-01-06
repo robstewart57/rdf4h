@@ -125,9 +125,23 @@ nt_object =
   liftM bnode nt_nodeID <|>
   liftM LNode nt_literal
 
+validateUNode :: T.Text -> GenParser () Node
+validateUNode t =
+    case unodeValidate t of
+      Nothing        -> unexpected ("Invalid URI in NTriples parser URI validation: " ++ show t)
+      Just u@(UNode{}) -> return u
+      Just node      -> unexpected ("Unexpected node in NTriples parser URI validation: " ++ show node)
+
+validateURI :: T.Text -> GenParser () T.Text
+validateURI t = do
+    UNode uri <- validateUNode t
+    return uri
+
 -- A URI reference is one or more nrab_character inside angle brackets.
 nt_uriref :: GenParser () T.Text
-nt_uriref = between (char '<') (char '>') (liftM T.pack (many (satisfy ( /= '>'))))
+nt_uriref = between (char '<') (char '>') $ do
+              unvalidatedUri <- many (satisfy ( /= '>'))
+              validateURI (T.pack unvalidatedUri)
 
 -- A node id is "_:" followed by a name.
 nt_nodeID :: GenParser () T.Text

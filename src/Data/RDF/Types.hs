@@ -9,7 +9,7 @@ module Data.RDF.Types (
 
   -- * Constructor functions
   plainL,plainLL,typedL,
-  unode,bnode,lnode,triple,unodeValidate,
+  unode,bnode,lnode,triple,unodeValidate,uriValidate,
 
   -- * Node query function
   isUNode,isLNode,isBNode,
@@ -158,6 +158,15 @@ unode = UNode
 unodeValidate :: T.Text -> Maybe Node
 unodeValidate t = if Network.isURI (T.unpack uri)
                   then Just (UNode uri)
+                  else Nothing
+    where
+      uri = escapeRDFSyntax t
+
+-- |Validate a Text URI and return it in a @Just Text@ if it is
+--  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
+uriValidate :: T.Text -> Maybe T.Text
+uriValidate t = if Network.isURI (T.unpack uri)
+                  then Just uri
                   else Nothing
     where
       uri = escapeRDFSyntax t
