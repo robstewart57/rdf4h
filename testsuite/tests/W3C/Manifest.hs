@@ -254,7 +254,7 @@ mkTestNTriplesPositiveSyntax ts = TestNTriplesPositiveSyntax {
                                   }
 
 mkTestNTriplesNegativeSyntax :: Triples -> TestEntry
-mkTestNTriplesNegativeSyntax ts = TestNTriplesPositiveSyntax {
+mkTestNTriplesNegativeSyntax ts = TestNTriplesNegativeSyntax {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
                                     approval = objectByPredicate rdftApproval ts,

@@ -8,7 +8,7 @@ module Text.RDF.RDF4H.NTriplesParser(
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
-import Data.Char(isLetter, isDigit, isAlphaNum)
+import Data.Char(isLetter, isDigit)
 import qualified Data.Map as Map
 import Text.Parsec
 import Text.Parsec.Text
