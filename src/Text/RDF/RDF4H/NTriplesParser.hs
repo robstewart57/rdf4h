@@ -84,9 +84,9 @@ nt_literal = do
 nt_string_literal_quote :: GenParser () T.Text
 nt_string_literal_quote =
     between (char '"') (char '"') $ do
-      T.concat <$> (many (T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD'] <|>
-            nt_echar <|>
-            nt_uchar))
+      T.concat <$> (many ((T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD']) <|>
+                          try nt_echar <|>
+                          nt_uchar))
 
 -- [144s] LANGTAG
 nt_langtag :: GenParser () T.Text
@@ -106,7 +106,7 @@ nt_iriref = do
 -- [153s] ECHAR
 nt_echar :: GenParser () T.Text
 nt_echar = do
-  c1 <- char '\\'
+  char '\\'
   c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
   return $ case c2 of
     't'  -> T.singleton '\t'
@@ -117,27 +117,13 @@ nt_echar = do
     '"'  -> T.singleton '\"'
     '\'' -> T.singleton '\''
     '\\' -> T.singleton '\\'
+    _    -> error "nt_echar: impossible error."
 
 -- [10] UCHAR
 nt_uchar :: GenParser () T.Text
 nt_uchar =
-    ((char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
-     (char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs)))
-
--- A language specifier of a language literal is any number of lowercase
--- letters followed by any number of blocks consisting of a hyphen followed
--- by one or more lowercase letters or digits.
-nt_language :: GenParser () T.Text
-nt_language =
-  do str1 <- liftM T.pack (many (satisfy (\ c -> isLetter c)))
-     str2 <- option "" $
-               do hyphen <- char '-'
-                  s <- many (satisfy (\ c -> isLetter c || isDigit c))
-                  return (hyphen : s)
-     let str = str1 `T.append` (T.pack str2)
-     if T.null str
-        then fail ("Invalid language string: '" ++ T.unpack str ++ "'")
-        else return str
+    (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
+     try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs)))
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
