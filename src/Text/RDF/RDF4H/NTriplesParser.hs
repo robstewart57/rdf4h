@@ -144,14 +144,6 @@ nt_name =
 isLetterOrDigit :: Char -> Bool
 isLetterOrDigit c = isLetter c || isDigit c
 
--- A character is any Unicode value from ASCII space to decimal 126 (tilde).
-is_character :: Char -> Bool
-is_character = isAlphaNum
-
--- A non-quote character is a character that isn't the double-quote character.
-is_nonquote_char :: Char -> Bool
-is_nonquote_char c = is_character c && c/= '"'
-
 -- End-of-line consists of either lf or crlf.
 -- We also test for eof and consider that to match as well.
 nt_eoln :: GenParser () ()
@@ -191,7 +183,7 @@ inner_string =
           (char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
           (char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs))))
   <|> liftM T.pack
-    (many (satisfy (\ c -> is_nonquote_char c && c /= '\\')))
+    (many (noneOf ['\x22','\x5C','\xA','\xD']))
 
 b_tab, b_ret, b_nl, b_slash, b_quote :: T.Text
 b_tab = T.singleton '\t'
