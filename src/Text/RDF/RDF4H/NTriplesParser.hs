@@ -1,4 +1,4 @@
--- |A parser for RDF in N-Triples format 
+-- |A parser for RDF in N-Triples format
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 module Text.RDF.RDF4H.NTriplesParser(
@@ -8,7 +8,7 @@ module Text.RDF.RDF4H.NTriplesParser(
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
-import Data.Char(isLetter, isDigit, isLower,isAlphaNum)
+import Data.Char(isLetter, isDigit, isAlphaNum)
 import qualified Data.Map as Map
 import Text.Parsec
 import Text.Parsec.Text
@@ -18,7 +18,7 @@ import Control.Monad (liftM,void)
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
 -- NTriples format. It requires no configuration options. To use this parser,
--- pass an 'NTriplesParser' value as the first argument to any of the 
+-- pass an 'NTriplesParser' value as the first argument to any of the
 -- 'parseString', 'parseFile', or 'parseURL' methods of the 'RdfParser' type
 -- class.
 data NTriplesParser = NTriplesParser
@@ -38,7 +38,7 @@ nt_ntripleDoc :: GenParser () [Maybe Triple]
 nt_ntripleDoc = manyTill nt_line eof
 
 nt_line :: GenParser () (Maybe Triple)
-nt_line       = 
+nt_line       =
     skipMany nt_space >>
      ((nt_comment >>= \res -> return res)
       <|> (nt_triple >>= \res -> nt_eoln >> return res)
@@ -79,7 +79,7 @@ nt_triple    =
 -- followed by a language specifier. A datatype literal follows
 -- the closing quote with ^^ followed by the URI of the datatype.
 nt_literal :: GenParser () LValue
-nt_literal = 
+nt_literal =
   do lit_str <- between (char '"') (char '"') inner_literal
      liftM (plainLL lit_str) (char '@' >> nt_language) <|>
        liftM (typedL lit_str) (count 2 (char '^') >> nt_uriref) <|>
@@ -91,8 +91,13 @@ nt_literal =
 -- by one or more lowercase letters or digits.
 nt_language :: GenParser () T.Text
 nt_language =
-  do str <- liftM T.pack (many (satisfy (\ c -> c == '-' || isLower c)))
-     if T.null str || T.last str == '-' || T.head str == '-'
+  do str1 <- liftM T.pack (many (satisfy (\ c -> isLetter c)))
+     str2 <- option "" $
+               do hyphen <- char '-'
+                  s <- many (satisfy (\ c -> isLetter c || isDigit c))
+                  return (hyphen : s)
+     let str = str1 `T.append` (T.pack str2)
+     if T.null str
         then fail ("Invalid language string: '" ++ T.unpack str ++ "'")
         else return str
 
@@ -126,7 +131,7 @@ nt_uriref = between (char '<') (char '>') (liftM T.pack (many (satisfy ( /= '>')
 
 -- A node id is "_:" followed by a name.
 nt_nodeID :: GenParser () T.Text
-nt_nodeID = char '_' >> char ':' >> nt_name >>= \n -> 
+nt_nodeID = char '_' >> char ':' >> nt_name >>= \n ->
                 return ('_' `T.cons` (':' `T.cons` n))
 
 -- A name is a letter followed by any number of alpha-numeric characters.
@@ -210,7 +215,7 @@ handleParse :: forall rdf. (RDF rdf) => (Triples -> Maybe BaseUrl -> PrefixMappi
                                         Either ParseFailure rdf
 handleParse _mkRdf result
 --  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
-  | otherwise          = 
+  | otherwise          =
       case result of
         Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
         Right ts -> Right $ _mkRdf (conv ts) Nothing (PrefixMappings Map.empty)
