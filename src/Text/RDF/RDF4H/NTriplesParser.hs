@@ -8,7 +8,7 @@ module Text.RDF.RDF4H.NTriplesParser(
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
-import Data.Char(isLetter, isDigit)
+import Data.Char(isLetter, isDigit,isAlphaNum)
 import qualified Data.Map as Map
 import Text.Parsec
 import Text.Parsec.Text
@@ -72,19 +72,57 @@ nt_triple    =
     void (many nt_space)
     return $ Just (Triple subj pred obj)
 
--- A literal is either a language literal (with optional language
--- specified) or a datatype literal (with required datatype
--- specified). The literal value is always enclosed in double
--- quotes. A language literal may have '@' after the closing quote,
--- followed by a language specifier. A datatype literal follows
--- the closing quote with ^^ followed by the URI of the datatype.
+-- [6] literal
 nt_literal :: GenParser () LValue
-nt_literal =
-  do lit_str <- between (char '"') (char '"') inner_literal
-     liftM (plainLL lit_str) (char '@' >> nt_language) <|>
-       liftM (typedL lit_str) (count 2 (char '^') >> nt_uriref) <|>
-       return (plainL lit_str)
-  where inner_literal = inner_string
+nt_literal = do
+  s <- nt_string_literal_quote
+  option (plainL s) $ do
+               ((count 2 (char '^') >> nt_iriref >>= \iri -> return (typedL s iri))
+                <|> (nt_langtag  >>= \lang -> return (plainLL s lang)))
+
+-- [9] STRING_LITERAL_QUOTE
+nt_string_literal_quote :: GenParser () T.Text
+nt_string_literal_quote =
+    between (char '"') (char '"') $ do
+      T.concat <$> (many (T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD'] <|>
+            nt_echar <|>
+            nt_uchar))
+
+-- [144s] LANGTAG
+nt_langtag :: GenParser () T.Text
+nt_langtag = do
+  char '@'
+  ss   <- many1 (satisfy (\ c -> isLetter c))
+  rest <- concat <$> many (char '-' >> many1 (satisfy (\ c -> isAlphaNum c)))
+  return (T.pack (ss ++ rest))
+
+-- [8] IRIREF
+nt_iriref :: GenParser () T.Text
+nt_iriref = do
+  between (char '<') (char '>') $ do
+              T.concat <$> many ( T.singleton <$> noneOf ['\x00','\x20','<','>','"','{','}','|','^','`','\\'] <|>
+                                  nt_uchar )
+
+-- [153s] ECHAR
+nt_echar :: GenParser () T.Text
+nt_echar = do
+  c1 <- char '\\'
+  c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
+  return $ case c2 of
+    't'  -> T.singleton '\t'
+    'b'  -> T.singleton '\b'
+    'n'  -> T.singleton '\n'
+    'r'  -> T.singleton '\r'
+    'f'  -> T.singleton '\f'
+    '"'  -> T.singleton '\"'
+    '\'' -> T.singleton '\''
+    '\\' -> T.singleton '\\'
+
+-- [10] UCHAR
+nt_uchar :: GenParser () T.Text
+nt_uchar =
+    ((char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
+     (char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs)))
 
 -- A language specifier of a language literal is any number of lowercase
 -- letters followed by any number of blocks consisting of a hyphen followed
@@ -179,32 +217,6 @@ nt_lf          =   char '\n'
 -- Tab is \t.
 nt_tab :: GenParser () Char
 nt_tab         =   char '\t'
-
--- An inner_string is a fragment of a string (this is used inside double
--- quotes), and consists of the non-quote characters allowed and the
--- standard escapes for a backslash (\\), a tab (\t), a carriage  return (\r),
--- a newline (\n), a double-quote (\"), a 4-digit Unicode escape (\uxxxx
--- where x is a hexadecimal digit), and an 8-digit Unicode escape
--- (\Uxxxxxxxx where x is a hexadecimaldigit).
-inner_string :: GenParser () T.Text
-inner_string =
-  try (char '\\' >>
-         ((char 't' >> return b_tab)  <|>
-          (char 'r' >> return b_ret)  <|>
-          (char 'n' >> return b_nl)  <|>
-          (char '\\' >> return b_slash) <|>
-          (char '"' >> return b_quote)   <|>
-          (char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
-          (char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs))))
-  <|> liftM T.pack
-    (many (noneOf ['\x22','\x5C','\xA','\xD']))
-
-b_tab, b_ret, b_nl, b_slash, b_quote :: T.Text
-b_tab = T.singleton '\t'
-b_ret = T.singleton '\r'
-b_nl  = T.singleton '\n'
-b_slash = T.singleton '\\'
-b_quote = T.singleton '"'
 
 parseString' :: forall rdf. (RDF rdf) => T.Text -> Either ParseFailure rdf
 parseString' bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
