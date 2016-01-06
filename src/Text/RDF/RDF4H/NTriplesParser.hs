@@ -41,7 +41,8 @@ nt_line :: GenParser () (Maybe Triple)
 nt_line       =
     skipMany nt_space >>
      ((nt_comment >>= \res -> return res)
-      <|> (nt_triple >>= \res -> nt_eoln >> return res)
+      <|> try (nt_triple >>= \res -> nt_eoln >> return res)
+      <|> try (nt_triple >>= \res -> char '#' >> manyTill anyChar nt_eoln >> return res)
       <|> (nt_empty >>= \res -> nt_eoln >> return res))
      >>= \res -> return res
 
