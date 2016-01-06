@@ -77,8 +77,8 @@ nt_literal :: GenParser () LValue
 nt_literal = do
   s <- nt_string_literal_quote
   option (plainL s) $ do
-               ((count 2 (char '^') >> nt_iriref >>= \iri -> return (typedL s iri))
-                <|> (nt_langtag  >>= \lang -> return (plainLL s lang)))
+               ((count 2 (char '^') >> nt_iriref >>= validateURI >>= \iri -> return (typedL s iri))
+                <|> (nt_langtag >>= \lang -> return (plainLL s lang)))
 
 -- [9] STRING_LITERAL_QUOTE
 nt_string_literal_quote :: GenParser () T.Text
