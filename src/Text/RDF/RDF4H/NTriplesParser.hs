@@ -38,7 +38,7 @@ nt_ntripleDoc :: GenParser () [Maybe Triple]
 nt_ntripleDoc = manyTill nt_line eof
 
 nt_line :: GenParser () (Maybe Triple)
-nt_line       =
+nt_line =
     skipMany nt_space >>
      ((nt_comment >>= \res -> return res)
       <|> try (nt_triple >>= \res -> nt_eoln >> return res)
@@ -136,7 +136,7 @@ nt_empty     = skipMany nt_space >> return Nothing
 nt_subject :: GenParser () Node
 nt_subject   =
   liftM unode nt_uriref <|>
-  liftM bnode nt_nodeID
+  liftM bnode nt_blank_node_label
 
 -- A predicate may only be a URI reference to a resource.
 nt_predicate :: GenParser () Node
@@ -147,7 +147,7 @@ nt_predicate = liftM unode nt_uriref
 nt_object :: GenParser () Node
 nt_object =
   liftM unode nt_uriref <|>
-  liftM bnode nt_nodeID <|>
+  liftM bnode nt_blank_node_label <|>
   liftM LNode nt_literal
 
 validateUNode :: T.Text -> GenParser () Node
@@ -168,20 +168,47 @@ nt_uriref = between (char '<') (char '>') $ do
               unvalidatedUri <- many (satisfy ( /= '>'))
               validateURI (T.pack unvalidatedUri)
 
--- A node id is "_:" followed by a name.
-nt_nodeID :: GenParser () T.Text
-nt_nodeID = char '_' >> char ':' >> nt_name >>= \n ->
-                return ('_' `T.cons` (':' `T.cons` n))
+-- [141s] BLANK_NODE_LABEL
+nt_blank_node_label :: GenParser () T.Text
+nt_blank_node_label = do
+  char '_' >> char ':'
+  s1 <- (nt_pn_chars_u <|> satisfy isDigit)
+  s2 <- option "" $ try $ do
+          sub_dots <- many (char '.')
+          sub_s1   <- many1 nt_pn_chars
+          return (sub_dots ++ sub_s1)
+  return (T.pack ("_:" ++ [s1] ++ s2))
 
--- A name is a letter followed by any number of alpha-numeric characters.
-nt_name :: GenParser () T.Text
-nt_name =
-  do init <- letter
-     rest <- many (satisfy isLetterOrDigit)
-     return $ T.pack (init:rest)
+-- [157s] PN_CHARS_BASE
+nt_pn_chars_base :: GenParser () Char
+nt_pn_chars_base =
+    oneOf ['A'..'Z'] <|>
+    oneOf ['a'..'z'] <|>
+    oneOf ['\x00C0'..'\x00D6'] <|>
+    oneOf ['\x00D8'..'\x00F6'] <|>
+    oneOf ['\x00F8'..'\x02FF'] <|>
+    oneOf ['\x0370'..'\x037D'] <|>
+    oneOf ['\x037F'..'\x1FFF'] <|>
+    oneOf ['\x200C'..'\x200D'] <|>
+    oneOf ['\x2070'..'\x218F'] <|>
+    oneOf ['\x2C00'..'\x2FEF'] <|>
+    oneOf ['\x3001'..'\xD7FF'] <|>
+    oneOf ['\xF900'..'\xFDCF'] <|>
+    oneOf ['\xFDF0'..'\xFFFD'] <|>
+    oneOf ['\x10000'..'\xEFFFF']
 
-isLetterOrDigit :: Char -> Bool
-isLetterOrDigit c = isLetter c || isDigit c
+-- [158s] PN_CHARS_U
+nt_pn_chars_u :: GenParser () Char
+nt_pn_chars_u = nt_pn_chars_base <|> char '_' <|> char ':'
+
+-- [160s] PN_CHARS
+nt_pn_chars :: GenParser () Char
+nt_pn_chars = nt_pn_chars_u <|>
+              char '-' <|>
+              satisfy isDigit <|>
+              char '\x00B7' <|>
+              oneOf ['\x0300'..'\x036F'] <|>
+              oneOf ['\x203F'..'\x2040']
 
 -- End-of-line consists of either lf or crlf.
 -- We also test for eof and consider that to match as well.
