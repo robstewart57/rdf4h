@@ -41,6 +41,7 @@ import System.IO
 import Text.Printf
 import Data.Binary
 import Data.Map(Map)
+import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
@@ -48,6 +49,9 @@ import qualified Data.Map as Map
 import qualified Network.URI as Network (isURI,uriPath,parseURI)
 import Control.DeepSeq (NFData,rnf)
 import Text.Parsec
+import Text.Parsec.Text
+import Network.URI
+import Codec.Binary.UTF8.String
 
 -------------------
 -- LValue and constructor functions
@@ -156,20 +160,33 @@ unode = UNode
 --  2. checks validity of this unescaped URI using 'isURI' from 'Network.URI'
 --  3. if the unescaped URI is valid then 'Node' constructed with 'UNode'
 unodeValidate :: T.Text -> Maybe Node
-unodeValidate t = if Network.isURI (T.unpack uri)
-                  then Just (UNode uri)
-                  else Nothing
-    where
-      uri = escapeRDFSyntax t
+unodeValidate t = case isRdfURI t of
+                    Left _err -> Nothing
+                    Right uri -> Just (UNode uri)
+
+isRdfURI :: T.Text -> Either ParseError T.Text
+isRdfURI t = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
+
+-- [18]	IRIREF from Turtle spec
+isRdfURIParser :: GenParser () T.Text
+isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ [' ','<','>','"','{','}','|','^','`','\\']) <|> nt_uchar)
+
+-- [10] UCHAR
+nt_uchar :: GenParser () T.Text
+nt_uchar =
+    (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
+     try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)))
+
+uEscapedToXEscaped ss =
+    let str = ['\\','x'] ++ ss
+    in read ("\"" ++ str ++ "\"")
 
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
 uriValidate :: T.Text -> Maybe T.Text
-uriValidate t = if Network.isURI (T.unpack uri)
-                  then Just uri
-                  else Nothing
-    where
-      uri = escapeRDFSyntax t
+uriValidate t = case isRdfURI t of
+                  Left _err -> Nothing
+                  Right uri -> Just uri
 
 escapeRDFSyntax :: T.Text -> T.Text
 escapeRDFSyntax t = T.pack uri
@@ -264,7 +281,13 @@ isLNode _         = False
 
 {-# INLINE isAbsoluteUri #-}
 isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = Network.isURI . T.unpack
+isAbsoluteUri = not
+                . uriIsRelative
+                . fromJust
+                . parseURIReference
+                . escapeURIString isUnescapedInURI
+                . encodeString
+                . T.unpack
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where
@@ -638,8 +661,7 @@ absolutizeUrl mbUrl mdUrl urlFrag =
 -- appending the URL to the given base URL.
 mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
 mkAbsoluteUrl base url =
-  if isAbsoluteUri url then url else base `T.append` url
-
+    if isAbsoluteUri url then url else base `T.append` url
 
 -----------------
 -- Internal canonicalize functions, don't export
