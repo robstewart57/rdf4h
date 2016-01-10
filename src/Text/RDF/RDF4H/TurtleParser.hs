@@ -194,7 +194,7 @@ t_pname_ln :: GenParser ParseState T.Text
 t_pname_ln =
   do pre <- t_pname_ns
      name <- t_pn_local
-     return (pre `T.append` name)             
+     return (pre `T.append` name)
 
 -- grammar rule: [10] subject
 t_subject :: GenParser ParseState ()
@@ -309,7 +309,7 @@ t_literal =
 str_literal :: GenParser ParseState Node
 str_literal =
   do str' <- t_quotedString <?> "quotedString"
-     let str = escapeRDFSyntax str' 
+     let str = escapeRDFSyntax str'
      liftM (LNode . typedL str)
       (try (count 2 (char '^')) >> t_iri) <|>
       liftM (lnode . plainLL str) (char '@' >> t_language) <|>

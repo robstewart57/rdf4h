@@ -94,7 +94,7 @@ nt_langtag :: GenParser () T.Text
 nt_langtag = do
   char '@'
   ss   <- many1 (satisfy (\ c -> isLetter c))
-  rest <- concat <$> many (char '-' >> many1 (satisfy (\ c -> isAlphaNum c)))
+  rest <- concat <$> many (char '-' >> many1 (satisfy (\ c -> isAlphaNum c)) >>= \lang_str -> return ('-':lang_str))
   return (T.pack (ss ++ rest))
 
 -- [8] IRIREF
