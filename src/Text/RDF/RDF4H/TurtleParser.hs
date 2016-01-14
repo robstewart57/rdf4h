@@ -7,7 +7,7 @@ module Text.RDF.RDF4H.TurtleParser(
 
 where
 
-import Data.Char (toLower,toUpper)
+import Data.Char (isLetter,isAlphaNum,toLower,toUpper)
 import Data.Maybe
 import Data.RDF.Types
 import Data.RDF.Namespace
@@ -77,6 +77,7 @@ t_directive :: GenParser ParseState ()
 t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
 -- grammar rule: [135s] iri
+-- IRIREF | PrefixedName
 t_iri :: GenParser ParseState T.Text
 t_iri =  try t_iriref <|> t_prefixedName
 
@@ -297,44 +298,112 @@ xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: GenParser ParseState Node
 t_literal =
-  try str_literal <|>
-  liftM (`mkLNode` xsdDoubleUri) (try t_double)  <|>
-  liftM (`mkLNode` xsdIntUri) (try t_integer)   <|>
-  liftM (`mkLNode` xsdDecimalUri) (try t_decimal) <|>
+-- try str_literal <|>
+  (try t_rdf_literal >>= \l -> return (LNode l))   <|>
+  liftM (`mkLNode` xsdDoubleUri) (try t_double)    <|>
+  liftM (`mkLNode` xsdIntUri) (try t_integer)      <|>
+  liftM (`mkLNode` xsdDecimalUri) (try t_decimal)  <|>
   liftM (`mkLNode` xsdBooleanUri) t_boolean
-  where
+   where
     mkLNode :: T.Text -> T.Text -> Node
     mkLNode bsType bs' = LNode (typedL bsType bs')
 
-str_literal :: GenParser ParseState Node
-str_literal =
-  do str' <- t_quotedString <?> "quotedString"
-     let str = escapeRDFSyntax str'
-     liftM (LNode . typedL str)
-      (try (count 2 (char '^')) >> t_iri) <|>
-      liftM (lnode . plainLL str) (char '@' >> t_language) <|>
-      return (lnode $ plainL str)
+-- [128s] RDFLiteral
+-- String (LANGTAG | '^^' iri)?
+t_rdf_literal :: GenParser ParseState LValue
+t_rdf_literal = do
+  str' <- t_string
+  let str = escapeRDFSyntax str'
+  option (plainL str) $ do
+                  (try (t_langtag >>= \lang -> return (plainLL str lang)) <|>
+                   ((count 2 (char '^') >> t_iri >>= \iri -> return (typedL str iri))))
 
-t_quotedString :: GenParser ParseState T.Text
-t_quotedString = try t_longString <|> t_string
 
--- a non-long string: any number of scharacters (echaracter without ") inside doublequotes or singlequotes.
+-- [17] String
+-- STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
 t_string :: GenParser ParseState T.Text
-t_string = liftM T.concat (between (char '"') (char '"') (many t_scharacter_in_dquot) <|> between (char '\'') (char '\'') (many t_scharacter_in_squot))
+t_string = try t_string_literal_long_quote <|>
+           try t_string_literal_quote <|>
+           try t_string_literal_single_quote <|>
+           t_string_literal_long_single_quote
 
-t_longString :: GenParser ParseState T.Text
-t_longString =
-    try ( do { void tripleQuoteDbl;
-               strVal <- liftM T.concat (many longString_char);
-               void tripleQuoteDbl;
-               return strVal }) <|>
-    try ( do { void tripleQuoteSingle;
-               strVal <- liftM T.concat (many longString_char);
-               void tripleQuoteSingle;
-               return strVal })
-  where
-    tripleQuoteDbl = count 3 (char '"')
-    tripleQuoteSingle = count 3 (char '\'')
+
+-- [22]	STRING_LITERAL_QUOTE
+-- '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
+t_string_literal_quote :: GenParser ParseState T.Text
+t_string_literal_quote =
+     between (char '"') (char '"') $ do
+      T.concat <$> many (T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD'] <|>
+            t_echar <|>
+            t_uchar)
+
+-- [23] STRING_LITERAL_SINGLE_QUOTE
+-- "'" ([^#x27#x5C#xA#xD] | ECHAR | UCHAR)* "'"
+t_string_literal_single_quote :: GenParser ParseState T.Text
+t_string_literal_single_quote =
+    between (char '\'') (char '\'') $ do
+      T.concat <$>
+       many (T.singleton <$> noneOf ['\x27','\x5C','\xA','\xD'] <|>
+             t_echar <|>
+             t_uchar)
+
+-- [24] STRING_LITERAL_LONG_SINGLE_QUOTE
+-- "'''" (("'" | "''")? ([^'\] | ECHAR | UCHAR))* "'''"
+t_string_literal_long_single_quote :: GenParser ParseState T.Text
+t_string_literal_long_single_quote =
+    between ((string "'''")) ((string "'''")) $ do
+      ss <- many $ do
+        s1 <- T.pack <$> option "" (string "'" <|> string "''")
+        s2 <- (T.singleton <$> noneOf ['\'','\\'] <|> t_echar <|> t_uchar)
+        return (s1 `T.append` s2)
+      return (T.concat ss)
+
+-- [25] STRING_LITERAL_LONG_QUOTE
+-- '"""' (('"' | '""')? ([^"\] | ECHAR | UCHAR))* '"""'
+t_string_literal_long_quote :: GenParser ParseState T.Text
+t_string_literal_long_quote =
+     between (string "\"\"\"") (string "\"\"\"") $ do
+      ss <- many $ do
+        s2 <- (try (char '"' >>= \c -> notFollowedBy (char '"') >> return (T.singleton c)) <|>
+               T.singleton <$> noneOf ['"','\\'] <|>
+               t_echar <|>
+               t_uchar)
+        return s2
+      return (T.concat ss)
+
+-- [144s] LANGTAG
+-- '@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
+t_langtag :: GenParser ParseState T.Text
+t_langtag = do
+    void (char '@')
+    ss   <- many1 (satisfy (\ c -> isLetter c))
+    rest <- concat <$> many (char '-' >> many1 (satisfy (\ c -> isAlphaNum c)) >>= \lang_str -> return ('-':lang_str))
+    return (T.pack (ss ++ rest))
+
+-- [159s]	ECHAR
+-- '\' [tbnrf"'\]
+t_echar :: GenParser ParseState T.Text
+t_echar = try $ do
+    void (char '\\')
+    c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
+    return $ case c2 of
+               't'  -> T.singleton '\t'
+               'b'  -> T.singleton '\b'
+               'n'  -> T.singleton '\n'
+               'r'  -> T.singleton '\r'
+               'f'  -> T.singleton '\f'
+               '"'  -> T.singleton '\"'
+               '\'' -> T.singleton '\''
+               '\\' -> T.singleton '\\'
+               _    -> error "nt_echar: impossible error."
+
+
+-- [26]	UCHAR
+-- '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
+t_uchar :: GenParser ParseState T.Text
+t_uchar =
+    (try (string "\\u" >> count 4 hexDigit) >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
+     (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs))
 
 t_integer :: GenParser ParseState T.Text
 t_integer =
@@ -394,13 +463,6 @@ t_ws =
      <|> try t_comment)
     <?> "whitespace-or-comment"
 
-
-t_language :: GenParser ParseState T.Text
-t_language =
-  do initial <- many1 lower;
-     rest <- many (do {void (char '-'); cs <- many1 (lower <|> digit); return ( T.pack ('-':cs))})
-     return $! ( T.pack initial `T.append` T.concat rest)
-
 identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
 identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( T.pack (i:r))
 
@@ -414,54 +476,21 @@ t_pn_prefix = do
 t_name :: GenParser ParseState T.Text
 t_name = identifier t_pn_chars_u t_pn_chars
 
+-- [18] IRIREF
 t_iriref :: GenParser ParseState T.Text
-t_iriref = between (char '<') (char '>') t_relativeURI
-
-t_relativeURI :: GenParser ParseState T.Text
-t_relativeURI =
-  do frag <- liftM (T.pack . concat) (many t_ucharacter)
-     bUrl <- currBaseUrl
-     dUrl <- currDocUrl
-     let frag' = escapeRDFSyntax frag
-     validateURI (absolutizeUrl bUrl dUrl frag')
-
--- We make this String rather than T.Text because we want
--- t_relativeURI (the only place it's used) to have chars so that
--- when it creates a T.Text it can all be in one chunk.
-t_ucharacter :: GenParser ParseState String
-t_ucharacter =
-  try (liftM T.unpack unicode_escape) <|>
-  try (string "\\>") <|>
-  liftM T.unpack (non_ctrl_char_except ">")
+t_iriref =
+  between (char '<') (char '>') $ do
+    iri <- T.concat <$> many ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ ['<','>','"','{','}','|','^','`','\\']) <|>
+                               t_uchar )
+    bUrl <- currBaseUrl
+    dUrl <- currDocUrl
+    let iri' = escapeRDFSyntax iri
+    validateURI (absolutizeUrl bUrl dUrl iri')
 
 t_pn_chars :: GenParser ParseState Char
 t_pn_chars = t_pn_chars_u <|> char '-' <|> char '\x00B7' <|> satisfy f
   where
     f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
-
-longString_char :: GenParser ParseState T.Text
-longString_char =
-  specialChar        <|> -- \r|\n|\t as single char
-  try escapedChar    <|> -- an backslash-escaped tab, newline, linefeed, backslash or doublequote
-  try twoDoubleQuote <|> -- two doublequotes not followed by a doublequote
-  try oneDoubleQuote <|> -- a single doublequote
-  safeNonCtrlChar    <|> -- anything but a single backslash or doublequote
-  try unicode_escape     -- a unicode escape sequence (\uxxxx or \Uxxxxxxxx)
-  where
-    specialChar     = oneOf "\t\n\r" >>= bs1
-    escapedChar     =
-      do void (char '\\')
-         (char 't'  >> bs1 '\t') <|> (char 'n' >> bs1 '\n') <|> (char 'r' >> bs1 '\r') <|>
-          (char '\\' >> bs1 '\\') <|> (char '"' >> bs1 '"')
-    twoDoubleQuote  = string "\"\"" >> notFollowedBy (char '"') >> bs "\"\""
-    oneDoubleQuote  = char '"' >> notFollowedBy (char '"') >> bs1 '"'
-    safeNonCtrlChar = non_ctrl_char_except "\\\""
-
-bs1 :: Char -> GenParser ParseState T.Text
-bs1 = return . T.singleton
-
-bs :: String -> GenParser ParseState T.Text
-bs = return . T.pack
 
 -- grammar rule: [163s] PN_CHARS_BASE
 t_pn_chars_base :: GenParser ParseState Char
@@ -482,44 +511,6 @@ t_pn_chars_u = t_pn_chars_base <|> char '_'
 -- grammar rules: [171s] HEX
 t_hex :: GenParser ParseState Char
 t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
-
--- characters used in (non-long) strings; any echaracters except ", or an escaped \"
--- echaracter - #x22 ) | '\"'
-t_scharacter_in_dquot :: GenParser ParseState T.Text
-t_scharacter_in_dquot =
-  (try (string "\\\"") >> return (T.singleton '"'))
-     <|> (try (string "\\'") >> return (T.singleton '\''))
-     <|> try (do {void (char '\\');
-                  (char 't' >> return (T.singleton '\t')) <|>
-                  (char 'n' >> return (T.singleton '\n')) <|>
-                  (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1
-     <|> unicode_escape
-     <|> (non_ctrl_char_except "\\\"" >>= \s -> return $! s) -- echaracter part 2 minus "
-
--- characters used in (non-long) strings; any echaracters except ', or an escaped \'
--- echaracter - #x22 ) | '\''
-t_scharacter_in_squot :: GenParser ParseState T.Text
-t_scharacter_in_squot =
-  (try (string "\\'") >> return (T.singleton '\''))
-     <|> (try (string "\\\"") >> return (T.singleton '"'))
-     <|> try (do {void (char '\\');
-                  (char 't' >> return (T.singleton '\t')) <|>
-                  (char 'n' >> return (T.singleton '\n')) <|>
-                  (char 'r' >> return (T.singleton '\r'))}) -- echaracter part 1
-     <|> unicode_escape
-     <|> (non_ctrl_char_except "\\'" >>= \s -> return $! s) -- echaracter part 2 minus '
-
-unicode_escape :: GenParser ParseState T.Text
-unicode_escape =
- (char '\\' >> return (T.singleton '\\')) >>
- ((char '\\' >> return "\\\\") <|>
-  (char 'u' >> count 4 t_hex >>= \cs -> return $!  "\\u" `T.append`  T.pack cs) <|>
-  (char 'U' >> count 8 t_hex >>= \cs -> return $!  "\\U" `T.append` T.pack cs))
-
-non_ctrl_char_except :: String -> GenParser ParseState T.Text
-non_ctrl_char_except cs =
-  liftM T.singleton
-    (satisfy (\ c -> c <= '\1114111' && (c >= ' ' && c `notElem` cs)))
 
 {-# INLINE in_range #-}
 in_range :: Char -> [(Char, Char)] -> Bool
@@ -658,7 +649,7 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
-parseFile' bUrl docUrl fpath =
+parseFile' bUrl docUrl fpath = do
   TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], Seq.empty)
 
