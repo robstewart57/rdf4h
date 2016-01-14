@@ -8,7 +8,7 @@ module Text.RDF.RDF4H.NTriplesParser(
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
-import Data.Char(isLetter, isDigit,isAlphaNum)
+import Data.Char (isLetter, isDigit,isAlphaNum)
 import qualified Data.Map as Map
 import Text.Parsec
 import Text.Parsec.Text
@@ -76,7 +76,8 @@ nt_triple    =
 -- [6] literal
 nt_literal :: GenParser () LValue
 nt_literal = do
-  s <- nt_string_literal_quote
+  s' <- nt_string_literal_quote
+  let s = escapeRDFSyntax s'
   option (plainL s) $ do
                ((count 2 (char '^') >> nt_iriref >>= validateURI >>= \iri -> return (typedL s iri))
                 <|> (nt_langtag >>= \lang -> return (plainLL s lang)))
@@ -86,13 +87,13 @@ nt_string_literal_quote :: GenParser () T.Text
 nt_string_literal_quote =
     between (char '"') (char '"') $ do
       T.concat <$> (many ((T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD']) <|>
-                          try nt_echar <|>
+                          nt_echar <|>
                           nt_uchar))
 
 -- [144s] LANGTAG
 nt_langtag :: GenParser () T.Text
 nt_langtag = do
-  char '@'
+  void (char '@')
   ss   <- many1 (satisfy (\ c -> isLetter c))
   rest <- concat <$> many (char '-' >> many1 (satisfy (\ c -> isAlphaNum c)) >>= \lang_str -> return ('-':lang_str))
   return (T.pack (ss ++ rest))
@@ -101,13 +102,13 @@ nt_langtag = do
 nt_iriref :: GenParser () T.Text
 nt_iriref = do
   between (char '<') (char '>') $ do
-              T.concat <$> many ( T.singleton <$> noneOf ['\x00','\x20','<','>','"','{','}','|','^','`','\\'] <|>
+              T.concat <$> many ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ ['<','>','"','{','}','|','^','`','\\']) <|>
                                   nt_uchar )
 
 -- [153s] ECHAR
 nt_echar :: GenParser () T.Text
-nt_echar = do
-  char '\\'
+nt_echar = try $ do
+  void (char '\\')
   c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
   return $ case c2 of
     't'  -> T.singleton '\t'
@@ -171,7 +172,7 @@ nt_uriref = between (char '<') (char '>') $ do
 -- [141s] BLANK_NODE_LABEL
 nt_blank_node_label :: GenParser () T.Text
 nt_blank_node_label = do
-  char '_' >> char ':'
+  void (char '_' >> char ':')
   s1 <- (nt_pn_chars_u <|> satisfy isDigit)
   s2 <- option "" $ try $ do
           sub_dots <- many (char '.')
