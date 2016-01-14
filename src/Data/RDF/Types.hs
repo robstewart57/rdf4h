@@ -46,7 +46,7 @@ import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Network.URI as Network (isURI,uriPath,parseURI)
+import qualified Network.URI as Network (uriPath,parseURI)
 import Control.DeepSeq (NFData,rnf)
 import Text.Parsec
 import Text.Parsec.Text
@@ -177,6 +177,7 @@ nt_uchar =
     (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
      try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)))
 
+uEscapedToXEscaped :: String -> String
 uEscapedToXEscaped ss =
     let str = ['\\','x'] ++ ss
     in read ("\"" ++ str ++ "\"")
