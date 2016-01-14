@@ -11,12 +11,12 @@ runManifestTests mfEntryToTest manifest =
     testGroup (T.unpack $ description manifest) $ map mfEntryToTest $ entries manifest
 
 assertIsIsomorphic :: forall rdf1 rdf2.
-                      (RDF rdf1, RDF rdf2) =>
+                      (Show rdf1, Show rdf2, RDF rdf1, RDF rdf2) =>
                       IO rdf1 -> IO rdf2 -> IO ()
 assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
-  TU.assertBool "not isomorphic" (isIsomorphic gr1 gr2)
+  TU.assertBool ("not isomorphic: " ++ show gr1 ++ " compared with " ++ show gr2) (isIsomorphic gr1 gr2)
 
 assertIsParsed :: (Show rdf, RDF rdf) => IO (Either ParseFailure rdf) -> TU.Assertion
 assertIsParsed r1 = do
