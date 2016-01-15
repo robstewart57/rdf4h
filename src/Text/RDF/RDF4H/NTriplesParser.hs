@@ -79,7 +79,7 @@ nt_literal = do
   s' <- nt_string_literal_quote
   let s = escapeRDFSyntax s'
   option (plainL s) $ do
-               ((count 2 (char '^') >> nt_iriref >>= validateURI >>= \iri -> return (typedL s iri))
+               ((count 2 (char '^') >> nt_iriref >>= validateURI >>= isAbsoluteParser >>= \iri -> return (typedL s iri))
                 <|> (nt_langtag >>= \lang -> return (plainLL s lang)))
 
 -- [9] STRING_LITERAL_QUOTE
