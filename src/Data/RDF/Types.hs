@@ -604,7 +604,6 @@ resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> Maybe T.Text
 resolveQName mbaseUrl prefix (PrefixMappings pms') =
   case (mbaseUrl, T.null prefix) of
     (Just (BaseUrl base), True)  ->  Just $ Map.findWithDefault base T.empty pms'
-    (Nothing,             True)  ->  Nothing
     (_,                   _   )  ->  Map.lookup prefix pms'
 
 {- alternative implementation from Text.RDF.RDF4H.ParserUtils

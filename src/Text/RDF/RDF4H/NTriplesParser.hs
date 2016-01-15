@@ -163,11 +163,23 @@ validateURI t = do
     UNode uri <- validateUNode t
     return uri
 
+isAbsoluteParser :: T.Text -> GenParser () T.Text
+isAbsoluteParser t =
+    if isAbsoluteUri t
+    then return t
+    else unexpected ("Only absolute IRIs allowed in NTriples format, which this isn't: " ++ show t)
+
+absoluteURI :: T.Text -> GenParser () T.Text
+absoluteURI t = do
+    uri <- isAbsoluteParser t
+    return uri
+
 -- A URI reference is one or more nrab_character inside angle brackets.
 nt_uriref :: GenParser () T.Text
 nt_uriref = between (char '<') (char '>') $ do
               unvalidatedUri <- many (satisfy ( /= '>'))
-              validateURI (T.pack unvalidatedUri)
+              t <- validateURI (T.pack unvalidatedUri)
+              absoluteURI t
 
 -- [141s] BLANK_NODE_LABEL
 nt_blank_node_label :: GenParser () T.Text

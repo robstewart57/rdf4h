@@ -152,10 +152,11 @@ t_pname_ns =do
   void (char ':')
   (bUrl, _, _, pms, _, _, _, _) <- getState
   case resolveQName bUrl pre pms of
-    Just n -> return n
+    Just n  -> return n
     Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
 -- grammar rules: [168s] PN_LOCAL
+-- [168s] PN_LOCAL ::= (PN_CHARS_U | ':' | [0-9] | PLX) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX))?
 t_pn_local :: GenParser ParseState T.Text
 t_pn_local = do
   x <- t_pn_chars_u_str <|> string ":" <|> satisfy_str <|> t_plx
@@ -318,15 +319,13 @@ t_rdf_literal = do
                   (try (t_langtag >>= \lang -> return (plainLL str lang)) <|>
                    ((count 2 (char '^') >> t_iri >>= \iri -> return (typedL str iri))))
 
-
 -- [17] String
 -- STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
 t_string :: GenParser ParseState T.Text
 t_string = try t_string_literal_long_quote <|>
+           try t_string_literal_long_single_quote <|>
            try t_string_literal_quote <|>
-           try t_string_literal_single_quote <|>
-           t_string_literal_long_single_quote
-
+           t_string_literal_single_quote
 
 -- [22]	STRING_LITERAL_QUOTE
 -- '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
@@ -352,9 +351,9 @@ t_string_literal_single_quote =
 t_string_literal_long_single_quote :: GenParser ParseState T.Text
 t_string_literal_long_single_quote =
     between ((string "'''")) ((string "'''")) $ do
-      ss <- many $ do
-        s1 <- T.pack <$> option "" (string "'" <|> string "''")
-        s2 <- (T.singleton <$> noneOf ['\'','\\'] <|> t_echar <|> t_uchar)
+      ss <- many $ try $ do
+        s1 <- T.pack <$> option "" (try (string "''") <|> string "'")
+        s2 <- T.singleton <$> noneOf ['\'','\\'] <|> t_echar <|> t_uchar
         return (s1 `T.append` s2)
       return (T.concat ss)
 
@@ -363,12 +362,10 @@ t_string_literal_long_single_quote =
 t_string_literal_long_quote :: GenParser ParseState T.Text
 t_string_literal_long_quote =
      between (string "\"\"\"") (string "\"\"\"") $ do
-      ss <- many $ do
-        s2 <- (try (char '"' >>= \c -> notFollowedBy (char '"') >> return (T.singleton c)) <|>
-               T.singleton <$> noneOf ['"','\\'] <|>
-               t_echar <|>
-               t_uchar)
-        return s2
+      ss <- many $ try $ do
+              s1 <- T.pack <$> option "" (try (string "\"\"") <|> string "\"")
+              s2 <- (T.singleton <$> noneOf ['"','\\']) <|> t_echar <|> t_uchar
+              return (s1 `T.append` s2)
       return (T.concat ss)
 
 -- [144s] LANGTAG
@@ -463,18 +460,21 @@ t_ws =
      <|> try t_comment)
     <?> "whitespace-or-comment"
 
-identifier :: GenParser ParseState Char -> GenParser ParseState Char -> GenParser ParseState T.Text
-identifier initial rest = initial >>= \i -> many rest >>= \r -> return ( T.pack (i:r))
-
 -- grammar rule: [167s] PN_PREFIX
 t_pn_prefix :: GenParser ParseState T.Text
 t_pn_prefix = do
   i <- try t_pn_chars_base
-  r <- option "" (many (try t_pn_chars <|> char '.'))
+  r <- option "" (many (try t_pn_chars <|> char '.')) -- TODO: ensure t_pn_chars is last char
   return (T.pack (i:r))
 
+-- (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
 t_name :: GenParser ParseState T.Text
-t_name = identifier t_pn_chars_u t_pn_chars
+t_name = try $ do
+           ch  <- t_pn_chars_u <|> oneOf ['0'..'9']
+           str <- many (t_pn_chars <|> char '.')
+           if last (ch:str) == '.'
+           then unexpected ("t_name: literal " ++ (ch:str) ++ " doesn't end with PN_CHARS")
+           else return (T.pack (ch : str))
 
 -- [18] IRIREF
 t_iriref :: GenParser ParseState T.Text
