@@ -69,8 +69,13 @@ t_statement = d <|> t <|> void (many1 t_ws <?> "blankline-whitespace")
       (many t_ws <?> "triple-whitespace2"))
 
 -- grammar rule: [6] triples
+-- subject predicateObjectList | blankNodePropertyList predicateObjectList?
 t_triples :: GenParser ParseState ()
-t_triples = t_subject >> (many1 t_ws <?> "subject-predicate-whitespace") >> t_predicateObjectList >> resetSubjectPredicate
+t_triples = do
+  try (t_subject >> many t_ws >> t_predicateObjectList >> resetSubjectPredicate) <|> (liftM BNodeGen nextIdCounter >>= \bSubj -> pushSubj bSubj >> t_blankNodePropertyList >> optional t_predicateObjectList >> resetSubjectPredicate)
+
+-- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
+t_blankNodePropertyList = between (char '[') (char ']') (many t_ws >> t_predicateObjectList >> many t_ws)
 
 -- grammar rule: [3] directive
 t_directive :: GenParser ParseState ()
@@ -134,13 +139,12 @@ t_sparql_base =
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
 
 t_verb :: GenParser ParseState ()
+-- [9]	verb ::= predicate | 'a'
 t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
 
 -- grammar rule: [11] predicate
 t_predicate :: GenParser ParseState Node
 t_predicate = liftM UNode (t_iri <?> "resource")
---  res <- t_iri <?> "resource"
---  validateUNode res
 
 t_nodeID  :: GenParser ParseState T.Text
 t_nodeID = do { void (try (string "_:")); cs <- t_name; return $! "_:" `T.append` cs }
@@ -199,31 +203,41 @@ t_pname_ln =
      return (pre `T.append` name)
 
 -- grammar rule: [10] subject
+-- [10] subject	::= iri | BlankNode | collection
 t_subject :: GenParser ParseState ()
 t_subject =
   iri <|>
-  simpleBNode <|>
-  nodeId <|>
-  between (char '[') (char ']') poList
+  t_blankNode <|>
+  t_collection
   where
-    iri         = liftM unode (try t_iri <?> "subject resource") >>= pushSubj
+    iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
     nodeId      = liftM BNode (try t_nodeID <?> "subject nodeID") >>= pushSubj
-    simpleBNode = try (string "[]") >> nextIdCounter >>=  pushSubj . BNodeGen
     poList      = void
-                (nextIdCounter >>= pushSubj . BNodeGen >> many t_ws >>
+                (nextIdCounter >>= \i -> ((pushSubj . BNodeGen) i) >> many t_ws >>
                 t_predicateObjectList >>
                 many t_ws)
 
--- verb objectList (';' (verb objectList)?)*
---
--- verb ws+ objectList ( ws* ';' ws* verb ws+ objectList )* (ws* ';')?
--- grammar rule: [7] predicateObjectlist
+-- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
+t_blankNode = (try t_blank_node_label <|> t_anon) >> nextIdCounter >>= \i -> (pushSubj . BNodeGen) i
+
+-- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
+t_blank_node_label = do
+  void (string "_:")
+  void (t_pn_chars_u <|> oneOf ['0'..'9'])
+  optional $ do
+    void (many (t_pn_chars <|> char '.'))
+    void t_pn_chars
+
+-- [162s] ANON ::= '[' WS* ']'
+t_anon = between (char '[') (char ']') (void (many t_ws))
+
+-- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
 t_predicateObjectList :: GenParser ParseState ()
-t_predicateObjectList =
-  do void (sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> optional (char ';') >> many t_ws)))
---     return ()
+t_predicateObjectList = do
+  void (sepEndBy1 (try (t_verb >> many1 t_ws >> t_objectList >> popPred)) (try (many t_ws >> char ';' >> optional (char ';') >> many t_ws)))
 
 -- grammar rule: [8] objectlist
+-- [8] objectList ::= object (',' object)*
 t_objectList :: GenParser ParseState ()
 t_objectList = -- t_object actually adds the triples
   void
@@ -231,6 +245,7 @@ t_objectList = -- t_object actually adds the triples
   many (try (many t_ws >> char ',' >> many t_ws >> t_object)))
 
 -- grammar rule: [12] object
+-- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal
 t_object :: GenParser ParseState ()
 t_object =
   do inColl      <- isInColl          -- whether this object is in a collection
@@ -265,7 +280,7 @@ t_collection =
          addTripleForObject rdfNilNode >>
          popPred >> popSubj)
        void finishColl
-       return ()
+
 
 blank_as_obj :: GenParser ParseState ()
 blank_as_obj =
@@ -281,7 +296,7 @@ blank_as_obj =
                  liftM BNodeGen nextIdCounter >>= \bSubj ->   -- generate new bnode
                   void
                   (addTripleForObject bSubj >>   -- add triple with bnode as object
-                  many t_ws >> pushSubj bSubj >> -- push bnode as new subject
+                  many t_ws >> (pushSubj bSubj) >> -- push bnode as new subject
                   t_predicateObjectList >> popSubj >> many t_ws) -- process polist, which uses bnode as subj, then pop bnode
 
 
@@ -299,7 +314,6 @@ xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: GenParser ParseState Node
 t_literal =
--- try str_literal <|>
   (try t_rdf_literal >>= \l -> return (LNode l))   <|>
   liftM (`mkLNode` xsdDoubleUri) (try t_double)    <|>
   liftM (`mkLNode` xsdIntUri) (try t_integer)      <|>
@@ -454,6 +468,7 @@ t_comment :: GenParser ParseState ()
 t_comment =
   void (char '#' >> many (satisfy (\ c -> c /= '\n' && c /= '\r')))
 
+-- [161s] WS ::= #x20 | #x9 | #xD | #xA
 t_ws :: GenParser ParseState ()
 t_ws =
     (void (try (char '\t' <|> char '\n' <|> char '\r' <|> char ' '))
