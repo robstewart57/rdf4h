@@ -72,10 +72,11 @@ t_statement = d <|> t <|> void (many1 t_ws <?> "blankline-whitespace")
 -- subject predicateObjectList | blankNodePropertyList predicateObjectList?
 t_triples :: GenParser ParseState ()
 t_triples = do
-  try (t_subject >> many t_ws >> t_predicateObjectList >> resetSubjectPredicate) <|> (liftM BNodeGen nextIdCounter >>= \bSubj -> pushSubj bSubj >> t_blankNodePropertyList >> optional t_predicateObjectList >> resetSubjectPredicate)
+  try (t_subject >> many t_ws >> t_predicateObjectList >> resetSubjectPredicate) <|> (liftM BNodeGen nextIdCounter >>= \bSubj -> pushSubj bSubj >> t_blankNodePropertyList >> many t_ws >> optional t_predicateObjectList >> resetSubjectPredicate)
 
 -- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
-t_blankNodePropertyList = between (char '[') (char ']') (many t_ws >> t_predicateObjectList >> many t_ws)
+t_blankNodePropertyList :: GenParser ParseState ()
+t_blankNodePropertyList = between (char '[') (char ']') (many t_ws >> t_predicateObjectList >> void (many t_ws))
 
 -- grammar rule: [3] directive
 t_directive :: GenParser ParseState ()
@@ -211,16 +212,18 @@ t_subject =
   t_collection
   where
     iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
-    nodeId      = liftM BNode (try t_nodeID <?> "subject nodeID") >>= pushSubj
-    poList      = void
-                (nextIdCounter >>= \i -> ((pushSubj . BNodeGen) i) >> many t_ws >>
-                t_predicateObjectList >>
-                many t_ws)
+    -- nodeId      = liftM BNode (try t_nodeID <?> "subject nodeID") >>= pushSubj
+    -- poList      = void
+    --             (nextIdCounter >>= \i -> ((pushSubj . BNodeGen) i) >> many t_ws >>
+    --             t_predicateObjectList >>
+    --             many t_ws)
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
+t_blankNode :: GenParser ParseState ()
 t_blankNode = (try t_blank_node_label <|> t_anon) >> nextIdCounter >>= \i -> (pushSubj . BNodeGen) i
 
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
+t_blank_node_label :: GenParser ParseState ()
 t_blank_node_label = do
   void (string "_:")
   void (t_pn_chars_u <|> oneOf ['0'..'9'])
@@ -229,6 +232,7 @@ t_blank_node_label = do
     void t_pn_chars
 
 -- [162s] ANON ::= '[' WS* ']'
+t_anon :: GenParser ParseState ()
 t_anon = between (char '[') (char ']') (void (many t_ws))
 
 -- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
@@ -316,8 +320,8 @@ t_literal :: GenParser ParseState Node
 t_literal =
   (try t_rdf_literal >>= \l -> return (LNode l))   <|>
   liftM (`mkLNode` xsdDoubleUri) (try t_double)    <|>
-  liftM (`mkLNode` xsdIntUri) (try t_integer)      <|>
   liftM (`mkLNode` xsdDecimalUri) (try t_decimal)  <|>
+  liftM (`mkLNode` xsdIntUri) (try t_integer)      <|>
   liftM (`mkLNode` xsdBooleanUri) t_boolean
    where
     mkLNode :: T.Text -> T.Text -> Node
@@ -408,7 +412,6 @@ t_echar = try $ do
                '\\' -> T.singleton '\\'
                _    -> error "nt_echar: impossible error."
 
-
 -- [26]	UCHAR
 -- '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
 t_uchar :: GenParser ParseState T.Text
@@ -416,28 +419,28 @@ t_uchar =
     (try (string "\\u" >> count 4 hexDigit) >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
      (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs))
 
+-- [19] INTEGER ::= [+-]? [0-9]+
 t_integer :: GenParser ParseState T.Text
-t_integer =
+t_integer = try $
   do sign <- sign_parser <?> "+-"
-     ds <- many1 digit   <?> "digit"
-     notFollowedBy (char '.')
-     -- integer must be in canonical format, with no leading plus sign or leading zero
+     ds <- many1 (oneOf ['0'..'9'] <?> "digit")
      return $! ( T.pack sign `T.append` T.pack ds)
 
 -- grammar rule: [21] DOUBLE
+-- [21] DOUBLE ::= [+-]? ([0-9]+ '.' [0-9]* EXPONENT | '.' [0-9]+ EXPONENT | [0-9]+ EXPONENT)
 t_double :: GenParser ParseState T.Text
 t_double =
   do sign <- sign_parser <?> "+-"
-     rest <- try (do { ds <- many1 digit <?> "digit";
+     rest <- try (do { ds <- many1 (oneOf ['0'..'9']) <?> "digit";
                       void (char '.');
-                      ds' <- many digit <?> "digit";
+                      ds' <- many (oneOf ['0'..'9']) <?> "digit";
                       e <- t_exponent <?> "exponent";
                       return ( T.pack ds `T.snoc` '.' `T.append`  T.pack ds' `T.append` e) }) <|>
              try (do { void (char '.');
-                       ds <- many1 digit <?> "digit";
+                       ds <- many1 (oneOf ['0'..'9']) <?> "digit";
                        e <- t_exponent <?> "exponent";
                        return ('.' `T.cons`  T.pack ds `T.append` e) }) <|>
-             try (do { ds <- many1 digit <?> "digit";
+                 (do { ds <- many1 (oneOf ['0'..'9']) <?> "digit";
                        e <- t_exponent <?> "exponent";
                        return ( T.pack ds `T.append` e) })
      return $! T.pack sign `T.append` rest
@@ -445,13 +448,18 @@ t_double =
 sign_parser :: GenParser ParseState String
 sign_parser = option "" (oneOf "-+" >>= (\c -> return [c]))
 
+-- [20]	DECIMAL ::= [+-]? [0-9]* '.' [0-9]+
 t_decimal :: GenParser ParseState T.Text
-t_decimal =
-  do sign <- sign_parser
-     rest <- try (do ds <- many digit <?> "digit"; void (char '.'); ds' <- option "" (many digit); return (ds ++ ('.':ds')))
-             <|> try (do { void (char '.'); ds <- many1 digit <?> "digit"; return ('.':ds) })
-             <|> many1 digit <?> "digit"
-     return $ T.pack sign `T.append`  T.pack rest
+t_decimal = try $ do
+              sign <- sign_parser
+              dig1 <- many (oneOf ['0'..'9'])
+              void (char '.')
+              dig2 <- many1 (oneOf ['0'..'9'])
+              return (T.pack sign `T.append`  T.pack dig1 `T.append` T.pack "." `T.append` T.pack dig2)
+
+     -- rest <- try (do ds <- many digit <?> "digit"; void (char '.'); ds' <- option "" (many digit); return (ds ++ ('.':ds')))
+     --         <|> try (do { void (char '.'); ds <- many1 digit <?> "digit"; return ('.':ds) })
+     --         <|> many1 digit <?> "digit"
 
 t_exponent :: GenParser ParseState T.Text
 t_exponent = do e <- oneOf "eE"
