@@ -22,6 +22,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
+import Data.List
 
 -- |An 'RdfParser' implementation for parsing RDF in the
 -- Turtle format. It is an implementation of W3C Turtle grammar rules at
@@ -165,9 +166,11 @@ t_pname_ns =do
 t_pn_local :: GenParser ParseState T.Text
 t_pn_local = do
   x <- t_pn_chars_u_str <|> string ":" <|> satisfy_str <|> t_plx
-  xs <- option "" $ do
-               ys <- many ( t_pn_chars_str <|> string "." <|> string ":" <|> t_plx )
-               return (concat ys)
+  xs <- option "" $ try $ do
+               let recsve = (t_pn_chars_str <|> string ":" <|> t_plx) <|>
+                            (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve))) <|>
+                            (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." >> notFollowedBy t_ws >> return "."))
+               concat <$> many recsve
   return (T.pack (x ++ xs))
     where
       satisfy_str = satisfy (flip in_range [('0', '9')]) >>= \c -> return [c]
@@ -212,24 +215,26 @@ t_subject =
   t_collection
   where
     iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
-    -- nodeId      = liftM BNode (try t_nodeID <?> "subject nodeID") >>= pushSubj
-    -- poList      = void
-    --             (nextIdCounter >>= \i -> ((pushSubj . BNodeGen) i) >> many t_ws >>
-    --             t_predicateObjectList >>
-    --             many t_ws)
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: GenParser ParseState ()
 t_blankNode = (try t_blank_node_label <|> t_anon) >> nextIdCounter >>= \i -> (pushSubj . BNodeGen) i
 
+-- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
 t_blank_node_label :: GenParser ParseState ()
 t_blank_node_label = do
   void (string "_:")
   void (t_pn_chars_u <|> oneOf ['0'..'9'])
-  optional $ do
-    void (many (t_pn_chars <|> char '.'))
-    void t_pn_chars
+  optional $ try $ do
+    ss <- option "" $ do
+            xs <- many (t_pn_chars <|> char '.')
+            if null xs
+            then return xs
+            else if last xs == '.'
+                 then unexpected "'.' at the end of a blank node label"
+                 else return xs
+    return ss
 
 -- [162s] ANON ::= '[' WS* ']'
 t_anon :: GenParser ParseState ()
@@ -456,10 +461,6 @@ t_decimal = try $ do
               void (char '.')
               dig2 <- many1 (oneOf ['0'..'9'])
               return (T.pack sign `T.append`  T.pack dig1 `T.append` T.pack "." `T.append` T.pack dig2)
-
-     -- rest <- try (do ds <- many digit <?> "digit"; void (char '.'); ds' <- option "" (many digit); return (ds ++ ('.':ds')))
-     --         <|> try (do { void (char '.'); ds <- many1 digit <?> "digit"; return ('.':ds) })
-     --         <|> many1 digit <?> "digit"
 
 t_exponent :: GenParser ParseState T.Text
 t_exponent = do e <- oneOf "eE"
