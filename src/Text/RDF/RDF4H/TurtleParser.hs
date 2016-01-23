@@ -219,9 +219,7 @@ t_pname_ln =
 t_subject :: GenParser ParseState ()
 t_subject =
   iri <|>
---    liftM BNodeGen nextIdCounter >>= pushSubj
---    (t_blankNode <|> (pushPred rdfFirstNode >> setSubjColl >> t_collection))
-  t_blankNode <|>
+  (t_blankNode >>= pushSubj) <|>
    (liftM BNodeGen nextIdCounter >>= pushSubj
     >> pushPred rdfFirstNode
     >> setSubjColl
@@ -230,8 +228,12 @@ t_subject =
     iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
-t_blankNode :: GenParser ParseState ()
-t_blankNode = (try t_blank_node_label <|> t_anon) >> nextIdCounter >>= \i -> (pushSubj . BNodeGen) i
+t_blankNode :: GenParser ParseState Node
+t_blankNode = do
+  (try t_blank_node_label <|> t_anon)
+  i <- nextIdCounter
+  let node = BNodeGen i
+  return node
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
@@ -280,7 +282,7 @@ t_object = do
   onFirstItem <- onCollFirstItem
   let processObject =
            (liftM UNode t_iri >>= addTripleForObject) <|>
-           (try t_blankNode) <|>
+           (try t_blankNode >>= addTripleForObject) <|>
            (try t_collection) <|>
            (try t_blankNodePropertyList) <|>
            (t_literal >>= addTripleForObject)
