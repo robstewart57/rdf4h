@@ -255,10 +255,10 @@ t_anon = between (char '[') (char ']') (void (many t_ws))
 t_predicateObjectList :: GenParser ParseState ()
 t_predicateObjectList = do
   void (sepEndBy1
-        (try (do { t_verb
-                 ; many1 t_ws
-                 ; t_objectList
-                 ; popPred}))
+        (optional (try (do { t_verb
+                           ; many1 t_ws
+                           ; t_objectList
+                           ; void popPred})))
         (try (many t_ws >> char ';' >> many t_ws)))
 
 -- grammar rule: [8] objectlist
