@@ -22,7 +22,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
-import Data.List
 
 -- |An 'RdfParser' implementation for parsing RDF in the
 -- Turtle format. It is an implementation of W3C Turtle grammar rules at
@@ -155,9 +154,6 @@ t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
 -- grammar rule: [11] predicate
 t_predicate :: GenParser ParseState Node
 t_predicate = liftM UNode (t_iri <?> "resource")
-
-t_nodeID  :: GenParser ParseState T.Text
-t_nodeID = do { void (try (string "_:")); cs <- t_name; return $! "_:" `T.append` cs }
 
 -- grammar rules: [139s] PNAME_NS
 t_pname_ns :: GenParser ParseState T.Text
@@ -502,15 +498,6 @@ t_pn_prefix = do
   i <- try t_pn_chars_base
   r <- option "" (many (try t_pn_chars <|> char '.')) -- TODO: ensure t_pn_chars is last char
   return (T.pack (i:r))
-
--- (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
-t_name :: GenParser ParseState T.Text
-t_name = try $ do
-           ch  <- t_pn_chars_u <|> oneOf ['0'..'9']
-           str <- many (t_pn_chars <|> char '.')
-           if last (ch:str) == '.'
-           then unexpected ("t_name: literal " ++ (ch:str) ++ " doesn't end with PN_CHARS")
-           else return (T.pack (ch : str))
 
 -- [18] IRIREF
 t_iriref :: GenParser ParseState T.Text
