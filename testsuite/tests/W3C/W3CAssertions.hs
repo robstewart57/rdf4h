@@ -16,7 +16,7 @@ assertIsIsomorphic :: forall rdf1 rdf2.
 assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
-  TU.assertBool ("not isomorphic: " ++ show gr1 ++ " compared with " ++ show gr2) (isIsomorphic gr1 gr2)
+  TU.assertBool ("not isomorphic: " ++ show gr1 ++ " compared with " ++ show gr2) (isGraphIsomorphic gr1 gr2)
 
 assertIsParsed :: (Show rdf, RDF rdf) => IO (Either ParseFailure rdf) -> TU.Assertion
 assertIsParsed r1 = do
