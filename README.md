@@ -35,7 +35,8 @@ graph. The current `RDF` instances are:
 * `TriplesList`, which is a standard list of `Triple` elements.
 * `TriplesPatriciaTree`, which stores triples in a patricia tree from the `fgl` library.
 
-The `RDF` class is:
+The `RDF` class provides the following methods, each of which are
+optimised for the underlying RDF graph representation:
 
 ```haskell
 class RDF rdf where
@@ -48,6 +49,27 @@ class RDF rdf where
   uniqTriplesOf     :: rdf -> Triples
   select            :: rdf -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
   query             :: rdf -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+```
+
+How to query RDF graphs
+-----------------------
+
+The following RDF graph query functions are in the library:
+
+```haskell
+fromEither            :: RDF rdf => Either ParseFailure rdf -> rdf
+equalSubjects         :: Triple -> Triple -> Bool
+equalPredicates       :: Triple -> Triple -> Bool
+equalObjects          :: Triple -> Triple -> Bool
+isEmpty               :: RDF rdf => rdf -> Bool
+subjectsWithPredicate :: RDF rdf => rdf -> Predicate -> [Subject]
+objectsOfPredicate    :: RDF rdf => rdf -> Predicate -> [Object]
+isIsomorphic          :: (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
+isGraphIsomorphic     :: (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
+expandTriples         :: (RDF rdf) => rdf -> Triples
+expandTriple          :: PrefixMappings -> Triple -> Triple
+expandNode            :: PrefixMappings -> Node -> Node
+expandURI             :: PrefixMappings -> T.Text -> T.Text
 ```
 
 How to parse RDF data
