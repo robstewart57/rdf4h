@@ -7,7 +7,7 @@ module Data.RDF.Query (
   subjectsWithPredicate, objectsOfPredicate,
 
   -- * RDF graph functions
-  isIsomorphic, expandTriples, fromEither,
+  isIsomorphic, isGraphIsomorphic, expandTriples, fromEither,
 
   -- * expansion functions
   expandTriple, expandNode, expandURI,
@@ -22,7 +22,10 @@ import Data.RDF.Types
 import qualified Data.RDF.Namespace as NS (toPMList, uriOf, rdf)
 import qualified Data.Text as T
 import Data.Maybe (catMaybes)
-
+import Data.Graph (Graph,graphFromEdges)
+import qualified Data.Graph.Automorphism as Automorphism
+import qualified Data.HashMap.Strict as HashMap
+import Data.HashMap.Strict (HashMap)
 
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
@@ -90,6 +93,8 @@ fromEither res =
     (Left err) -> error (show err)
     (Right rdf) -> rdf
 
+-- graphFromEdges :: Ord key => [(node, key, [key])] -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
+
 -- |This determines if two RDF representations are equal regardless of blank
 -- node names, triple order and prefixes.  In math terms, this is the \simeq
 -- latex operator, or ~=
@@ -113,6 +118,25 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
 
     normalize :: forall rdf. (RDF rdf) => rdf -> Triples
     normalize = sort . nub . expandTriples
+
+-- | Compares the structure of two graphs and returns 'True' if
+--   their graph structures are identical. This does not consider the nature of
+--   each node in the graph, i.e. the URI text of 'UNode' nodes, the generated
+--   index of a blank node, or the values in literal nodes.
+isGraphIsomorphic :: forall rdf1 rdf2. (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
+isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
+    where
+      g1' = rdfGraphToDataGraph g1
+      g2' = rdfGraphToDataGraph g2
+      rdfGraphToDataGraph :: RDF rdf3 => rdf3 -> Graph
+      rdfGraphToDataGraph g = dataGraph
+          where
+            triples = expandTriples g
+            triplesHashMap :: HashMap (Subject,Predicate) [Object]
+            triplesHashMap = HashMap.fromListWith (++) [((s,p), [o]) | Triple s p o <- triples]
+            triplesGrouped :: [((Subject,Predicate),[Object])]
+            triplesGrouped = HashMap.toList triplesHashMap
+            (dataGraph,_,_) = (graphFromEdges . map (\((s,p),os) -> (s,p,os))) triplesGrouped
 
 -- |Expand the triples in a graph with the prefix map and base URL for that
 -- graph.
