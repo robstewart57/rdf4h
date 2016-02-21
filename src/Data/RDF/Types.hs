@@ -40,6 +40,7 @@ import qualified Data.Text as T
 import System.IO
 import Text.Printf
 import Data.Binary
+import Control.Monad (guard)
 import Data.Map(Map)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
@@ -185,9 +186,32 @@ uEscapedToXEscaped ss =
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
 uriValidate :: T.Text -> Maybe T.Text
-uriValidate t = case isRdfURI t of
+uriValidate t = case isRdfURI of
                   Left _err -> Nothing
                   Right uri -> Just uri
+  where
+    isRdfURI = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
+    -- [18]	IRIREF from Turtle spec
+    isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ [' ','<','>','"','{','}','|','^','`','\\']) <|> nt_uchar)
+    nt_uchar =
+      (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
+       try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)))
+
+uriValidateString :: String -> Maybe String
+uriValidateString t = case isRdfURIString of
+                Left _err -> Nothing
+                Right uri -> Just uri
+  where
+    isRdfURIString = parse (isRdfURIParserS  <* eof) ("Invalid URI: " ++ t) t
+    isRdfURIParserS = many (validUriChar <|> nt_ucharS)
+    nt_ucharS =
+        (try (char '\\' >> char 'u' >> count 4 hexDigit >>= return . head . uEscapedToXEscaped) <|>
+         try (char '\\' >> char 'U' >> count 8 hexDigit >>= return . head . uEscapedToXEscaped))
+    -- [18]	IRIREF from Turtle spec
+    validUriChar = try $ do
+        c <- anyChar
+        guard $ not (c >= '\x00' && c <= '\x20') && c `notElem` [' ','<','>','"','{','}','|','^','`','\\']
+        return c
 
 -- | Escapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
 --   to the RDF specification.

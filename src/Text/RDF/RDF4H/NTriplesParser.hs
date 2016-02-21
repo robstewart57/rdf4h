@@ -1,20 +1,24 @@
 -- |A parser for RDF in N-Triples format
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
-module Text.RDF.RDF4H.NTriplesParser(
-  NTriplesParser(NTriplesParser), ParseFailure
-) where
+module Text.RDF.RDF4H.NTriplesParser
+  (NTriplesParser(NTriplesParser), ParseFailure)
+  where
 
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
 import Data.Char (isLetter, isDigit,isAlphaNum)
-import qualified Data.Map as Map
+import Data.Map as Map (empty)
+import qualified Data.IntMap as M
+import qualified Data.IntSet as S
+import Data.Hashable (hash)
+import Data.Maybe (catMaybes)
 import Text.Parsec
 import Text.Parsec.Text
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Control.Monad (liftM,void)
+import Control.Monad (liftM,void,unless, guard)
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
 -- NTriples format. It requires no configuration options. To use this parser,
@@ -109,17 +113,12 @@ nt_iriref = do
 nt_echar :: GenParser () T.Text
 nt_echar = try $ do
   void (char '\\')
-  c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
-  return $ case c2 of
-    't'  -> T.singleton '\t'
-    'b'  -> T.singleton '\b'
-    'n'  -> T.singleton '\n'
-    'r'  -> T.singleton '\r'
-    'f'  -> T.singleton '\f'
-    '"'  -> T.singleton '\"'
-    '\'' -> T.singleton '\''
-    '\\' -> T.singleton '\\'
-    _    -> error "nt_echar: impossible error."
+  c2 <- anyChar
+  guard $ isEchar c2
+  return (T.pack [c2])
+
+isEchar :: Char -> Bool
+isEchar = (`elem` ['t','b','n','r','f','"','\'','\\'])
 
 -- [10] UCHAR
 nt_uchar :: GenParser () T.Text
@@ -194,34 +193,47 @@ nt_blank_node_label = do
 
 -- [157s] PN_CHARS_BASE
 nt_pn_chars_base :: GenParser () Char
-nt_pn_chars_base =
-    oneOf ['A'..'Z'] <|>
-    oneOf ['a'..'z'] <|>
-    oneOf ['\x00C0'..'\x00D6'] <|>
-    oneOf ['\x00D8'..'\x00F6'] <|>
-    oneOf ['\x00F8'..'\x02FF'] <|>
-    oneOf ['\x0370'..'\x037D'] <|>
-    oneOf ['\x037F'..'\x1FFF'] <|>
-    oneOf ['\x200C'..'\x200D'] <|>
-    oneOf ['\x2070'..'\x218F'] <|>
-    oneOf ['\x2C00'..'\x2FEF'] <|>
-    oneOf ['\x3001'..'\xD7FF'] <|>
-    oneOf ['\xF900'..'\xFDCF'] <|>
-    oneOf ['\xFDF0'..'\xFFFD'] <|>
-    oneOf ['\x10000'..'\xEFFFF']
+nt_pn_chars_base = try $ do
+    c <- anyChar
+    guard $ isBaseChar c
+    return c
+
+isBaseChar :: Char -> Bool
+isBaseChar c
+    =  (c >= 'A' && c <= 'Z')
+    || (c >= 'a' && c <= 'z')
+    || (c >= '\x00C0' && c <= '\x00D6')
+    || (c >= '\x00D8' && c <= '\x00F6')
+    || (c >= '\x00F8' && c <= '\x02FF')
+    || (c >= '\x0370' && c <= '\x037D')
+    || (c >= '\x037F' && c <= '\x1FFF')
+    || (c >= '\x200C' && c <= '\x200D')
+    || (c >= '\x2070' && c <= '\x218F')
+    || (c >= '\x2C00' && c <= '\x2FEF')
+    || (c >= '\x3001' && c <= '\xD7FF')
+    || (c >= '\xF900' && c <= '\xFDCF')
+    || (c >= '\xFDF0' && c <= '\xFFFD')
+    || (c >= '\x10000' && c <= '\xEFFFF')
+
 
 -- [158s] PN_CHARS_U
 nt_pn_chars_u :: GenParser () Char
-nt_pn_chars_u = nt_pn_chars_base <|> char '_' <|> char ':'
+nt_pn_chars_u = try $ do
+    c <- anyChar
+    guard $ c == '_' || c == ':' || isBaseChar c
+    return c
+
 
 -- [160s] PN_CHARS
 nt_pn_chars :: GenParser () Char
-nt_pn_chars = nt_pn_chars_u <|>
-              char '-' <|>
-              satisfy isDigit <|>
-              char '\x00B7' <|>
-              oneOf ['\x0300'..'\x036F'] <|>
-              oneOf ['\x203F'..'\x2040']
+nt_pn_chars = nt_pn_chars_u <|> try (do
+    c <- anyChar
+    guard $ c == '-' || c == '\x00B7'
+           || isDigit c
+           || (c >= '\x0300' && c <= '\x036F')
+           || (c >= '\x203F' && c <= '\x2040')
+    return c
+    )
 
 -- End-of-line consists of either lf or crlf.
 -- We also test for eof and consider that to match as well.
