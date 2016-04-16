@@ -7,18 +7,18 @@ module Data.RDF (
   RdfSerializer(..),
   RdfParser(..),
 
-  -- * Export types and query functions
+  -- * RDF types and query functions
   module Data.RDF.Types,
   module Data.RDF.Query,
 
-  -- * Export RDF type class instances
+  -- * RDF type class instances
   module Data.RDF.Graph.TriplesList,
   module Data.RDF.Graph.HashMapS,
   module Data.RDF.Graph.HashMapSP,
   module Data.RDF.Graph.MapSP,
   module Data.RDF.Graph.TriplesPatriciaTree,
 
-  -- * Export RDF parsers and serializers
+  -- * RDF parsers and serializers
   module Text.RDF.RDF4H.NTriplesSerializer,
   module Text.RDF.RDF4H.NTriplesParser,
   module Text.RDF.RDF4H.TurtleSerializer,

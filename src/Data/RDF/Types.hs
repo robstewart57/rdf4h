@@ -189,6 +189,8 @@ uriValidate t = case isRdfURI t of
                   Left _err -> Nothing
                   Right uri -> Just uri
 
+-- | Escapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
+--   to the RDF specification.
 escapeRDFSyntax :: T.Text -> T.Text
 escapeRDFSyntax t = T.pack uri
     where
@@ -281,6 +283,7 @@ isLNode (LNode _) = True
 isLNode _         = False
 
 {-# INLINE isAbsoluteUri #-}
+-- | returns @True@ if URI is absolute.
 isAbsoluteUri :: T.Text -> Bool
 isAbsoluteUri = not
                 . uriIsRelative
@@ -597,9 +600,9 @@ instance Show PrefixMapping where
 -----------------
 -- Miscellaneous helper functions used throughout the project
 
--- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
--- empty, then the base URL will be used if there is a base URL and if the map
--- does not contain an entry for the empty prefix.
+-- | Resolve a prefix using the given prefix mappings and base URL. If the prefix is
+--   empty, then the base URL will be used if there is a base URL and
+--   if the map does not contain an entry for the empty prefix.
 resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> Maybe T.Text
 resolveQName mbaseUrl prefix (PrefixMappings pms') =
   case (mbaseUrl, T.null prefix) of
@@ -622,8 +625,8 @@ resolveQName mbaseUrl prefix (PrefixMappings pms') =
     err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
 -}
 
--- Resolve a URL fragment found on the right side of a prefix mapping
--- by converting it to an absolute URL if possible.
+-- | Resolve a URL fragment found on the right side of a prefix mapping
+--   by converting it to an absolute URL if possible.
 absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
 absolutizeUrl mbUrl mdUrl urlFrag =
   if isAbsoluteUri urlFrag then urlFrag else
@@ -657,8 +660,8 @@ absolutizeUrl mbUrl mdUrl urlFrag =
 -}
 
 {-# INLINE mkAbsoluteUrl #-}
--- Make an absolute URL by returning as is if already an absolute URL and otherwise
--- appending the URL to the given base URL.
+-- | Make an absolute URL by returning as is if already an absolute URL and otherwise
+--   appending the URL to the given base URL.
 mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
 mkAbsoluteUrl base url =
     if isAbsoluteUri url then url else base `T.append` url

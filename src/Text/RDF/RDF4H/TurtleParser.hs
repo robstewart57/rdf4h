@@ -49,8 +49,8 @@ type ParseState =
    [Subject],        -- stack of current subject nodes, if we have parsed a subject but not finished the triple
    [Predicate],      -- stack of current predicate nodes, if we've parsed a predicate but not finished the triple
    [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
-   Bool,             -- when in a collection, is it a subject collection or not
-   Bool,             -- when in a blank node property list, is it a subject collection or not
+   [Bool],           -- when in a collection, is it a subject collection or not
+   Bool,           -- when in a blank node property list, is it a subject collection or not
    Seq Triple)       -- the triples encountered while parsing; always added to on the right side
 
 -- grammar rule: [1] turtleDoc
@@ -218,7 +218,7 @@ t_subject =
   (t_blankNode >>= pushSubj) <|>
    (liftM BNodeGen nextIdCounter >>= pushSubj
     >> pushPred rdfFirstNode
-    >> setSubjColl
+    >> pushSubjColl
     >> t_collection)
   where
     iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
@@ -279,14 +279,15 @@ t_object = do
   let processObject =
            (liftM UNode t_iri >>= addTripleForObject) <|>
            (try t_blankNode >>= addTripleForObject) <|>
-           (try t_collection) <|>
+           (try t_collection >> pushObjColl) <|>
            (try t_blankNodePropertyList) <|>
            (t_literal >>= addTripleForObject)
   case (inColl,inSubjColl,onFirstItem) of
     (False,_,_)    -> processObject
     (True,False,True)  -> liftM BNodeGen nextIdCounter >>= \bSubj -> addTripleForObject bSubj
                           >> pushSubj bSubj >> pushPred rdfFirstNode >> processObject >> collFirstItemProcessed
-    (True,True,True)  -> processObject >> collFirstItemProcessed
+--    (True,True,True)  -> processObject >> collFirstItemProcessed
+    (True,True,True)  -> processObject >> collFirstItemProcessed >> popColl
     (True,_,False) -> liftM BNodeGen nextIdCounter >>= \bSubj -> pushPred rdfRestNode >>
                       addTripleForObject bSubj >> popPred >> popSubj >>
                       pushSubj bSubj >> processObject
@@ -301,17 +302,20 @@ t_collection =
     beginColl
     (try empty_list <|> non_empty_list)
     void finishColl
+    -- popColl
       where
         non_empty_list = do
           many1 (many t_ws >> t_object >> many t_ws)
 
-          inSubjColl <- isInSubjColl
+          _inSubjColl <- isInSubjColl
 
           popPred
           pushPred rdfRestNode
           addTripleForObject rdfNilNode
-          popPred
-          if inSubjColl then setNotSubjColl else void popSubj
+
+          -- popPred
+          -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
+          -- if inSubjColl then return () else trace "not sub" $ void popSubj
 
         empty_list = do
           lookAhead (try (many t_ws >> char ')'))
@@ -573,18 +577,38 @@ isInColl :: GenParser ParseState Bool
 isInColl = getState >>= \(_, _, _, _, _, _, cs, _, _, _) -> return . not . null $ cs
 
 isInSubjColl :: GenParser ParseState Bool
-isInSubjColl = getState >>= \(_, _, _, _, _, _, _, subjC, _, _) -> return subjC
+isInSubjColl = getState >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
+               if null xs then return False else return (head xs)
 
-setSubjColl :: GenParser ParseState ()
-setSubjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, _, subjBNodeList, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, True, subjBNodeList, ts)
+{-
+isInObjColl :: GenParser ParseState Bool
+isInObjColl = getState >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
+               when (null xs) $ error "null in isInObjColl"
+               return (not (head xs))
+-}
 
-setNotSubjColl :: GenParser ParseState ()
-setNotSubjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, _, subjBNodeList, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, False, subjBNodeList, ts)
+pushSubjColl :: GenParser ParseState ()
+pushSubjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts)
+
+popColl :: GenParser ParseState ()
+popColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) -> do
+                when (null subjC) $ error "null in popColl"
+                setState (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts)
+
+pushObjColl :: GenParser ParseState ()
+pushObjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts)
 
 isSubjPropList :: GenParser ParseState Bool
-isSubjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> return subjBNodeList
+isSubjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
+                return subjBNodeList
+
+{-
+isObjPropList :: GenParser ParseState Bool
+isObjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
+                return subjBNodeList
+-}
 
 setSubjBlankNodePropList :: GenParser ParseState ()
 setSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
@@ -593,6 +617,15 @@ setSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _
 setNotSubjBlankNodePropList :: GenParser ParseState ()
 setNotSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
                  setState (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts)
+
+-- setObjBlankNodePropList :: GenParser ParseState ()
+-- setObjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
+--                  setState (bUrl, dUrl, i, pms, s, p, cs, subjC, False, ts)
+
+-- popBlankNodePropList :: GenParser ParseState ()
+-- popBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _:subjBNodeList, ts) ->
+--                  when (null subjBNodeList) $ "no subj/obj flag to pop when exiting collection"
+--                  setState (bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts)
 
 updateBaseUrl :: Maybe (Maybe BaseUrl) -> GenParser ParseState ()
 updateBaseUrl val = _modifyState val no no no no no
@@ -698,14 +731,14 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
 parseFile' bUrl docUrl fpath = do
   TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], False, False, Seq.empty)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
 parseString' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure rdf
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], False, False, Seq.empty)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
 
 handleResult :: RDF rdf => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure rdf
 handleResult bUrl result =
