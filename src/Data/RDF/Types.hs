@@ -9,7 +9,7 @@ module Data.RDF.Types (
 
   -- * Constructor functions
   plainL,plainLL,typedL,
-  unode,bnode,lnode,triple,unodeValidate,uriValidate,
+  unode,bnode,lnode,triple,unodeValidate,uriValidate,uriValidateString,
 
   -- * Node query function
   isUNode,isLNode,isBNode,
@@ -186,17 +186,11 @@ uEscapedToXEscaped ss =
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
 uriValidate :: T.Text -> Maybe T.Text
-uriValidate t = case isRdfURI of
+uriValidate t = case isRdfURI t of
                   Left _err -> Nothing
                   Right uri -> Just uri
-  where
-    isRdfURI = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
-    -- [18]	IRIREF from Turtle spec
-    isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ [' ','<','>','"','{','}','|','^','`','\\']) <|> nt_uchar)
-    nt_uchar =
-      (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
-       try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)))
 
+-- |Same as 'uriValidate', but on 'String' rather than 'T.Text'
 uriValidateString :: String -> Maybe String
 uriValidateString t = case isRdfURIString of
                 Left _err -> Nothing

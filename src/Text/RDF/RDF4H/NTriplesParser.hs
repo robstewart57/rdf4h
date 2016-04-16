@@ -10,15 +10,11 @@ import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
 import Data.Char (isLetter, isDigit,isAlphaNum)
 import Data.Map as Map (empty)
-import qualified Data.IntMap as M
-import qualified Data.IntSet as S
-import Data.Hashable (hash)
-import Data.Maybe (catMaybes)
 import Text.Parsec
 import Text.Parsec.Text
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Control.Monad (liftM,void,unless, guard)
+import Control.Monad (liftM,void,guard)
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
 -- NTriples format. It requires no configuration options. To use this parser,
@@ -192,11 +188,14 @@ nt_blank_node_label = do
   return (T.pack ("_:" ++ [s1] ++ s2))
 
 -- [157s] PN_CHARS_BASE
+-- Not used. It used to be. What's happened?
+{-
 nt_pn_chars_base :: GenParser () Char
 nt_pn_chars_base = try $ do
     c <- anyChar
     guard $ isBaseChar c
     return c
+-}
 
 isBaseChar :: Char -> Bool
 isBaseChar c
