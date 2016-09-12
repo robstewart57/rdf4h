@@ -9,70 +9,66 @@ import qualified Data.Text as T
 
 -- The `bills.102.rdf` XML file is needed to run this benchmark suite
 --
--- $ wget https://www.govtrack.us/data/rdf/bills.102.rdf.gz
--- $ gzip -d bills.102.rdf.gz
+-- $ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
+-- $ gzip -d bills.099.actions.rdf.gz
 
-parseTurtle :: RDF rdf => String -> rdf
-parseTurtle s =
-    let (Right rdf) = parseString (TurtleParser Nothing Nothing) (T.pack s)
-    in rdf
-
-queryGr :: RDF rdf => (Maybe Node,Maybe Node,Maybe Node,rdf) -> [Triple]
+parseXmlRDF :: Rdf a => String -> RDF a
+parseXmlRDF s =
+  let (Right rdf) = parseString (XmlParser Nothing Nothing) (T.pack s)
+  in rdf
+  
+queryGr :: Rdf a => (Maybe Node,Maybe Node,Maybe Node,RDF a) -> [Triple]
 queryGr (maybeS,maybeP,maybeO,rdf) = query rdf maybeS maybeP maybeO
 
-selectGr :: RDF rdf => (NodeSelector,NodeSelector,NodeSelector,rdf) -> [Triple]
+selectGr :: Rdf a => (NodeSelector,NodeSelector,NodeSelector,RDF a) -> [Triple]
 selectGr (selectorS,selectorP,selectorO,rdf) = select rdf selectorS selectorP selectorO
 
 main :: IO ()
 main = defaultMain [
-   env (readFile "bills.102.ttl") $ \ ~(ttl_countries) ->
-   bgroup "parse" [
-     bench "HashMapS" $
-       nf (parseTurtle  :: String -> HashMapS) ttl_countries
-   , bench "HashMapSP" $
-       nf (parseTurtle  :: String -> HashMapSP) ttl_countries
-   , bench "MapSP" $
-       nf (parseTurtle  :: String -> MapSP) ttl_countries
-   , bench "TriplesList" $
-       nf (parseTurtle  :: String -> TriplesList) ttl_countries
-   , bench "ListPatriciaTree" $
-       nf (parseTurtle  :: String -> TriplesPatriciaTree) ttl_countries
-   ]
+   -- env (readFile "bills.102.rdf") $ \ ~(ttl_countries) ->
+   -- bgroup "parse" [
+   --   bench "HashS" $
+   --     nf (parseXmlRDF  :: String -> RDF HashS) ttl_countries
+   -- , bench "HashSP" $
+   --     nf (parseXmlRDF  :: String -> RDF HashSP) ttl_countries
+   -- , bench "SP" $
+   --     nf (parseXmlRDF  :: String -> RDF SP) ttl_countries
+   -- , bench "TList" $
+   --     nf (parseXmlRDF  :: String -> RDF TList) ttl_countries
+   -- , bench "TPatriciaTree" $
+   --     nf (parseXmlRDF  :: String -> RDF TPatriciaTree) ttl_countries
+   -- ]
 
-   ,
-   env (do ttl_countries <- readFile "bills.102.ttl"
-           let (Right rdf1) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf5) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP,rdf5::HashMapSP) )
-     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP,hashMapSP) ->
+   -- ,
+   env (do ttl_countries <- readFile "bills.099.actions.rdf"
+           let (Right rdf1) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf2) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf3) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf4) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: RDF TList,rdf2 :: RDF HashS,rdf3 :: RDF SP,rdf4::RDF HashSP) )
+     $ \ ~(triplesList,hashMapS,mapSP,hashMapSP) ->
    bgroup "query"
-     (queryBench "TriplesList" triplesList
-     ++ queryBench "HashMapS" hashMapS
-     ++ queryBench "MapSP" mapSP
-     ++ queryBench "HashMapSP" hashMapSP
-     ++ queryBench "TriplesPatriciaTree" triplesPatriciaTree)
+     (queryBench "TList" triplesList
+     ++ queryBench "HashS" hashMapS
+     ++ queryBench "SP" mapSP
+     ++ queryBench "HashSP" hashMapSP)
 
    ,
-   env (do ttl_countries <- readFile "bills.102.ttl"
-           let (Right rdf1) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf2) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf3) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf4) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf5) = parseString (TurtleParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: TriplesPatriciaTree,rdf2 :: TriplesList,rdf3 :: HashMapS,rdf4 :: MapSP,rdf5 :: HashMapSP) )
-     $ \ ~(triplesPatriciaTree,triplesList,hashMapS,mapSP,hashMapSP) ->
+   env (do ttl_countries <- readFile "bills.099.actions.rdf"
+           let (Right rdf1) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf2) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf3) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           let (Right rdf4) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
+           return (rdf1 :: RDF TList,rdf2 :: RDF HashS,rdf3 :: RDF SP,rdf4 :: RDF HashSP) )
+     $ \ ~(triplesList,hashMapS,mapSP,hashMapSP) ->
    bgroup "select"
      (selectBench "TriplesList" triplesList
-     ++ selectBench "HashMapS" hashMapS
-     ++ selectBench "MapSP" mapSP
-     ++ selectBench "HashMapSP" hashMapSP
-     ++ selectBench "TriplesPatriciaTree" triplesPatriciaTree)
+     ++ selectBench "HashS" hashMapS
+     ++ selectBench "SP" mapSP
+     ++ selectBench "HashSP" hashMapSP)
  ]
 
-selectBench :: forall rdf. RDF rdf => String -> rdf -> [Benchmark]
+selectBench :: Rdf a => String -> RDF a -> [Benchmark]
 selectBench label gr =
    [ bench (label ++ " SPO") $ nf selectGr (subjSelect,predSelect,objSelect,gr)
    , bench (label ++ " SP")  $ nf selectGr (subjSelect,predSelect,selectNothing,gr)
@@ -90,12 +86,12 @@ objSelect  = Just (\case { (UNode n) -> T.length n > 12 ; _ -> False })
 selectNothing = Nothing
 
 subjQuery, predQuery, objQuery, queryNothing :: Maybe Node
-subjQuery = Just (UNode "http://www.rdfabout.com/rdf/usgov/congress/102/bills/h5694")
-predQuery = Just (UNode "bill:congress")
-objQuery  = Just (LNode (PlainL (T.pack "102")))
+subjQuery = Just (UNode "http://www.rdfabout.com/rdf/usgov/congress/99/bills/h4")
+predQuery = Just (UNode "bill:hadAction")
+objQuery  = Just (BNodeGen 1)
 queryNothing = Nothing
 
-queryBench :: forall rdf. RDF rdf => String -> rdf -> [Benchmark]
+queryBench :: Rdf a => String -> RDF a -> [Benchmark]
 queryBench label gr =
    [ bench (label ++ " SPO") $ nf queryGr (subjQuery,predQuery,objQuery,gr)
    , bench (label ++ " SP")  $ nf queryGr (subjQuery,predQuery,queryNothing,gr)

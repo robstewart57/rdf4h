@@ -5,7 +5,7 @@ module W3C.Manifest (
   TestEntry(..)
 ) where
 
-import Data.RDF.Graph.TriplesList
+import Data.RDF.Graph.TList
 import Data.RDF.Query
 import Data.RDF.Types
 import Data.RDF.Namespace
@@ -126,7 +126,7 @@ loadManifest manifestPath baseIRI = do
   parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
   where testParser = TurtleParser (Just $ BaseUrl baseIRI) Nothing
 
-rdfToManifest :: RDF TriplesList -> Manifest
+rdfToManifest :: RDF TList -> Manifest
 rdfToManifest rdf = Manifest desc tpls
   where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
@@ -137,10 +137,10 @@ rdfToManifest rdf = Manifest desc tpls
         collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
         manifestNode = headDef (error "manifestSubjectNodes yielding empty list") $ manifestSubjectNodes rdf
 
-rdfToTestEntry :: RDF TriplesList -> Node -> TestEntry
+rdfToTestEntry :: RDF TList -> Node -> TestEntry
 rdfToTestEntry rdf teSubject = triplesToTestEntry rdf $ query rdf (Just teSubject) Nothing Nothing
 
-triplesToTestEntry :: RDF TriplesList -> Triples -> TestEntry
+triplesToTestEntry :: RDF TList -> Triples -> TestEntry
 triplesToTestEntry rdf ts =
   case objectByPredicate rdfType ts of
     (UNode "http://www.w3.org/ns/rdftest#TestTurtleEval") -> mkTestTurtleEval ts
@@ -188,7 +188,7 @@ mkTestTurtleNegativeSyntax ts = TestTurtleNegativeSyntax {
                                   action = objectByPredicate mfAction ts
                                 }
 
-mkPositiveEntailmentTest :: Triples -> RDF TriplesList -> TestEntry
+mkPositiveEntailmentTest :: Triples -> RDF TList -> TestEntry
 mkPositiveEntailmentTest ts rdf = PositiveEntailmentTest {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -206,7 +206,7 @@ mkPositiveEntailmentTest ts rdf = PositiveEntailmentTest {
           uDT = rdfCollectionToList rdf uDTCollectionHead
           uDTCollectionHead = objectByPredicate mfUnrecognizedDatatypes ts
 
-mkNegativeEntailmentTest :: Triples -> RDF TriplesList -> TestEntry
+mkNegativeEntailmentTest :: Triples -> RDF TList -> TestEntry
 mkNegativeEntailmentTest ts rdf = NegativeEntailmentTest {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -266,10 +266,10 @@ mkTestNTriplesNegativeSyntax ts = TestNTriplesNegativeSyntax {
 objectByPredicate :: Predicate -> Triples -> Object
 objectByPredicate p = objectOf . fromJust . L.find (\t -> predicateOf t == p)
 
-manifestSubjectNodes :: RDF TriplesList -> [Subject]
+manifestSubjectNodes :: RDF TList -> [Subject]
 manifestSubjectNodes rdf = subjectNodes rdf [mfManifest]
 
-subjectNodes :: RDF TriplesList -> [Object] -> [Subject]
+subjectNodes :: RDF TList -> [Object] -> [Subject]
 subjectNodes rdf = (map subjectOf) . concatMap queryType
   where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
@@ -294,15 +294,15 @@ lnodeText _ = error "Not a literal node"
 -- | second argument (`tip`) is the "collection head" (<c1> in the example above),
 -- | (all triples with <rdf:first> and <rdf:rest> pairs).
 -- TODO: Looks useful. Move it to RDF4H lib?
-rdfCollectionToList :: RDF TriplesList -> Node -> [Node]
+rdfCollectionToList :: RDF TList -> Node -> [Node]
 rdfCollectionToList _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")) = []
 rdfCollectionToList rdf tip = concatMap (tripleToList rdf) $ nextCollectionTriples rdf tip
 
-tripleToList :: RDF TriplesList -> Triple -> [Node]
+tripleToList :: RDF TList -> Triple -> [Node]
 tripleToList _ (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#first")) n@(UNode _)) = [n]
 tripleToList rdf (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")) tip) = rdfCollectionToList rdf tip
 tripleToList _ _ = error "Invalid collection format"
 
-nextCollectionTriples :: RDF TriplesList -> Node -> Triples
+nextCollectionTriples :: RDF TList -> Node -> Triples
 nextCollectionTriples rdf tip@(BNodeGen _) = query rdf (Just tip) Nothing Nothing
 nextCollectionTriples _ _ = error "Invalid collection format"

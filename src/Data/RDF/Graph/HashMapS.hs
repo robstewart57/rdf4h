@@ -1,6 +1,11 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE EmptyDataDecls #-}
+
 -- |A graph implementation mapping hashed S to a mapping of
 --  hashed P to hashed O, backed by 'Data.HashMap'.
 
@@ -18,6 +23,8 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.HashSet(HashSet)
 import qualified Data.HashSet as Set
 import Data.List
+import GHC.Generics
+import Data.Binary (Binary)
 
 -- |A map-based graph implementation.
 --
@@ -66,11 +73,18 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype HashS = HashS (TMaps, Maybe BaseUrl, PrefixMappings)
-                 deriving (NFData)
+-- newtype HashS = HashS (TMaps, Maybe BaseUrl, PrefixMappings)
+--                  deriving (NFData)
+
+data HashS deriving (Generic)
+
+instance Binary HashS
+instance NFData HashS
+
+data instance RDF HashS = HashS (TMaps, Maybe BaseUrl, PrefixMappings)
+                 deriving (NFData,Generic)
 
 instance Rdf HashS where
-  data RDF HashS = RDF HashS
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -82,14 +96,14 @@ instance Rdf HashS where
   query             = query'
   showGraph         = showGraph'
 
-instance Show (HashS) where
-  show (HashS ((spoMap, _), _, _)) =
-    let ts = concatMap (uncurry tripsSubj) subjPredMaps
-          where subjPredMaps = HashMap.toList spoMap
-    in concatMap (\t -> show t ++ "\n") ts
+-- instance Show (HashS) where
+--   show (HashS ((spoMap, _), _, _)) =
+--     let ts = concatMap (uncurry tripsSubj) subjPredMaps
+--           where subjPredMaps = HashMap.toList spoMap
+--     in concatMap (\t -> show t ++ "\n") ts
 
 showGraph' :: RDF HashS -> [Char]
-showGraph' (RDF (HashS ((spoMap, _), _, _))) =
+showGraph' ((HashS ((spoMap, _), _, _))) =
     let ts = concatMap (uncurry tripsSubj) subjPredMaps
           where subjPredMaps = HashMap.toList spoMap
     in concatMap (\t -> show t ++ "\n") ts
@@ -110,21 +124,21 @@ type TMaps  = (TMap, TMap)
 
 
 baseUrl' :: RDF HashS -> Maybe BaseUrl
-baseUrl' (RDF (HashS (_, baseURL, _))) = baseURL
+baseUrl' (HashS (_, baseURL, _)) = baseURL
 
 prefixMappings' :: RDF HashS -> PrefixMappings
-prefixMappings' (RDF (HashS (_, _, pms))) = pms
+prefixMappings' (HashS (_, _, pms)) = pms
 
 addPrefixMappings' :: RDF HashS -> PrefixMappings -> Bool -> RDF HashS
-addPrefixMappings' (RDF (HashS (ts, baseURL, pms))) pms' replace = 
+addPrefixMappings' (HashS (ts, baseURL, pms)) pms' replace = 
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  RDF $ HashS (ts, baseURL, merge pms pms')
+  in  HashS (ts, baseURL, merge pms pms')
 
 empty' :: RDF HashS
-empty' = RDF $ HashS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
+empty' = HashS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF HashS
-mkRdf' ts baseURL pms = RDF $ HashS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
+mkRdf' ts baseURL pms = HashS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
@@ -154,7 +168,7 @@ mergeT'' m s p o =
 
 -- 3 following functions support triplesOf
 triplesOf' :: RDF HashS -> Triples
-triplesOf' (RDF (HashS ((spoMap, _), _, _))) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' (HashS ((spoMap, _), _, _)) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = HashMap.toList spoMap
 
 -- naive implementation for now
@@ -170,7 +184,7 @@ tripsForSubjPred s p adjs = map (Triple s p) (Set.toList adjs)
 
 -- supports select
 select' :: RDF HashS -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (RDF (HashS ((spoMap,_),_,_))) subjFn predFn objFn =
+select' (HashS ((spoMap,_),_,_)) subjFn predFn objFn =
   map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> TMap -> HashSet (Node, Node, Node)
@@ -199,7 +213,7 @@ sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
 query' :: RDF HashS -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (RDF (HashS (m,_ , _))) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
+query' (HashS (m,_ , _)) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
   where f (s, p, o) = Triple s p o
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> TMaps -> HashSet (Node, Node, Node)

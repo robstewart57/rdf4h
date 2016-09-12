@@ -1,5 +1,9 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE EmptyDataDecls #-}
 
 module Data.RDF.Graph.TPatriciaTree (TPatriciaTree) where
 
@@ -15,12 +19,17 @@ import qualified Data.IntMap as IntMap
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+import GHC.Generics
+import Data.Binary (Binary)
 
-newtype TPatriciaTree = TPatriciaTree (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
-                            deriving (Show,NFData)
+data TPatriciaTree deriving (Generic)
+instance Binary TPatriciaTree
+instance NFData TPatriciaTree
+
+data instance RDF TPatriciaTree = TPatriciaTree (PT.Gr Node Node,IntMap.IntMap Node, Maybe BaseUrl, PrefixMappings)
+                                deriving (NFData,Generic)
 
 instance Rdf TPatriciaTree where
-  data RDF TPatriciaTree = RDF TPatriciaTree
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -30,20 +39,21 @@ instance Rdf TPatriciaTree where
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
+  showGraph         = show . triplesOf'
 
 empty' :: RDF TPatriciaTree
-empty' = RDF $ TPatriciaTree (G.empty,IntMap.empty, Nothing, PrefixMappings Map.empty)
+empty' = TPatriciaTree (G.empty,IntMap.empty, Nothing, PrefixMappings Map.empty)
 
 prefixMappings' :: RDF TPatriciaTree -> PrefixMappings
-prefixMappings' (RDF (TPatriciaTree (_,_,_,pms'))) = pms'
+prefixMappings' (TPatriciaTree (_,_,_,pms')) = pms'
 
 addPrefixMappings' :: RDF TPatriciaTree -> PrefixMappings -> Bool -> RDF TPatriciaTree
-addPrefixMappings' (RDF (TPatriciaTree (g, idxLookup, baseURL, pms))) pms' replace =
+addPrefixMappings' (TPatriciaTree (g, idxLookup, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  RDF $ TPatriciaTree (g, idxLookup, baseURL, merge pms pms')
+  in  TPatriciaTree (g, idxLookup, baseURL, merge pms pms')
 
 baseUrl' :: RDF TPatriciaTree -> Maybe BaseUrl
-baseUrl' (RDF (TPatriciaTree _)) = Nothing
+baseUrl' (TPatriciaTree _) = Nothing
 
 data AutoIncrMap = AutoIncrMap
     { theMap :: Map.Map Node (Int,Node)
@@ -87,16 +97,16 @@ mkRdf' ts base' pms' =
         intIdx = IntMap.fromList lnodes
         ptGraph = G.mkGraph lnodes ledges
 
-    in RDF $ TPatriciaTree (ptGraph ,intIdx, base', pms')
+    in TPatriciaTree (ptGraph ,intIdx, base', pms')
 
 triplesOf' :: RDF TPatriciaTree -> Triples
-triplesOf' (RDF (TPatriciaTree (g,idxLookup,_,_))) =
+triplesOf' (TPatriciaTree (g,idxLookup,_,_)) =
     map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in Triple s p o) (G.labEdges g)
 
 uniqTriplesOf' :: RDF TPatriciaTree -> Triples
-uniqTriplesOf' ptG@(RDF (TPatriciaTree (g,idxLookup,_,_))) =
+uniqTriplesOf' ptG@(TPatriciaTree (g,idxLookup,_,_)) =
     nub $ map (\(sIdx,oIdx,p) ->
              let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in expandTriple (prefixMappings ptG) (Triple s p o)) (G.labEdges g)
@@ -115,7 +125,7 @@ mkTriples idxLookup thisNode adjsIn adjsOut =
     in ts1 ++ ts2
 
 select' :: RDF TPatriciaTree -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (RDF (TPatriciaTree (g,idxLookup,_,_))) maybeSubjSel maybePredSel maybeObjSel =
+select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
 
     let cfun ( adjsIn , _nodeIdx , thisNode , adjsOut )
             | isNothing  maybeSubjSel && isNothing maybePredSel && isNothing maybeObjSel =
@@ -196,7 +206,7 @@ select' (RDF (TPatriciaTree (g,idxLookup,_,_))) maybeSubjSel maybePredSel maybeO
     in concat $ DFS.dfsWith' cfun g
 
 query' :: RDF TPatriciaTree -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (RDF (TPatriciaTree (g,idxLookup,_,_))) maybeSubj maybePred maybeObj =
+query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
 
     let cfun ( adjsIn , _nodeIdx , thisNode , adjsOut )
             | isNothing  maybeSubj && isNothing maybePred && isNothing maybeObj =

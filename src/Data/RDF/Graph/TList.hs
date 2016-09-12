@@ -1,6 +1,11 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving , DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE EmptyDataDecls #-}
+
 
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
 -- for smallish graphs or for temporary graphs that will not be queried.
@@ -20,7 +25,7 @@ import Data.Binary
 import qualified Data.Map as Map
 import Data.RDF.Namespace
 import Data.RDF.Query
-import Data.RDF.Types
+import Data.RDF.Types (RDF,Rdf(..),Triple,Node,Subject,Predicate,Object,NodeSelector,Triples,BaseUrl)
 import Data.List (nub)
 import GHC.Generics
 
@@ -43,13 +48,27 @@ import GHC.Generics
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(n)
-newtype TList = TList (Triples, Maybe BaseUrl, PrefixMappings)
-                       deriving (Generic,NFData)
+-- newtype TList = TList (Triples, Maybe BaseUrl, PrefixMappings)
+--                        deriving (Generic,NFData)
+
+data TList deriving (Generic)
+
+-- data TList = TListC (Triples, Maybe BaseUrl, PrefixMappings)
+--                        deriving (Generic,NFData)
 
 instance Binary TList
+instance NFData TList
+
+-- instance Show TList where
+--   show ((TListC (a,b,c,d))) = ""
+
+data instance RDF TList = TListC (Triples, Maybe BaseUrl, PrefixMappings)
+                       deriving (Generic,NFData)
+
+-- data instance RDF TList
 
 instance Rdf TList where
-  data RDF TList = RDF TList
+  -- data RDF TList = RDF TList
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -61,35 +80,35 @@ instance Rdf TList where
   query             = query'
   showGraph         = showGraph'
 
-instance Show TList where
-  show (TList (ts, _, _)) = concatMap (\t -> show t ++ "\n") ts
+-- instance Show TList where
+--  show ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
 
 showGraph' :: RDF TList -> [Char]
-showGraph' (RDF (TList (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
+showGraph' ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
 
 prefixMappings' :: RDF TList -> PrefixMappings
-prefixMappings' (RDF (TList (_, _, pms))) = pms
+prefixMappings' (TListC(_, _, pms)) = pms
 
 addPrefixMappings' :: RDF TList -> PrefixMappings -> Bool -> RDF TList
-addPrefixMappings' (RDF (TList (ts, baseURL, pms))) pms' replace =
+addPrefixMappings' (TListC(ts, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  RDF (TList (ts, baseURL, merge pms pms'))
+  in  TListC(ts, baseURL, merge pms pms')
   
 baseUrl' :: RDF TList -> Maybe BaseUrl
-baseUrl' (RDF (TList (_, baseURL, _))) = baseURL
+baseUrl' (TListC(_, baseURL, _)) = baseURL
 
 empty' :: RDF TList
-empty' = RDF (TList ([], Nothing, PrefixMappings Map.empty))
+empty' = TListC([], Nothing, PrefixMappings Map.empty)
 
 -- We no longer remove duplicates here, as it is very time consuming and is often not
 -- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes
 -- from the results of the select' and query' functions, since it is cheap to do
 -- there in most cases, but not when triplesOf' is called.
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList
-mkRdf' ts baseURL pms = RDF (TList (ts, baseURL, pms))
+mkRdf' ts baseURL pms = TListC(ts, baseURL, pms)
 
 triplesOf' :: RDF TList -> Triples
-triplesOf' (RDF (TList (ts, _, _))) = ts
+triplesOf' ((TListC(ts, _, _))) = ts
 
 uniqTriplesOf' :: RDF TList -> Triples
 uniqTriplesOf' = nub . expandTriples

@@ -10,7 +10,7 @@ import W3C.W3CAssertions
 
 import Data.RDF.Types
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.Graph.TriplesList
+import Data.RDF.Graph.TList
 
 tests :: Manifest -> TestTree
 tests = runManifestTests mfEntryToTest
@@ -23,11 +23,11 @@ tests = runManifestTests mfEntryToTest
 mfEntryToTest :: TestEntry -> TestTree
 mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
 mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 

@@ -9,7 +9,7 @@ import Test.Tasty.HUnit
 -- Import common libraries to facilitate tests
 import qualified Data.Map as Map
 import Data.RDF.Query
-import Data.RDF.Graph.TriplesList (TriplesList)
+import Data.RDF.Graph.TList (TList)
 import Data.RDF.Types
 import qualified Data.Text as T (Text, unlines)
 import Text.RDF.RDF4H.XmlParser
@@ -42,13 +42,13 @@ tests = testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simp
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL
 
-testParse :: T.Text -> RDF TriplesList -> Assertion
+testParse :: T.Text -> RDF TList -> Assertion
 testParse exRDF ex =
     case parsed of
       Right result ->
           assertBool
             ("expected: " ++ show ex ++ "but got: " ++ show result)
-            (isIsomorphic (result :: RDF TriplesList) (ex :: RDF TriplesList))
+            (isIsomorphic (result :: RDF TList) (ex :: RDF TList))
       Left (ParseFailure err) ->
           assertFailure err
   where parsed = parseString (XmlParser Nothing Nothing) exRDF

@@ -17,7 +17,7 @@ module Text.RDF.RDF4H.Interact where
 import qualified Data.Text as T
 
 import Data.RDF.Types hiding (baseUrl)
-import Data.RDF.Graph.TriplesList()
+import Data.RDF.Graph.TList()
 import Data.RDF.Graph.HashMapS()
 
 import Text.RDF.RDF4H.NTriplesParser

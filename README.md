@@ -129,41 +129,21 @@ https://github.com/robstewart57/rdf4h/commit/3d86295b085ecfb9a944dc7b40bb668df38
 on 28 December 2015. The complete output from criterion are in
 `benchmark-results/criterion-results-28.12.2015.txt`.
 
+Firstly, the `bills.102.rdf` file is needed:
+
+    $ cd /path/to/rdf4h/
+    $ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
+    $ gzip -d bills.099.actions.rdf.gz
+
 To run the benchmark suite with cabal or stack:
 
     $ cabal bench
     $ stack bench
 
-**Results:** mapping the `[Triple]` stream from the Turtle parser into
-each RDF instance:
+**Results:**
 
-|                     | parse |
-|---------------------|-------|
-| HashMapS            | 19.7s |
-| HashMapSP           | 19.5s
-| MapSP               | 19.6s |
-| TriplesList         | 18.6s |
-| TriplesPatriciaTree | 22.0s |
+Benchmarking `query` and `select` results:
 
-Benchmarking `query` results in microseconds:
-
-|                     | S | P | O | SP | PO | SO | SPO |
-|---------------------|---|---|---|----|----|----|-----|
-| HashMapS            | 29 | 2254 | 25640 | 0.5 | 0.3 | 4 | 0.5 |
-| HashMapSP           | 20080 | 10170 | 13120 | 0.4 | 10130 | 19810 | 20080 |
-| MapSP               | 9379 | 8518 | 1458 | 8 | 8639 | 9221 | 9379 |
-| TriplesList         | 11100 | 7600 | 9600 | 11100 | 7600 | 11100 | 1100 |
-| TriplesPatriciaTree | 206600 | 178700 | 188300 | 206800 |187400 | 174200 | 173600 |
-
-Benchmarking `select` results in microseconds:
-
-|                     | S | P | O | SP | PO | SO | SPO |
-|---------------------|---|---|---|----|----|----|-----|
-| HashMapS            | 275100 | 326400 | 112900 | 263700 | 111100 | 96680 | 95630 |
-| HashMapSP           | 22080 | 24310 | 11830 | 24030 | 12210 | 15460 | 15690 |
-| MapSP               | 12820 | 14610 | 13230 | 14950 | 14270 | 13420 | 14160 |
-| TriplesList         | 12620 | 10730 | 9961 | 12760 | 11080 | 11790 | 13080 |
-| TriplesPatriciaTree | 243300 | 238600 | 204100 | 251000 | 210300 | 209400 | 211400 |
 
 
 Development wishlist

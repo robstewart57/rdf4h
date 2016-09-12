@@ -13,7 +13,7 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.Graph.TriplesList
+import Data.RDF.Graph.TList
 
 tests :: Manifest -> TestTree
 tests = runManifestTests mfEntryToTest
@@ -22,20 +22,20 @@ mfEntryToTest :: TestEntry -> TestTree
 mfEntryToTest (TestTurtleEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       res = (UNode . fromJust . fileSchemeToFilePath) res'
-      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO (RDF TriplesList)
-      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TriplesList)
+      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO (RDF TList)
+      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TList)
   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
 mfEntryToTest (TestTurtleNegativeEval nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
 mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 

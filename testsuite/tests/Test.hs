@@ -2,11 +2,12 @@ module Main where
 
 import Test.Tasty (defaultMain,testGroup)
 
-import qualified Data.RDF.Graph.TriplesList_Test as TriplesList
-import qualified Data.RDF.Graph.HashMapS_Test as HashMapS
-import qualified Data.RDF.Graph.HashMapSP_Test as HashMapSP
-import qualified Data.RDF.Graph.MapSP_Test as MapSP
-import qualified Data.RDF.Graph.TriplesPatriciaTree_Test as TriplesPatriciaTree
+import qualified Data.RDF.Graph.TList_Test as TList
+import qualified Data.RDF.Graph.HashS_Test as HashS
+import qualified Data.RDF.Graph.HashSP_Test as HashSP
+import qualified Data.RDF.Graph.SP_Test as SP
+-- very slow implementation, disabled for now.
+-- import qualified Data.RDF.Graph.TriplesPatriciaTree_Test as TriplesPatriciaTree
 import           Data.RDF.Types
 import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
 import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleParser
@@ -54,35 +55,35 @@ main = do
   defaultMain
        (testGroup "rdf4h tests"
         [ -- RDF graph API tests
-          graphTests "TriplesList"
-          TriplesList.triplesOf'
-          TriplesList.uniqTriplesOf'
-          TriplesList.empty'
-          TriplesList.mkRdf'
+          graphTests "TList"
+          TList.triplesOf'
+          TList.uniqTriplesOf'
+          TList.empty'
+          TList.mkRdf'
 
-        , graphTests "HashMapS"
-          HashMapS.triplesOf'
-          HashMapS.uniqTriplesOf'
-          HashMapS.empty'
-          HashMapS.mkRdf'
+        , graphTests "HashS"
+          HashS.triplesOf'
+          HashS.uniqTriplesOf'
+          HashS.empty'
+          HashS.mkRdf'
 
-        , graphTests "HashMapSP"
-          HashMapSP.triplesOf'
-          HashMapSP.uniqTriplesOf'
-          HashMapSP.empty'
-          HashMapSP.mkRdf'
+        , graphTests "HashSP"
+          HashSP.triplesOf'
+          HashSP.uniqTriplesOf'
+          HashSP.empty'
+          HashSP.mkRdf'
 
-        , graphTests "MapSP"
-          MapSP.triplesOf'
-          MapSP.uniqTriplesOf'
-          MapSP.empty'
-          MapSP.mkRdf'
+        , graphTests "SP"
+          SP.triplesOf'
+          SP.uniqTriplesOf'
+          SP.empty'
+          SP.mkRdf'
 
-        , graphTests "TriplesPatriciaTree"
-          TriplesPatriciaTree.triplesOf'
-          TriplesPatriciaTree.uniqTriplesOf'
-          TriplesPatriciaTree.empty'
-          TriplesPatriciaTree.mkRdf'
+        -- , graphTests "TriplesPatriciaTree"
+        --   TriplesPatriciaTree.triplesOf'
+        --   TriplesPatriciaTree.uniqTriplesOf'
+        --   TriplesPatriciaTree.empty'
+        --   TriplesPatriciaTree.mkRdf'
 
           -- rdf4h unit tests
         , TurtleParser.tests

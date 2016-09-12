@@ -1,29 +1,29 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Data.RDF.Graph.HashMapS_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
+module Data.RDF.Graph.SP_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
-import Data.RDF.Graph.HashMapS (HashMapS)
+import Data.RDF.Graph.MapSP (SP)
 import Data.RDF.GraphTestUtils
 import qualified Data.Map as Map
 import Control.Monad
 
 import Test.QuickCheck
 
-instance Arbitrary HashMapS
+instance Arbitrary SP
 
-instance Arbitrary (RDF HashMapS) where
+instance Arbitrary (RDF SP) where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
   --coarbitrary = undefined
 
-empty' :: RDF HashMapS
+empty' :: RDF SP
 empty' = empty
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF HashMapS
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF SP
 mkRdf' = mkRdf
 
-triplesOf' :: RDF HashMapS -> Triples
+triplesOf' :: RDF SP -> Triples
 triplesOf' = triplesOf
 
-uniqTriplesOf' :: RDF HashMapS -> Triples
+uniqTriplesOf' :: RDF SP -> Triples
 uniqTriplesOf' = uniqTriplesOf

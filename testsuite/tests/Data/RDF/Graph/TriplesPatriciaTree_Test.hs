@@ -10,7 +10,7 @@ import Control.Monad
 
 import Test.QuickCheck
 
-instance Arbitrary TriplesPatriciaTree
+instance Arbitrary TPatriciaTree
 
 instance Arbitrary (RDF TriplesPatriciaTree) where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)

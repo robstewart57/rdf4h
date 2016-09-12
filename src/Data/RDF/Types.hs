@@ -1,6 +1,9 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DeriveGeneric, OverloadedStrings, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Data.RDF.Types (
 
@@ -19,8 +22,11 @@ module Data.RDF.Types (
   -- * Miscellaneous
   resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,
 
-  -- * RDF Type
-  Rdf(RDF,baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query,showGraph),
+  -- * RDF data family
+  RDF,
+
+  -- * Rdf type class
+  Rdf(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query,showGraph),
 
   -- * Parsing RDF
   RdfParser(parseString,parseFile,parseURL),
@@ -317,6 +323,9 @@ isAbsoluteUri = not
 class View a b where
   view :: a -> b
 
+-- |RDF data family
+data family RDF a
+
 -- |An RDF value is a set of (unique) RDF triples, together with the
 -- operations defined upon them.
 --
@@ -325,10 +334,10 @@ class View a b where
 --
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
-class (Show rdfImpl) => Rdf rdfImpl where
+class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
 
-  -- |RDF type family
-  data RDF rdfImpl
+  -- -- |RDF type family
+  -- data RDF rdfImpl
   
   -- |Return the base URL of this RDF, if any.
   baseUrl :: RDF rdfImpl -> Maybe BaseUrl
