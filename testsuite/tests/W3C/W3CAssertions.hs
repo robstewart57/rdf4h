@@ -10,9 +10,7 @@ runManifestTests :: (TestEntry -> TestTree) -> Manifest -> TestTree
 runManifestTests mfEntryToTest manifest =
     testGroup (T.unpack $ description manifest) $ map mfEntryToTest $ entries manifest
 
-assertIsIsomorphic :: forall rdf1 rdf2.
-                      (Show rdf1, Show rdf2, RDF rdf1, RDF rdf2) =>
-                      IO rdf1 -> IO rdf2 -> IO ()
+assertIsIsomorphic :: IO (RDF TriplesList) -> IO (RDF TriplesList) -> IO ()
 assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
@@ -35,12 +33,12 @@ assertIsIsomorphic r1 r2 = do
             -- mf:action parsed RDF with the expected mf:result structure.
             else isGraphIsomorphic g1 g2
 
-assertIsParsed :: (Show rdf, RDF rdf) => IO (Either ParseFailure rdf) -> TU.Assertion
+assertIsParsed :: IO (Either ParseFailure (RDF TriplesList)) -> TU.Assertion
 assertIsParsed r1 = do
   gr1 <- r1
   TU.assertBool ("unable to parse, reason:\n" ++ show gr1) (isParsed gr1)
 
-assertIsNotParsed :: (Show rdf, RDF rdf) => IO (Either ParseFailure rdf) -> TU.Assertion
+assertIsNotParsed :: IO (Either ParseFailure (RDF TriplesList)) -> TU.Assertion
 assertIsNotParsed r1 = do
   gr1 <- r1
   TU.assertBool ("parsed unexpectantly:\n" ++ show gr1) (not (isParsed gr1))

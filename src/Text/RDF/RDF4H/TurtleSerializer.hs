@@ -40,7 +40,7 @@ instance RdfSerializer TurtleSerializer where
 -- configurable somehow, so that if the user really doesn't want any extra
 -- prefix declarations added, that is possible.
 
-_writeRdf :: RDF rdf => Handle -> Maybe T.Text -> rdf -> IO ()
+_writeRdf :: Rdf a => Handle -> Maybe T.Text -> RDF a -> IO ()
 _writeRdf h mdUrl rdf =
   writeHeader h bUrl pms' >> writeTriples h mdUrl pms' ts >> hPutChar h '\n'
   where

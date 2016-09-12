@@ -23,11 +23,11 @@ tests = runManifestTests mfEntryToTest
 mfEntryToTest :: TestEntry -> TestTree
 mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
 mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 

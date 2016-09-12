@@ -22,20 +22,20 @@ mfEntryToTest :: TestEntry -> TestTree
 mfEntryToTest (TestTurtleEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       res = (UNode . fromJust . fileSchemeToFilePath) res'
-      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO TriplesList
-      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO TriplesList
+      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO (RDF TriplesList)
+      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TriplesList)
   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
 mfEntryToTest (TestTurtleNegativeEval nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
 mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure TriplesList)
+      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TriplesList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 

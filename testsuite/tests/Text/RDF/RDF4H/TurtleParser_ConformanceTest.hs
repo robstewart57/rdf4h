@@ -59,8 +59,8 @@ checkGoodOtherTest dir fname =
         inGr  = loadInputGraph1 dir fname
     in doGoodConformanceTest expGr inGr $ printf "test using file \"%s\"" fname
 
-doGoodConformanceTest   :: IO (Either ParseFailure TriplesList) -> 
-                           IO (Either ParseFailure TriplesList) -> 
+doGoodConformanceTest   :: IO (Either ParseFailure (RDF TriplesList)) -> 
+                           IO (Either ParseFailure (RDF TriplesList)) -> 
                            String -> TestTree
 doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
@@ -75,7 +75,7 @@ checkBadConformanceTest i =
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
-equivalent :: RDF rdf => Either ParseFailure rdf -> Either ParseFailure rdf -> Maybe String
+equivalent :: Rdf a => Either ParseFailure (RDF a) -> Either ParseFailure (RDF a) -> Maybe String
 equivalent (Left _) _                = Nothing
 equivalent _        (Left _)         = Nothing
 equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
@@ -101,17 +101,17 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
 -- triples into a format so that they can be compared with the expected output triples.
-loadInputGraph :: String -> Int -> IO (Either ParseFailure TriplesList)
+loadInputGraph :: String -> Int -> IO (Either ParseFailure (RDF TriplesList))
 loadInputGraph name n =
   TIO.readFile (fpath name n "ttl") >>=
   return . parseString (TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)) >>= return . handleLoad
 
-loadInputGraph1 :: String -> String -> IO (Either ParseFailure TriplesList)
+loadInputGraph1 :: String -> String -> IO (Either ParseFailure (RDF TriplesList))
 loadInputGraph1 dir fname =
   TIO.readFile (printf "%s/%s.ttl" dir fname :: String) >>=
   return . parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
 
-handleLoad :: Either ParseFailure TriplesList -> Either ParseFailure TriplesList
+handleLoad :: Either ParseFailure (RDF TriplesList) -> Either ParseFailure (RDF TriplesList)
 handleLoad res =
   case res of
     l@(Left _)  -> l
@@ -126,13 +126,13 @@ normalizeN :: Node -> Node
 normalizeN (BNodeGen i) = BNode (T.pack $ "_:genid" ++ show i)
 normalizeN n            = n
 
-loadExpectedGraph :: String -> Int -> IO (Either ParseFailure TriplesList)
+loadExpectedGraph :: String -> Int -> IO (Either ParseFailure (RDF TriplesList))
 loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")
-loadExpectedGraph1 :: String -> IO (Either ParseFailure TriplesList)
+loadExpectedGraph1 :: String -> IO (Either ParseFailure (RDF TriplesList))
 loadExpectedGraph1 fname =
   liftM (parseString (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname))) (TIO.readFile fname)
 
-assertLoadSuccess, assertLoadFailure :: String -> IO (Either ParseFailure TriplesList) -> TU.Assertion
+assertLoadSuccess, assertLoadFailure :: String -> IO (Either ParseFailure (RDF TriplesList)) -> TU.Assertion
 assertLoadSuccess idStr exprGr = do
   g <- exprGr
   case g of
@@ -145,7 +145,7 @@ assertLoadFailure idStr exprGr = do
     Left _ -> return ()
     Right _ -> TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
 
-assertEquivalent :: RDF rdf => String -> IO (Either ParseFailure rdf) -> IO (Either ParseFailure rdf) -> TU.Assertion
+assertEquivalent :: Rdf a => String -> IO (Either ParseFailure (RDF a)) -> IO (Either ParseFailure (RDF a)) -> TU.Assertion
 assertEquivalent testname r1 r2 = do
   gr1 <- r1
   gr2 <- r2

@@ -15,7 +15,7 @@ import qualified Data.Map as Map (fromList)
 import Data.Maybe
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
-import Data.RDF.Types (RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
+import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import qualified Data.Text as T (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
@@ -51,7 +51,7 @@ instance Exception ParserException
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
+parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl dUrl fpath =
    TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
 
@@ -72,22 +72,22 @@ parseFile' bUrl dUrl fpath =
 -- base URI against which the relative URI is resolved.
 --p
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseURL' :: forall rdf. (RDF rdf) =>
+parseURL' :: (Rdf a) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
                  -> Maybe T.Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the XML document.
-                 -> IO (Either ParseFailure rdf)
+                 -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the XML document.
 parseURL' bUrl docUrl = _parseURL (parseXmlRDF bUrl docUrl)
 
 
 -- |Parse a xml T.Text to an RDF representation
-parseXmlRDF :: forall rdf. (RDF rdf)
+parseXmlRDF :: (Rdf a)
             => Maybe BaseUrl           -- ^ The base URL for the RDF if required
             -> Maybe T.Text        -- ^ DocUrl: The request URL for the RDF if available
             -> T.Text              -- ^ The contents to parse
-            -> Either ParseFailure rdf -- ^ The RDF representation of the triples or ParseFailure
+            -> Either ParseFailure (RDF a) -- ^ The RDF representation of the triples or ParseFailure
 parseXmlRDF bUrl dUrl xmlStr = case runParseArrow of
                                 (_,r:_) -> Right r
                                 _ -> Left (ParseFailure "XML parsing failed")
@@ -108,7 +108,7 @@ addMetaData bUrlM dUrlM = mkelem "/"
         mkBase Nothing = []
 
 -- |Arrow that translates HXT XmlTree to an RDF representation
-getRDF :: forall rdf a. (RDF rdf, ArrowXml a, ArrowState GParseState a) => a XmlTree rdf
+getRDF :: forall rdf a. (Rdf rdf, ArrowXml a, ArrowState GParseState a) => a XmlTree (RDF rdf)
 getRDF = proc xml -> do
 --            rdf <- hasName "rdf:RDF" `orElse` hasName "RDF" <<< isElem <<< getChildren         -< xml
             rdf <- isElem <<< getChildren -< xml

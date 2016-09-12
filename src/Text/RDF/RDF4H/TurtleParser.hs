@@ -714,11 +714,11 @@ addTripleForObject obj =
 -- base URI against which the relative URI is resolved.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseURL' :: forall rdf. (RDF rdf) =>
+parseURL' :: (Rdf a) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
                  -> Maybe T.Text     -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the Turtle document.
-                 -> IO (Either ParseFailure rdf)
+                 -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
 parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
@@ -728,7 +728,7 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseFile' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure rdf)
+parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl docUrl fpath = do
   TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
@@ -736,11 +736,11 @@ parseFile' bUrl docUrl fpath = do
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
-parseString' :: forall rdf. (RDF rdf) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure rdf
+parseString' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
 
-handleResult :: RDF rdf => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure rdf
+handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result =
   case result of
     (Left err)         -> Left (ParseFailure $ show err)

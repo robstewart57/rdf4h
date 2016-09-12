@@ -26,7 +26,7 @@ instance RdfSerializer NTriplesSerializer where
   hWriteN   _     = _writeNode
   writeN    _     = _writeNode stdout
 
-_writeRdf :: RDF rdf => Handle -> rdf -> IO ()
+_writeRdf :: Rdf a => Handle -> RDF a -> IO ()
 _writeRdf h = _writeTriples h . expandTriples
 
 _writeTriples :: Handle -> Triples -> IO ()

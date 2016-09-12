@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Data.RDF.GraphTestUtils where
 
 import Data.RDF.Types
@@ -10,6 +12,7 @@ import Data.List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
+import GHC.Generics ()
 import System.Directory (removeFile)
 import System.IO.Unsafe(unsafePerformIO)
 import System.IO
@@ -22,8 +25,10 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 --  property based quick check test cases         --
 ----------------------------------------------------
 
-graphTests :: forall rdf. (Arbitrary rdf, RDF rdf, Show rdf)
-           => TestName -> (rdf -> Triples) -> (rdf -> Triples) -> rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> TestTree
+instance Arbitrary (RDF a)
+
+graphTests :: (Arbitrary rdf, Rdf rdf)
+           => TestName -> (RDF rdf -> Triples) -> (RDF rdf -> Triples) -> RDF rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> TestTree
 graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = testGroup testGroupName
             [
               testProperty "empty"                      (p_empty _triplesOf _empty)
@@ -67,17 +72,17 @@ instance Arbitrary PrefixMappings where
 -- passed in to determine the implementation to be tested.
 
 -- empty RDF should have no triples
-p_empty :: RDF rdf => (rdf -> Triples) -> rdf -> Bool
+p_empty :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Bool
 p_empty _triplesOf _empty = _triplesOf _empty == []
 
 -- triplesOf any RDF should return unique triples used to create it
-p_mkRdf_triplesOf :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_mkRdf_triplesOf :: Rdf rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkRdf_triplesOf _triplesOf _mkRdf ts bUrl pms =
   uordered (_triplesOf (_mkRdf ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned when
 -- uniqTriplesof is used
-p_mkRdf_no_dupes :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_mkRdf_no_dupes :: Rdf rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_mkRdf_no_dupes _uniqtriplesOf _mkRdf ts bUrl pms =
   null ts || (sort result == uordered ts)
    where
@@ -89,14 +94,14 @@ p_mkRdf_no_dupes _uniqtriplesOf _mkRdf ts bUrl pms =
 --       property this test should check?
 --
 -- query with all 3 wildcards should yield all triples in RDF
-p_query_match_none :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+p_query_match_none :: Rdf rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result
   where
     result = query (_mkRdf ts bUrl pms) Nothing Nothing Nothing
 
 -- query with no wildcard and a triple in the RDF should yield
 -- a singleton list with just the triple.
-p_query_matched_spo :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_matched_spo :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_matched_spo _triplesOf rdf =
   classify (null ts) "trivial" $
     forAll (tripleFromGen _triplesOf rdf) f
@@ -113,7 +118,7 @@ p_query_matched_spo _triplesOf rdf =
 -- query as in p_query_matched_spo after duplicating a triple in the
 -- RDF, so that we can verify that the results just have 1, even
 -- if the RDF itself doesn't ensure that there are no dupes internally.
-p_query_matched_spo_no_dupes :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> rdf -> Property
+p_query_matched_spo_no_dupes :: RDF rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> rdf -> Property
 p_query_matched_spo_no_dupes _triplesOf _mkRdf rdf =
   classify (null ts) "trivial" $
     forAll (tripleFromGen _triplesOf rdf) f
@@ -125,7 +130,7 @@ p_query_matched_spo_no_dupes _triplesOf _mkRdf rdf =
 -}
 
 -- query with no wildcard and a triple no in the RDF should yield []
-p_query_unmatched_spo :: RDF rdf => (rdf -> Triples) -> rdf -> Triple -> Property
+p_query_unmatched_spo :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Triple -> Property
 p_query_unmatched_spo _triplesOf rdf t =
   classify (t `elem` ts) "ignored" $
     notElem t ts ==> [] == queryT rdf t
@@ -135,43 +140,43 @@ p_query_unmatched_spo _triplesOf rdf t =
 -- query with fixed subject and wildcards for pred and obj should yield
 -- a list with all triples having subject, and RDF minus result triples
 -- should yield all triple with unequal subjects.
-p_query_match_s :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_s :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_s = mk_query_match_fn sameSubj f
   where f t = (Just (subjectOf t), Nothing, Nothing)
 
 -- query w/ fixed predicate and wildcards for subj and obj should yield
 -- a list with all triples having predicate, and RDFgraph minus result triples
 -- should yield all triple with unequal predicates.
-p_query_match_p :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_p :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_p = mk_query_match_fn samePred f
   where f t = (Nothing, Just (predicateOf t), Nothing)
 
 -- likewise for fixed subject and predicate with object wildcard
-p_query_match_o :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_o :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_o = mk_query_match_fn sameObj f
   where f t = (Nothing, Nothing, Just (objectOf t))
 
 -- verify likewise for fixed subject and predicate with wildcard object
-p_query_match_sp :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_sp :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_sp = mk_query_match_fn same f
   where same t1 t2 = sameSubj t1 t2 && samePred t1 t2
         f t = (Just $ subjectOf t, Just $ predicateOf t, Nothing)
 
 -- fixed subject and object with wildcard predicate
-p_query_match_so :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_so :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_so = mk_query_match_fn same f
   where same t1 t2 = sameSubj t1 t2 && sameObj t1 t2
         f t = (Just $ subjectOf t, Nothing, Just $ objectOf t)
 
 -- fixed predicate and object with wildcard subject
-p_query_match_po :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_query_match_po :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_query_match_po = mk_query_match_fn same f
   where same t1 t2 = samePred t1 t2 && sameObj t1 t2
         f t = (Nothing, Just $ predicateOf t, Just $ objectOf t)
 
-mk_query_match_fn :: RDF rdf => (Triple -> Triple -> Bool)
+mk_query_match_fn :: Rdf rdf => (Triple -> Triple -> Bool)
   -> (Triple -> (Maybe Node, Maybe Node, Maybe Node))
-  -> (rdf -> Triples) -> rdf -> Property
+  -> (RDF rdf -> Triples) -> RDF rdf -> Property
 mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf rdf =
   forAll (tripleFromGen _triplesOf rdf) f
   where
@@ -187,7 +192,7 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf rdf =
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
 
-p_select_match_none :: RDF rdf => (rdf -> Triples) -> rdf -> Bool
+p_select_match_none :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Bool
 p_select_match_none _triplesOf_not_used rdf = sort ts1 == sort ts2
     where
       ts1 = select rdf Nothing Nothing Nothing
@@ -197,14 +202,14 @@ p_select_match_none _triplesOf_not_used rdf = sort ts1 == sort ts2
       --   https://github.com/cordawyn/rdf4h/commit/9dd4729908db8d2f80088706592adac81a0f3016
       ts2 = triplesOf rdf
 
-p_select_match_s :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_s :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_s =
   p_select_match_fn same mkPattern
   where
     same = equivNode (==) subjectOf
     mkPattern t = (Just (\n -> n == subjectOf t), Nothing, Nothing)
 
-p_select_match_p :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_p :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_p =
   p_select_match_fn same mkPattern
   where
@@ -216,35 +221,35 @@ p_select_match_p =
     lastChar _           = error "GraphTestUtils.p_select_match_p.lastChar"
 
 
-p_select_match_o :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_o :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_o =
   p_select_match_fn same mkPattern
   where
     same = equivNode (/=) objectOf
     mkPattern t = (Nothing, Nothing, Just (\n -> n /= objectOf t))
 
-p_select_match_sp :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_sp :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_sp =
   p_select_match_fn same mkPattern
   where
     same t1 t2 = subjectOf t1 == subjectOf t2 && predicateOf t1 /= predicateOf t2
     mkPattern t = (Just (\n -> n == subjectOf t), Just (\n -> n /= predicateOf t), Nothing)
 
-p_select_match_so :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_so :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_so =
   p_select_match_fn same mkPattern
   where
     same t1 t2 = subjectOf t1 /= subjectOf t2 && objectOf t1 == objectOf t2
     mkPattern t = (Just (\n -> n /= subjectOf t), Nothing, Just (\n -> n == objectOf t))
 
-p_select_match_po :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_po :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_po =
   p_select_match_fn same mkPattern
   where
     same t1 t2 = predicateOf t1 == predicateOf t2 && objectOf t1 == objectOf t2
     mkPattern t = (Nothing, Just (\n -> n == predicateOf t), Just (\n -> n == objectOf t))
 
-p_select_match_spo :: RDF rdf => (rdf -> Triples) -> rdf -> Property
+p_select_match_spo :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_spo =
   p_select_match_fn same mkPattern
   where
@@ -257,9 +262,9 @@ p_select_match_spo =
 equivNode :: (Node -> Node -> Bool) -> (Triple -> Node) -> Triple -> Triple -> Bool
 equivNode eqFn exFn t1 t2 = exFn t1 `eqFn` exFn t2
 
-p_select_match_fn :: RDF rdf => (Triple -> Triple -> Bool)
+p_select_match_fn :: Rdf rdf => (Triple -> Triple -> Bool)
   -> (Triple -> (NodeSelector, NodeSelector, NodeSelector))
-  -> (rdf -> Triples) -> rdf -> Property
+  -> (RDF rdf -> Triples) -> RDF rdf -> Property
 p_select_match_fn tripleCompareFn mkPatternFn _triplesOf rdf =
   forAll (tripleFromGen _triplesOf rdf) f
   where
@@ -275,7 +280,7 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf rdf =
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
 
-mkRdfWithDupe :: RDF rdf => (rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> rdf -> Triple -> rdf
+mkRdfWithDupe :: Rdf rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> RDF rdf -> Triple -> RDF rdf
 mkRdfWithDupe _triplesOf _mkRdf rdf t = _mkRdf ts (baseUrl rdf) (prefixMappings rdf)
   where ts = t : _triplesOf rdf
 
@@ -284,10 +289,10 @@ mkRdfWithDupe _triplesOf _mkRdf rdf t = _mkRdf ts (baseUrl rdf) (prefixMappings 
 
 -- a curried version of query that delegates to the actual query after unpacking
 -- curried maybe node pattern.
-queryC :: RDF rdf => rdf -> (Maybe Node, Maybe Node, Maybe Node) -> Triples
+queryC :: Rdf rdf => RDF rdf -> (Maybe Node, Maybe Node, Maybe Node) -> Triples
 queryC rdf (s, p, o) = query rdf s p o
 
-selectC :: RDF rdf => rdf -> (NodeSelector, NodeSelector, NodeSelector) -> Triples
+selectC :: Rdf rdf => RDF rdf -> (NodeSelector, NodeSelector, NodeSelector) -> Triples
 selectC rdf (s, p, o) = select rdf s p o
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
@@ -317,14 +322,14 @@ sameObj  t1 t2 = objectOf t1 == objectOf t2
 uordered :: Triples -> Triples
 uordered  =  sort . nub
 
-tripleFromGen :: RDF rdf => (rdf -> Triples) -> rdf -> Gen (Maybe Triple)
+tripleFromGen :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Gen (Maybe Triple)
 tripleFromGen _triplesOf rdf =
   if null ts
   then return Nothing
   else oneof $ map (return . Just) ts
    where ts = _triplesOf rdf
 
-queryT :: RDF rdf => rdf -> Triple -> Triples
+queryT :: Rdf rdf => RDF rdf -> Triple -> Triples
 queryT rdf t = query rdf (Just $ subjectOf t) (Just $ predicateOf t) (Just $ objectOf t)
 
 languages :: [T.Text]
@@ -394,7 +399,7 @@ arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
 -- Reported by Daniel Bergey:
 --   https://github.com/robstewart57/rdf4h/issues/4
 
-p_reverseRdfTest :: RDF rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) -> Property
+p_reverseRdfTest :: Rdf a => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) -> Property
 p_reverseRdfTest _mkRdf = monadicIO $ do
     fileContents <- Test.QuickCheck.Monadic.run $ do
       (pathFile,hFile) <- openTempFile "." "tmp."

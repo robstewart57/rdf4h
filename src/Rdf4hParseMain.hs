@@ -65,26 +65,26 @@ main =
          ("turtle", True) -> parseURL (TurtleParser mInputUri docUri)
                                inputUri
                                >>=
-                               \ (res :: Either ParseFailure TriplesList) ->
+                               \ (res :: Either ParseFailure (RDF TriplesList)) ->
                                  write outputFormat docUri emptyPms res
          ("turtle", False) -> (if inputUri /= "-" then
                                  parseFile (TurtleParser mInputUri docUri) inputUri else
                                  liftM (parseString (TurtleParser mInputUri docUri)) TIO.getContents)
                                 >>=
-                                \ (res :: Either ParseFailure TriplesList) ->
+                                \ (res :: Either ParseFailure (RDF TriplesList)) ->
                                   write outputFormat docUri emptyPms res
          ("ntriples", True) -> parseURL NTriplesParser inputUri >>=
-                                 \ (res :: Either ParseFailure TriplesList) ->
+                                 \ (res :: Either ParseFailure (RDF TriplesList)) ->
                                    write outputFormat Nothing emptyPms res
          ("ntriples", False) -> (if inputUri /= "-" then
                                    parseFile NTriplesParser inputUri else
                                    liftM (parseString NTriplesParser) TIO.getContents)
                                   >>=
-                                  \ (res :: Either ParseFailure TriplesList) ->
+                                  \ (res :: Either ParseFailure (RDF TriplesList)) ->
                                     write outputFormat Nothing emptyPms res
          (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
-write :: forall rdf. (RDF rdf) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure rdf -> IO ()
+write :: (Rdf a) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure (RDF a) -> IO ()
 write format docUri pms res =
   case res of
     (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)

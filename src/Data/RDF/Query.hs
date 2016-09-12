@@ -43,7 +43,7 @@ objectOf :: Triple -> Node
 objectOf (Triple _ _ o)   = o
 
 -- |Answer if rdf contains node.
-rdfContainsNode :: forall rdf. (RDF rdf) => rdf -> Node -> Bool
+rdfContainsNode :: (Rdf a) => RDF a -> Node -> Bool
 rdfContainsNode rdf node =
   let ts = triplesOf rdf
       xs = map (tripleContainsNode node) ts
@@ -72,22 +72,22 @@ equalObjects :: Triple -> Triple -> Bool
 equalObjects (Triple _ _ o1) (Triple _ _ o2) = o1 == o2
 
 -- |Determines whether the 'RDF' contains zero triples.
-isEmpty :: RDF rdf => rdf -> Bool
+isEmpty :: Rdf a => RDF a -> Bool
 isEmpty rdf =
   let ts = triplesOf rdf
   in null ts
 
 -- |Lists of all subjects of triples with the given predicate.
-subjectsWithPredicate :: RDF rdf => rdf -> Predicate -> [Subject]
+subjectsWithPredicate :: Rdf a => RDF a -> Predicate -> [Subject]
 subjectsWithPredicate rdf pred = map subjectOf $ query rdf Nothing (Just pred) Nothing
 
 -- |Lists of all objects of triples with the given predicate.
-objectsOfPredicate :: RDF rdf => rdf -> Predicate -> [Object]
+objectsOfPredicate :: Rdf a => RDF a -> Predicate -> [Object]
 objectsOfPredicate rdf pred = map objectOf $ query rdf Nothing (Just pred) Nothing
 
 -- |Convert a parse result into an RDF if it was successful
 -- and error and terminate if not.
-fromEither :: RDF rdf => Either ParseFailure rdf -> rdf
+fromEither :: Rdf a => Either ParseFailure (RDF a) -> RDF a
 fromEither res =
   case res of
     (Left err) -> error (show err)
@@ -98,7 +98,7 @@ fromEither res =
 -- |This determines if two RDF representations are equal regardless of blank
 -- node names, triple order and prefixes.  In math terms, this is the \simeq
 -- latex operator, or ~=
-isIsomorphic :: forall rdf1 rdf2. (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
+isIsomorphic :: (Rdf a, Rdf b) => RDF a -> RDF b -> Bool
 isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (normalize g2)
   where
     compareNodeUnlessBlank :: Node -> Node -> Bool
@@ -116,19 +116,19 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
         compareNodeUnlessBlank p1 p2 &&
         compareNodeUnlessBlank o1 o2
 
-    normalize :: forall rdf. (RDF rdf) => rdf -> Triples
+    normalize :: (Rdf a) => RDF a -> Triples
     normalize = sort . nub . expandTriples
 
 -- | Compares the structure of two graphs and returns 'True' if
 --   their graph structures are identical. This does not consider the nature of
 --   each node in the graph, i.e. the URI text of 'UNode' nodes, the generated
 --   index of a blank node, or the values in literal nodes.
-isGraphIsomorphic :: forall rdf1 rdf2. (RDF rdf1, RDF rdf2) => rdf1 -> rdf2 -> Bool
+isGraphIsomorphic :: (Rdf a, Rdf b) => RDF a -> RDF b -> Bool
 isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
     where
       g1' = rdfGraphToDataGraph g1
       g2' = rdfGraphToDataGraph g2
-      rdfGraphToDataGraph :: RDF rdf3 => rdf3 -> Graph
+      rdfGraphToDataGraph :: Rdf c => RDF c -> Graph
       rdfGraphToDataGraph g = dataGraph
           where
             triples = expandTriples g
@@ -140,7 +140,7 @@ isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
 
 -- |Expand the triples in a graph with the prefix map and base URL for that
 -- graph.
-expandTriples :: (RDF rdf) => rdf -> Triples
+expandTriples :: (Rdf a) => RDF a -> Triples
 expandTriples rdf = expandTriples' [] (baseUrl rdf) (prefixMappings rdf) (triplesOf rdf)
 
 expandTriples' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Triples -> Triples

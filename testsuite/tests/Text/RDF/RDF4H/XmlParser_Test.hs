@@ -42,13 +42,13 @@ tests = testGroup "XmlParser:parseXmlRDF" [ testCase "simpleStriping1" test_simp
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL
 
-testParse :: T.Text -> TriplesList -> Assertion
+testParse :: T.Text -> RDF TriplesList -> Assertion
 testParse exRDF ex =
     case parsed of
       Right result ->
           assertBool
             ("expected: " ++ show ex ++ "but got: " ++ show result)
-            (isIsomorphic (result :: TriplesList) (ex :: TriplesList))
+            (isIsomorphic (result :: RDF TriplesList) (ex :: RDF TriplesList))
       Left (ParseFailure err) ->
           assertFailure err
   where parsed = parseString (XmlParser Nothing Nothing) exRDF

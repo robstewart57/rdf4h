@@ -256,19 +256,19 @@ nt_lf          =   char '\n'
 nt_tab :: GenParser () Char
 nt_tab         =   char '\t'
 
-parseString' :: forall rdf. (RDF rdf) => T.Text -> Either ParseFailure rdf
+parseString' :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
 parseString' bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
 
-parseURL' :: forall rdf. (RDF rdf) => String -> IO (Either ParseFailure rdf)
+parseURL' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURL' = _parseURL parseString'
 
-parseFile' :: forall rdf. (RDF rdf) => String -> IO (Either ParseFailure rdf)
+parseFile' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseFile' path = liftM (handleParse mkRdf . runParser nt_ntripleDoc () path)
                    (TIO.readFile path)
 
-handleParse :: forall rdf. (RDF rdf) => (Triples -> Maybe BaseUrl -> PrefixMappings -> rdf) ->
+handleParse :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> (RDF a)) ->
                                         Either ParseError [Maybe Triple] ->
-                                        Either ParseFailure rdf
+                                        Either ParseFailure (RDF a)
 handleParse _mkRdf result
 --  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
   | otherwise          =

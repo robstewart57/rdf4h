@@ -1,3 +1,5 @@
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveGeneric, OverloadedStrings, GeneralizedNewtypeDeriving #-}
 
 module Data.RDF.Types (
@@ -18,7 +20,7 @@ module Data.RDF.Types (
   resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,
 
   -- * RDF Type
-  RDF(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query),
+  Rdf(RDF,baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query,showGraph),
 
   -- * Parsing RDF
   RdfParser(parseString,parseFile,parseURL),
@@ -323,37 +325,40 @@ class View a b where
 --
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
-class RDF rdf where
+class (Show rdfImpl) => Rdf rdfImpl where
 
+  -- |RDF type family
+  data RDF rdfImpl
+  
   -- |Return the base URL of this RDF, if any.
-  baseUrl :: rdf -> Maybe BaseUrl
+  baseUrl :: RDF rdfImpl -> Maybe BaseUrl
 
   -- |Return the prefix mappings defined for this RDF, if any.
-  prefixMappings :: rdf -> PrefixMappings
+  prefixMappings :: RDF rdfImpl -> PrefixMappings
 
   -- |Return an RDF with the specified prefix mappings merged with
   -- the existing mappings. If the Bool arg is True, then a new mapping
   -- for an existing prefix will replace the old mapping; otherwise,
   -- the new mapping is ignored.
-  addPrefixMappings :: rdf -> PrefixMappings -> Bool -> rdf
+  addPrefixMappings :: RDF rdfImpl -> PrefixMappings -> Bool -> RDF rdfImpl
 
   -- |Return an empty RDF.
-  empty  :: rdf
+  empty  :: RDF rdfImpl
 
   -- |Return a RDF containing all the given triples. Handling of duplicates
   -- in the input depend on the particular RDF implementation.
-  mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> rdf
+  mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdfImpl
 
   -- |Return all triples in the RDF, as a list.
   --
   -- Note that this function returns a list of triples in the RDF as they
   -- were added, without removing duplicates and without expanding namespaces.
-  triplesOf :: rdf -> Triples
+  triplesOf :: RDF rdfImpl -> Triples
 
   -- |Return unique triples in the RDF, as a list.
   --
   -- This function performs namespace expansion and removal of duplicates.
-  uniqTriplesOf :: rdf -> Triples
+  uniqTriplesOf :: RDF rdfImpl -> Triples
 
   -- |Select the triples in the RDF that match the given selectors.
   --
@@ -375,7 +380,7 @@ class RDF rdf where
   --
   -- Note: this function may be very slow; see the documentation for the
   -- particular RDF implementation for more information.
-  select    :: rdf -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+  select    :: RDF rdfImpl -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 
   -- |Return the triples in the RDF that match the given pattern, where
   -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
@@ -388,7 +393,13 @@ class RDF rdf where
   -- For example, @ query rdf (Just n1) Nothing (Just n2) @ would return all
   -- and only the triples that have @n1@ as subject and @n2@ as object,
   -- regardless of the predicate of the triple.
-  query         :: rdf -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+  query         :: RDF rdfImpl -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+
+  -- |pretty prints the RDF graph
+  showGraph     :: RDF rdfImpl -> String
+
+instance (Rdf a) => Show (RDF a) where
+  show a = showGraph a
 
 -- |An RdfParser is a parser that knows how to parse 1 format of RDF and
 -- can parse an RDF document of that type from a string, a file, or a URL.
@@ -397,35 +408,34 @@ class RdfParser p where
 
   -- |Parse RDF from the given text, yielding a failure with error message or
   -- the resultant RDF.
-  parseString :: forall rdf. (RDF rdf) => p -> T.Text -> Either ParseFailure rdf
+  parseString :: (Rdf a) => p -> T.Text -> Either ParseFailure (RDF a)
 
   -- |Parse RDF from the local file with the given path, yielding a failure with error
   -- message or the resultant RDF in the IO monad.
-  parseFile   :: forall rdf. (RDF rdf) => p -> String     -> IO (Either ParseFailure rdf)
+  parseFile   :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
 
   -- |Parse RDF from the remote file with the given HTTP URL (https is not supported),
   -- yielding a failure with error message or the resultant graph in the IO monad.
-  parseURL    :: forall rdf. (RDF rdf) => p -> String -> IO (Either ParseFailure rdf)
-
+  parseURL    :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
 
 -- |An RdfSerializer is a serializer of RDF to some particular output format, such as
 -- NTriples or Turtle.
 class RdfSerializer s where
   -- |Write the RDF to a file handle using whatever configuration is specified by
   -- the first argument.
-  hWriteRdf     :: forall rdf. (RDF rdf) => s -> Handle -> rdf -> IO ()
+  hWriteRdf     :: (Rdf a) => s -> Handle -> RDF a -> IO ()
 
   -- |Write the RDF to stdout; equivalent to @'hWriteRdf' stdout@.
-  writeRdf      :: forall rdf. (RDF rdf) => s -> rdf -> IO ()
+  writeRdf      :: (Rdf a) => s -> RDF a -> IO ()
 
   -- |Write to the file handle whatever header information is required based on
   -- the output format. For example, if serializing to Turtle, this method would
   -- write the necessary \@prefix declarations and possibly a \@baseUrl declaration,
   -- whereas for NTriples, there is no header section at all, so this would be a no-op.
-  hWriteH     :: forall rdf. (RDF rdf) => s -> Handle -> rdf -> IO ()
+  hWriteH     :: (Rdf a) => s -> Handle -> RDF a -> IO ()
 
   -- |Write header information to stdout; equivalent to @'hWriteRdf' stdout@.
-  writeH      :: forall rdf. (RDF rdf) => s -> rdf -> IO ()
+  writeH      :: (Rdf a) => s -> RDF a -> IO ()
 
   -- |Write some triples to a file handle using whatever configuration is specified
   -- by the first argument.

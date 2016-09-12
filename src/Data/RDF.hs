@@ -3,7 +3,7 @@
 
 module Data.RDF (
 
-  RDF(..),
+  Rdf(..),
   RdfSerializer(..),
   RdfParser(..),
 

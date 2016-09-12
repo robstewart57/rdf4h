@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving , DeriveGeneric #-}
 
 -- |"TriplesGraph" contains a list-backed graph implementation suitable
@@ -46,7 +48,8 @@ newtype TriplesList = TriplesList (Triples, Maybe BaseUrl, PrefixMappings)
 
 instance Binary TriplesList
 
-instance RDF TriplesList where
+instance Rdf TriplesList where
+  data RDF TriplesList = RDF TriplesList
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -56,41 +59,45 @@ instance RDF TriplesList where
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
+  showGraph         = showGraph'
 
 instance Show TriplesList where
-  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
+  show (TriplesList (ts, _, _)) = concatMap (\t -> show t ++ "\n") ts
 
-prefixMappings' :: TriplesList -> PrefixMappings
-prefixMappings' (TriplesList (_, _, pms)) = pms
+showGraph' :: RDF TriplesList -> [Char]
+showGraph' (RDF (TriplesList (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
 
-addPrefixMappings' :: TriplesList -> PrefixMappings -> Bool -> TriplesList
-addPrefixMappings' (TriplesList (ts, baseURL, pms)) pms' replace =
+prefixMappings' :: RDF TriplesList -> PrefixMappings
+prefixMappings' (RDF (TriplesList (_, _, pms))) = pms
+
+addPrefixMappings' :: RDF TriplesList -> PrefixMappings -> Bool -> RDF TriplesList
+addPrefixMappings' (RDF (TriplesList (ts, baseURL, pms))) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  TriplesList (ts, baseURL, merge pms pms')
+  in  RDF (TriplesList (ts, baseURL, merge pms pms'))
   
-baseUrl' :: TriplesList -> Maybe BaseUrl
-baseUrl' (TriplesList (_, baseURL, _)) = baseURL
+baseUrl' :: RDF TriplesList -> Maybe BaseUrl
+baseUrl' (RDF (TriplesList (_, baseURL, _))) = baseURL
 
-empty' :: TriplesList
-empty' = TriplesList ([], Nothing, PrefixMappings Map.empty)
+empty' :: RDF TriplesList
+empty' = RDF (TriplesList ([], Nothing, PrefixMappings Map.empty))
 
 -- We no longer remove duplicates here, as it is very time consuming and is often not
 -- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes
 -- from the results of the select' and query' functions, since it is cheap to do
 -- there in most cases, but not when triplesOf' is called.
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesList
-mkRdf' ts baseURL pms = TriplesList (ts, baseURL, pms)
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TriplesList
+mkRdf' ts baseURL pms = RDF (TriplesList (ts, baseURL, pms))
 
-triplesOf' :: TriplesList -> Triples
-triplesOf' (TriplesList (ts, _, _)) = ts
+triplesOf' :: RDF TriplesList -> Triples
+triplesOf' (RDF (TriplesList (ts, _, _))) = ts
 
-uniqTriplesOf' :: TriplesList -> Triples
+uniqTriplesOf' :: RDF TriplesList -> Triples
 uniqTriplesOf' = nub . expandTriples
 
-select' :: TriplesList -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' :: RDF TriplesList -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' g s p o = filter (matchSelect s p o) $ triplesOf g
 
-query' :: TriplesList -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' :: RDF TriplesList -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
 query' g s p o = filter (matchPattern s p o) $ triplesOf g
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool

@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Data.RDF.Graph.TriplesPatriciaTree_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
 
 import Data.RDF.Types
@@ -8,18 +10,20 @@ import Control.Monad
 
 import Test.QuickCheck
 
-instance Arbitrary TriplesPatriciaTree where
+instance Arbitrary TriplesPatriciaTree
+
+instance Arbitrary (RDF TriplesPatriciaTree) where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
   --coarbitrary = undefined
 
-empty' :: TriplesPatriciaTree
+empty' :: RDF TriplesPatriciaTree
 empty' = empty
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> TriplesPatriciaTree
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TriplesPatriciaTree
 mkRdf' = mkRdf
 
-triplesOf' :: TriplesPatriciaTree -> Triples
+triplesOf' :: RDF TriplesPatriciaTree -> Triples
 triplesOf' = triplesOf
 
-uniqTriplesOf' :: TriplesPatriciaTree -> Triples
+uniqTriplesOf' :: RDF TriplesPatriciaTree -> Triples
 uniqTriplesOf' = uniqTriplesOf

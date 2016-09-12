@@ -15,7 +15,7 @@ import Data.Maybe (fromMaybe)
 
 -- | A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.
-errResult :: RDF rdf => String -> Either ParseFailure rdf
+errResult :: {- RDF rdf => -} String -> Either ParseFailure (RDF rdfImpl)
 errResult msg = Left (ParseFailure msg)
 
 -- | Keep the (Just t) triples (eliminating the Nothing comments), and unbox the
@@ -25,7 +25,7 @@ justTriples = map (fromMaybe (error "ParserUtils.justTriples")) .
               filter (/= Nothing)
 
 -- | Parse contents at URL into an 'RDF'.
-_parseURL :: RDF rdf => (T.Text -> Either ParseFailure rdf) -> String -> IO (Either ParseFailure rdf)
+_parseURL :: {- Rdf rdf => -} (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
 _parseURL parseFunc url =
   maybe
     (return (Left (ParseFailure $ "Unable to parse URL: " ++ url)))

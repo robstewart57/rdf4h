@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 -- |A graph implementation mapping (S,P) pairs to O, backed by 'Data.Map'.
 
@@ -43,7 +45,8 @@ import Data.List
 newtype MapSP = MapSP (SPMap, Maybe BaseUrl, PrefixMappings)
                  deriving (NFData)
 
-instance RDF MapSP where
+instance Rdf MapSP where
+  data RDF MapSP = RDF MapSP
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -53,113 +56,121 @@ instance RDF MapSP where
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
   query             = query'
+  showGraph         = showGraph'
 
 instance Show MapSP where
-  show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
+  show (MapSP (tsMap,_,_)) =
+    let ts = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . Map.toList) tsMap
+    in concatMap (\t -> show t ++ "\n") ts
+
+showGraph' :: RDF MapSP -> String
+showGraph' (RDF (MapSP (tsMap,_,_))) =
+  let ts = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . Map.toList) tsMap
+    in concatMap (\t -> show t ++ "\n") ts
 
 type SPMap = Map (Subject,Predicate) [Object]
 
-baseUrl' :: MapSP -> Maybe BaseUrl
-baseUrl' (MapSP (_, baseURL, _)) = baseURL
+baseUrl' :: RDF MapSP -> Maybe BaseUrl
+baseUrl' (RDF (MapSP (_, baseURL, _))) = baseURL
 
-prefixMappings' :: MapSP -> PrefixMappings
-prefixMappings' (MapSP (_, _, pms)) = pms
+prefixMappings' :: RDF MapSP -> PrefixMappings
+prefixMappings' (RDF (MapSP (_, _, pms))) = pms
 
-addPrefixMappings' :: MapSP -> PrefixMappings -> Bool -> MapSP
-addPrefixMappings' (MapSP (tsMap, baseURL, pms)) pms' replace =
+addPrefixMappings' :: RDF MapSP -> PrefixMappings -> Bool -> RDF MapSP
+addPrefixMappings' (RDF (MapSP (tsMap, baseURL, pms))) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  MapSP (tsMap, baseURL, merge pms pms')
+  in  RDF $ MapSP (tsMap, baseURL, merge pms pms')
 
-empty' :: MapSP
-empty' = MapSP (Map.empty, Nothing, PrefixMappings Map.empty)
+empty' :: RDF MapSP
+empty' = RDF $ MapSP (Map.empty, Nothing, PrefixMappings Map.empty)
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> MapSP
-mkRdf' triples baseURL pms = MapSP (tsMap, baseURL, pms)
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF MapSP
+mkRdf' triples baseURL pms = RDF $ MapSP (tsMap, baseURL, pms)
     where
       tsMap = sortAndGroup triples
       sortAndGroup xs = Map.fromListWith (++) [((s,p), [o]) | Triple s p o <- xs]
 
-triplesOf' :: MapSP -> Triples
-triplesOf' (MapSP (tsMap,_,_)) = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . Map.toList) tsMap
+triplesOf' :: RDF MapSP -> Triples
+triplesOf' (RDF (MapSP (tsMap,_,_))) = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . Map.toList) tsMap
 
-uniqTriplesOf' :: MapSP -> Triples
+uniqTriplesOf' :: RDF MapSP -> Triples
 uniqTriplesOf' = nub . expandTriples
 
-select' :: MapSP -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' :: RDF MapSP -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' gr Nothing Nothing Nothing =
     triplesOf' gr
 
-select' (MapSP (tsMap,_,_))    Nothing  (Just pSelector) Nothing  =
+select' (RDF (MapSP (tsMap,_,_)))   Nothing  (Just pSelector) Nothing  =
     Map.foldrWithKey findTripleWithP [] tsMap
     where
       findTripleWithP (s,p) oList ts = if pSelector p
                                        then map (Triple s p) oList ++ ts
                                        else ts
 
-select' (MapSP (tsMap,_,_))    Nothing  Nothing  (Just oSelector) =
+select' (RDF (MapSP (tsMap,_,_)))    Nothing  Nothing  (Just oSelector) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = map (Triple s p) (filter oSelector oList) ++ ts
 
-select' (MapSP (tsMap,_,_))    Nothing  (Just pSelector) (Just oSelector) =
+select' (RDF (MapSP (tsMap,_,_)))    Nothing  (Just pSelector) (Just oSelector) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = if pSelector p
                                        then map (Triple s p) (filter oSelector oList) ++ ts
                                        else ts
 
-select' (MapSP (tsMap,_,_))    (Just sSelector) Nothing  Nothing  =
+select' (RDF (MapSP (tsMap,_,_)))    (Just sSelector) Nothing  Nothing  =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = if sSelector s
                                        then map (Triple s p) oList ++ ts
                                        else ts
 
-select' (MapSP (tsMap,_,_))    (Just sSelector) (Just pSelector) Nothing =
+select' (RDF (MapSP (tsMap,_,_)))    (Just sSelector) (Just pSelector) Nothing =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = if sSelector s && pSelector p
                                        then map (Triple s p) oList ++ ts
                                        else ts
 
-select' (MapSP (tsMap,_,_))    (Just sSelector) Nothing  (Just oSelector) =
+select' (RDF (MapSP (tsMap,_,_)))    (Just sSelector) Nothing  (Just oSelector) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = if sSelector s
                                         then map (Triple s p) (filter oSelector oList) ++ ts
                                         else ts
 
-select' (MapSP (tsMap,_,_))    (Just sSelector) (Just pSelector) (Just oSelector) =
+select' (RDF (MapSP (tsMap,_,_)))    (Just sSelector) (Just pSelector) (Just oSelector) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = if sSelector s && pSelector p
                                        then map (Triple s p) (filter oSelector oList) ++ ts
                                        else ts
 
-query' :: MapSP -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' :: RDF MapSP -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
 query' gr Nothing  Nothing  Nothing  =
     triplesOf' gr
 
-query' (MapSP (tsMap,_,_))    Nothing  (Just p) Nothing  =
+query' (RDF (MapSP (tsMap,_,_)))    Nothing  (Just p) Nothing  =
     Map.foldrWithKey findTripleWithP [] tsMap
     where
       findTripleWithP (s,p') oList ts = if p == p'
                                         then map (Triple s p) oList ++ ts
                                         else ts
 
-query' (MapSP (tsMap,_,_))    Nothing  Nothing  (Just o) =
+query' (RDF (MapSP (tsMap,_,_)))    Nothing  Nothing  (Just o) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p) oList ts = map (Triple s p) (filter (== o) oList) ++ ts
 
-query' (MapSP (tsMap,_,_))    Nothing  (Just p) (Just o) =
+query' (RDF (MapSP (tsMap,_,_)))    Nothing  (Just p) (Just o) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s,p') oList ts = if p == p'
                                         then map (Triple s p) (filter (== o) oList) ++ ts
                                         else ts
 
-query' (MapSP (tsMap,_,_))    (Just s) Nothing  Nothing  =
+query' (RDF (MapSP (tsMap,_,_)))    (Just s) Nothing  Nothing  =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s',p) oList ts = if s == s'
@@ -167,17 +178,17 @@ query' (MapSP (tsMap,_,_))    (Just s) Nothing  Nothing  =
                                         else ts
 
 -- optimal pattern for this MapSP instance
-query' (MapSP (tsMap,_,_))    (Just s) (Just p) Nothing =
+query' (RDF (MapSP (tsMap,_,_)))    (Just s) (Just p) Nothing =
     (map (Triple s p) . Map.findWithDefault [] (s,p)) tsMap
 
-query' (MapSP (tsMap,_,_))    (Just s) Nothing  (Just o) =
+query' (RDF (MapSP (tsMap,_,_)))    (Just s) Nothing  (Just o) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s',p) oList ts = if s == s'
                                         then map (Triple s p) (filter (== o) oList) ++ ts
                                         else ts
 
-query' (MapSP (tsMap,_,_))    (Just s) (Just p) (Just o) =
+query' (RDF (MapSP (tsMap,_,_)))    (Just s) (Just p) (Just o) =
     Map.foldrWithKey findTripleWithS [] tsMap
     where
       findTripleWithS (s',p') oList ts = if s == s' && p == p'
