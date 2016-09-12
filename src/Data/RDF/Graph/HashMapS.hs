@@ -4,7 +4,7 @@
 -- |A graph implementation mapping hashed S to a mapping of
 --  hashed P to hashed O, backed by 'Data.HashMap'.
 
-module Data.RDF.Graph.HashMapS (HashMapS) where
+module Data.RDF.Graph.HashMapS (HashS) where
 
 import Prelude hiding (pred)
 import Control.DeepSeq (NFData)
@@ -66,11 +66,11 @@ import Data.List
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(log n)
-newtype HashMapS = HashMapS (TMaps, Maybe BaseUrl, PrefixMappings)
+newtype HashS = HashS (TMaps, Maybe BaseUrl, PrefixMappings)
                  deriving (NFData)
 
-instance Rdf HashMapS where
-  data RDF HashMapS = RDF HashMapS
+instance Rdf HashS where
+  data RDF HashS = RDF HashS
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -82,19 +82,19 @@ instance Rdf HashMapS where
   query             = query'
   showGraph         = showGraph'
 
-instance Show (HashMapS) where
-  show (HashMapS ((spoMap, _), _, _)) =
+instance Show (HashS) where
+  show (HashS ((spoMap, _), _, _)) =
     let ts = concatMap (uncurry tripsSubj) subjPredMaps
           where subjPredMaps = HashMap.toList spoMap
     in concatMap (\t -> show t ++ "\n") ts
 
-showGraph' :: RDF HashMapS -> [Char]
-showGraph' (RDF (HashMapS ((spoMap, _), _, _))) =
+showGraph' :: RDF HashS -> [Char]
+showGraph' (RDF (HashS ((spoMap, _), _, _))) =
     let ts = concatMap (uncurry tripsSubj) subjPredMaps
           where subjPredMaps = HashMap.toList spoMap
     in concatMap (\t -> show t ++ "\n") ts
 
--- instance Show (RDF HashMapS) where
+-- instance Show (RDF HashS) where
 --   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 
 -- some convenience type alias for readability
@@ -109,22 +109,22 @@ type TMap   = HashMap Node AdjacencyMap
 type TMaps  = (TMap, TMap)
 
 
-baseUrl' :: RDF HashMapS -> Maybe BaseUrl
-baseUrl' (RDF (HashMapS (_, baseURL, _))) = baseURL
+baseUrl' :: RDF HashS -> Maybe BaseUrl
+baseUrl' (RDF (HashS (_, baseURL, _))) = baseURL
 
-prefixMappings' :: RDF HashMapS -> PrefixMappings
-prefixMappings' (RDF (HashMapS (_, _, pms))) = pms
+prefixMappings' :: RDF HashS -> PrefixMappings
+prefixMappings' (RDF (HashS (_, _, pms))) = pms
 
-addPrefixMappings' :: RDF HashMapS -> PrefixMappings -> Bool -> RDF HashMapS
-addPrefixMappings' (RDF (HashMapS (ts, baseURL, pms))) pms' replace = 
+addPrefixMappings' :: RDF HashS -> PrefixMappings -> Bool -> RDF HashS
+addPrefixMappings' (RDF (HashS (ts, baseURL, pms))) pms' replace = 
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
-  in  RDF $ HashMapS (ts, baseURL, merge pms pms')
+  in  RDF $ HashS (ts, baseURL, merge pms pms')
 
-empty' :: RDF HashMapS
-empty' = RDF $ HashMapS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
+empty' :: RDF HashS
+empty' = RDF $ HashS ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF HashMapS
-mkRdf' ts baseURL pms = RDF $ HashMapS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF HashS
+mkRdf' ts baseURL pms = RDF $ HashS (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
@@ -153,12 +153,12 @@ mergeT'' m s p o =
     get = HashMap.lookupDefault Set.empty
 
 -- 3 following functions support triplesOf
-triplesOf' :: RDF HashMapS -> Triples
-triplesOf' (RDF (HashMapS ((spoMap, _), _, _))) = concatMap (uncurry tripsSubj) subjPredMaps
+triplesOf' :: RDF HashS -> Triples
+triplesOf' (RDF (HashS ((spoMap, _), _, _))) = concatMap (uncurry tripsSubj) subjPredMaps
   where subjPredMaps = HashMap.toList spoMap
 
 -- naive implementation for now
-uniqTriplesOf' :: RDF HashMapS -> Triples
+uniqTriplesOf' :: RDF HashS -> Triples
 uniqTriplesOf' = nub . expandTriples
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
@@ -169,8 +169,8 @@ tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
 tripsForSubjPred s p adjs = map (Triple s p) (Set.toList adjs)
 
 -- supports select
-select' :: RDF HashMapS -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (RDF (HashMapS ((spoMap,_),_,_))) subjFn predFn objFn =
+select' :: RDF HashS -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+select' (RDF (HashS ((spoMap,_),_,_))) subjFn predFn objFn =
   map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
 
 sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> TMap -> HashSet (Node, Node, Node)
@@ -198,8 +198,8 @@ sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
 sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
 
 -- support query
-query' :: RDF HashMapS -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (RDF (HashMapS (m,_ , _))) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
+query' :: RDF HashS -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
+query' (RDF (HashS (m,_ , _))) subj pred obj = map f $ Set.toList $ q1 subj pred obj m
   where f (s, p, o) = Triple s p o
 
 q1 :: Maybe Node -> Maybe Node -> Maybe Node -> TMaps -> HashSet (Node, Node, Node)
