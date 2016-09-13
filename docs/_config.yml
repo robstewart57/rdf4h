@@ -3,7 +3,7 @@
 # # # # # # # #
 
 # Basic
-name:               "Kiko"
+name:               "rdf4h - RDF for Haskell"
 
 # URL
 baseurl:            "/rdf4h"

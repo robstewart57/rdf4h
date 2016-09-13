@@ -12,12 +12,20 @@ layout: default
   <!-- </nav> -->
 </header>
 
-### Library features
+### Overview
 
-rdf4h is a library for working with RDF in Haskell. It support three
-RDF serialisations:
+The _rdf4h_ library lets Haskell programmers query structured data
+described with the the __Resource Description Framework__ model. _RDF_
+models data as a collection of _<subject,predicate,object>_ triples,
+e.g.
 
-| Serialisation        | reading           | writing  |
+![The RDF model]({{ site.baseurl }}/RDF_example.png)
+
+### Supported RDF serialisation formats
+
+The rdf4h library supports three RDF serialisations:
+
+| Serialisation        | Reading           | Writing  |
 | ------------- |:-------------:|:-----:|
 | NTriples     | &#10003; | &#10003; |
 | Turtle      | &#10003;      | &#10003; |
@@ -147,33 +155,75 @@ main = do
       mapM_ (putStrLn . T.unpack) eswcMemberNames
 {% endhighlight %}
 
-<!-- ### Performance benchmarks -->
+The list of the _Extended Semantic Web Conference 2015_ programme
+committee members is printed to standard out:
 
-<!-- The library includes a criterion based benchmarking suite, which -->
-<!-- compares the querying performance for the different type indexed graph -->
-<!-- representations. See -->
-<!-- [these results from September 2016](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html). -->
+{% highlight shell %}
+Vadim Ermolayev
+Karl Aberer
+Giorgos Stoilos
+Birgitta König-Ries
+Giuseppe Rizzo
+...
+{% endhighlight %}
 
-### Library RDF W3C tests and performance contributions
+### Library contributions
 
-<!-- The library does not pass all W3C RDF parsing specification tests. See -->
-<!-- the rdf4h library's current pass rate -->
-<!-- [on TravisCI](https://travis-ci.org/robstewart57/rdf4h). -->
+Pull requests should be submitted to the rdf4h GitHub repository:
+[https://github.com/robstewart57/rdf4h](https://github.com/robstewart57/rdf4h)
 
-Pull requests are very welcome, especially:
+<br>
 
-1. New `Rdf` type class instances providing __new high performance RDF
-   graph representations__, beyond the three instances the library
-   currently has. The library includes a criterion based benchmarking
-   suite, which compares the querying performance for the different
-   type indexed graph representations. See
-   [these results from September 2016](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html).
+#### High performance RDF graph implementations
 
-2. __Fix failing W3C parsing tests__ for the Turtle and RDF/XML
-   serialisation formats. The library does not pass all W3C RDF
-   parsing specification tests. See the rdf4h library's current pass
-   rate [on TravisCI](https://travis-ci.org/robstewart57/rdf4h). To
-   see what currently fails:
+__Wanted:__ new `Rdf` type class instances providing new high
+performance RDF graph representations, beyond the three instances the
+library currently has.
+
+<br>
+
+The library includes a criterion based benchmarking suite, which
+compares the querying performance for the different type indexed graph
+representations.
+
+See
+[criterion results from September 2016](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html).
+
+To run the criterion benchmarks locally:
+
+{% highlight shell %}
+$ git submodule update --init --recursive
+$ git submodule foreach git pull origin gh-pages
+$ stack test
+{% endhighlight %}
+
+To list the available tests that can be run in isolation using a
+pattern:
+
+{% highlight shell %}
+$ stack test --test-arguments "--list-tests"
+{% endhighlight %}
+
+To run specific test groups:
+
+{% highlight shell %}
+$ stack test --test-arguments="--pattern HashMapSP"
+{% endhighlight %}
+
+
+<br>
+
+#### Fixes for failing W3C parser unit tests 
+
+__Wanted:__ fix failing W3C parsing tests for the Turtle and RDF/XML
+serialisation formats.
+<br><br>
+
+The library does not pass all W3C RDF parsing specification tests. See
+the rdf4h library's current pass rate
+[on TravisCI](https://travis-ci.org/robstewart57/rdf4h).
+
+To see what currently fails:
   
 {% highlight shell %}
 $ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
@@ -181,7 +231,11 @@ $ gzip -d bills.099.actions.rdf.gz
 $ stack bench
 {% endhighlight %}
 
-Pull requests should be submitted to the rdf4h GitHub repository:
-[https://github.com/robstewart57/rdf4h](https://github.com/robstewart57/rdf4h)
+Or to run just the benchmarks for a specific RDF implementation, use
+the `--benchmark-arguments` flag, e.g.:
 
-</div>
+{% highlight shell %}
+$ stack bench --benchmark-arguments 'query/HashS'
+{% endhighlight %}
+
+
