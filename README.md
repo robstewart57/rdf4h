@@ -140,6 +140,11 @@ To run the benchmark suite with cabal or stack:
     $ cabal bench
     $ stack bench
 
+Or to run just the benchmarks for a specific RDF implementation, use
+the `--benchmark-arguments` flag, e.g.:
+
+    $ stack bench --benchmark-arguments 'query/HashS'
+
 **Results:**
 
 Benchmarking `query` and `select` results:
