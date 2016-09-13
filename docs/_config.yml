@@ -11,7 +11,7 @@ name:               "Kiko"
 permalink:          /:year/:month/:day/:title.html
 
 # Markdown
-markdown:           rdiscount
+# markdown:           rdiscount
 
 # Navigation
 nav:
