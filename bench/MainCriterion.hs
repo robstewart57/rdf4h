@@ -62,7 +62,7 @@ main = defaultMain [
            return (rdf1 :: RDF TList,rdf2 :: RDF HashS,rdf3 :: RDF SP,rdf4 :: RDF HashSP) )
      $ \ ~(triplesList,hashMapS,mapSP,hashMapSP) ->
    bgroup "select"
-     (selectBench "TriplesList" triplesList
+     (selectBench "TList" triplesList
      ++ selectBench "HashS" hashMapS
      ++ selectBench "SP" mapSP
      ++ selectBench "HashSP" hashMapSP)
