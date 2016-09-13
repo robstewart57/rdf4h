@@ -15,12 +15,12 @@ eswcCommitteeMembers graph =
   let triples = query graph (Just (unode eswcCommitteeURI)) (Just (unode heldByProp)) Nothing
       memberURIs = map objectOf triples
   in map
-     (\(memberURI::Node) ->
+     (\memberURI ->
               let (LNode (PlainL (firstName::T.Text))) =
                     objectOf $ head $ query graph (Just memberURI) (Just (unode "foaf:firstName")) Nothing
                   (LNode (PlainL lastName))  =
                     objectOf $ head $ query graph (Just memberURI) (Just (unode "foaf:lastName")) Nothing
-              in (firstName `T.append` (T.pack " ") `T.append` lastName))
+              in (T.append firstName (T.append (T.pack  " ") lastName)))
      memberURIs
         
 main :: IO ()
