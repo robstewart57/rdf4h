@@ -68,6 +68,13 @@ differ in their in-memory representation of RDF graphs.
 * `RDF TList` is a simple representation that represents triples as
   Haskell lists.
 
+These data family instance represent application specific tradeoffs in
+terms of space and runtime performance. See
+[these criterion results](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html)
+for `query` and `select` performance for all graph implementations,
+taken in September 2016.
+
+
 ### Rdf type class
 
 {% highlight haskell %}
@@ -84,7 +91,8 @@ class Rdf a where
   showGraph         :: RDF a -> String
 {% endhighlight %}
 
-See the `Data.RDF.Query` module for more query functions.
+See the `Data.RDF.Query` module for more query functions,
+[here](http://hackage.haskell.org/package/rdf4h-3.0.0/docs/Data-RDF-Query.html).
 
 ### RDF parsing and writing
 
@@ -119,6 +127,20 @@ eswcCommitteeURI, heldByProp :: T.Text
 eswcCommitteeURI =
   "http://data.semanticweb.org/conference/eswc/2015/program-committee-member"
 heldByProp       = "swc:heldBy"
+
+{- the RDF triples model for ESWC PC members is:
+S: <http://data.semanticweb.org/conference/eswc/2015/program-committee-member>
+P: <swc:heldBy>
+O: <memberURI>
+
+S: <memberURI>
+P: <foaf:firstName>
+O: "persons first name"
+
+S: <memberURI>
+P: <foaf:lastName>
+O: "persons last name"
+-}
 
 -- returns a list of full names of people who served as
 -- members on the ESWC 2015 conference programme committee.
