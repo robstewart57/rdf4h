@@ -220,6 +220,33 @@ See
 To run the criterion benchmarks locally:
 
 {% highlight shell %}
+$ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
+$ gzip -d bills.099.actions.rdf.gz
+$ stack bench
+{% endhighlight %}
+
+Or to run just the benchmarks for a specific RDF implementation, use
+the `--benchmark-arguments` flag, e.g.:
+
+{% highlight shell %}
+$ stack bench --benchmark-arguments 'query/HashS'
+{% endhighlight %}
+
+<br>
+
+#### Fixes for failing W3C parser unit tests 
+
+__Wanted:__ fix failing W3C parsing tests for the Turtle and RDF/XML
+serialisation formats.
+<br><br>
+
+The library does not pass all W3C RDF parsing specification tests. See
+the rdf4h library's current pass rate
+[on TravisCI](https://travis-ci.org/robstewart57/rdf4h).
+
+To see what currently fails:
+
+{% highlight shell %}
 $ git submodule update --init --recursive
 $ git submodule foreach git pull origin gh-pages
 $ stack test
@@ -236,34 +263,6 @@ To run specific test groups:
 
 {% highlight shell %}
 $ stack test --test-arguments="--pattern HashMapSP"
-{% endhighlight %}
-
-
-<br>
-
-#### Fixes for failing W3C parser unit tests 
-
-__Wanted:__ fix failing W3C parsing tests for the Turtle and RDF/XML
-serialisation formats.
-<br><br>
-
-The library does not pass all W3C RDF parsing specification tests. See
-the rdf4h library's current pass rate
-[on TravisCI](https://travis-ci.org/robstewart57/rdf4h).
-
-To see what currently fails:
-  
-{% highlight shell %}
-$ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
-$ gzip -d bills.099.actions.rdf.gz
-$ stack bench
-{% endhighlight %}
-
-Or to run just the benchmarks for a specific RDF implementation, use
-the `--benchmark-arguments` flag, e.g.:
-
-{% highlight shell %}
-$ stack bench --benchmark-arguments 'query/HashS'
 {% endhighlight %}
 
 
