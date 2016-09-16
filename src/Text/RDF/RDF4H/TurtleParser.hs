@@ -8,6 +8,8 @@ module Text.RDF.RDF4H.TurtleParser(
 where
 
 import Data.Char (isLetter,isAlphaNum,toLower,toUpper)
+import qualified Data.Map as Map
+import Data.Map (Map)
 import Data.Maybe
 import Data.RDF.Types
 import Data.RDF.Namespace
@@ -22,6 +24,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
+import Debug.Trace
 
 -- |An 'RdfParser' implementation for parsing RDF in the
 -- Turtle format. It is an implementation of W3C Turtle grammar rules at
@@ -51,12 +54,13 @@ type ParseState =
    [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
    [Bool],           -- when in a collection, is it a subject collection or not
    Bool,           -- when in a blank node property list, is it a subject collection or not
-   Seq Triple)       -- the triples encountered while parsing; always added to on the right side
+   Seq Triple,       -- the triples encountered while parsing; always added to on the right side
+   Map String Int)
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: GenParser ParseState (Seq Triple, PrefixMappings)
 t_turtleDoc =
-  many t_statement >> (eof <?> "eof") >> getState >>= \(_, _, _, pms, _, _, _, _, _, ts) -> return (ts, pms)
+  many t_statement >> (eof <?> "eof") >> getState >>= \(_, _, _, pms, _, _, _, _, _, ts,_) -> return (ts, pms)
 
 -- grammar rule: [2] statement
 t_statement :: GenParser ParseState ()
@@ -110,7 +114,7 @@ t_prefixID =
      uriFrag <- t_iriref
      void (many t_ws <?> "prefixID-whitespace")
      void (char '.' <?> "end-of-prefixID-period")
-     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _) <- getState
+     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
 
@@ -121,7 +125,7 @@ t_sparql_prefix =
      pre <- (many1 t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
      void (char ':' >> (many1 t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
-     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _) <- getState
+     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- getState
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      return ()
 
@@ -160,7 +164,7 @@ t_pname_ns :: GenParser ParseState T.Text
 t_pname_ns =do
   pre <- option T.empty (try t_pn_prefix)
   void (char ':')
-  (bUrl, _, _, pms, _, _, _, _, _, _) <- getState
+  (bUrl, _, _, pms, _, _, _, _, _, _, _) <- getState
   case resolveQName bUrl pre pms of
     Just n  -> return n
     Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
@@ -226,18 +230,27 @@ t_subject =
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: GenParser ParseState Node
 t_blankNode = do
-  (try t_blank_node_label <|> t_anon)
-  i <- nextIdCounter
-  let node = BNodeGen i
+  genID <- (try t_blank_node_label <|> (t_anon >> return ""))
+  mp <- currGenIdLookup
+  node <-
+    case Map.lookup genID mp of
+      Nothing -> do
+        i <- nextIdCounter
+        let node = BNodeGen i
+        addGenIdLookup genID i
+        return node
+      Just i ->
+        return $ BNodeGen i
   return node
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
-t_blank_node_label :: GenParser ParseState ()
+t_blank_node_label :: GenParser ParseState [Char]
 t_blank_node_label = do
   void (string "_:")
-  void (t_pn_chars_u <|> oneOf ['0'..'9'])
-  optional $ try $ do
+  firstChar <- (t_pn_chars_u <|> oneOf ['0'..'9'])
+--  optional $ try $ do
+  try $ do
     ss <- option "" $ do
             xs <- many (t_pn_chars <|> char '.')
             if null xs
@@ -245,7 +258,7 @@ t_blank_node_label = do
             else if last xs == '.'
                  then unexpected "'.' at the end of a blank node label"
                  else return xs
-    return ss
+    return (firstChar : ss)
 
 -- [162s] ANON ::= '[' WS* ']'
 t_anon :: GenParser ParseState ()
@@ -547,37 +560,44 @@ newBaseUrl :: Maybe BaseUrl -> T.Text -> BaseUrl
 newBaseUrl Nothing               url = BaseUrl url
 newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
+currGenIdLookup :: GenParser ParseState (Map String Int)
+currGenIdLookup = getState >>= \(_, _, _, _, _, _, _, _, _, _,genMap) -> return genMap
+
+addGenIdLookup :: String -> Int -> GenParser ParseState ()
+addGenIdLookup genId counter = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                  setState (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, Map.insert genId counter genMap)
+
 currBaseUrl :: GenParser ParseState (Maybe BaseUrl)
-currBaseUrl = getState >>= \(bUrl, _, _, _, _, _, _, _, _, _) -> return bUrl
+currBaseUrl = getState >>= \(bUrl, _, _, _, _, _, _, _, _, _,_) -> return bUrl
 
 currDocUrl :: GenParser ParseState (Maybe T.Text)
-currDocUrl = getState >>= \(_, dUrl, _, _, _, _, _, _, _, _) -> return dUrl
+currDocUrl = getState >>= \(_, dUrl, _, _, _, _, _, _, _, _,_) -> return dUrl
 
 pushSubj :: Subject -> GenParser ParseState ()
-pushSubj s = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts) ->
-                  setState (bUrl, dUrl, i, pms, s:ss, ps, cs, subjC, subjBNodeList, ts)
+pushSubj s = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                  setState (bUrl, dUrl, i, pms, s:ss, ps, cs, subjC, subjBNodeList, ts, genMap)
 
 popSubj :: GenParser ParseState Subject
-popSubj = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts) ->
-                setState (bUrl, dUrl, i, pms, tail ss, ps, cs, subjC, subjBNodeList, ts) >>
+popSubj = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                setState (bUrl, dUrl, i, pms, tail ss, ps, cs, subjC, subjBNodeList, ts, genMap) >>
                   when (null ss) (error "Cannot pop subject off empty stack.") >>
                   return (head ss)
 
 pushPred :: Predicate -> GenParser ParseState ()
-pushPred p = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts) ->
-                  setState (bUrl, dUrl, i, pms, ss, p:ps, cs, subjC, subjBNodeList, ts)
+pushPred p = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                  setState (bUrl, dUrl, i, pms, ss, p:ps, cs, subjC, subjBNodeList, ts, genMap)
 
 popPred :: GenParser ParseState Predicate
-popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts) ->
-                setState (bUrl, dUrl, i, pms, ss, tail ps, cs, subjC, subjBNodeList, ts) >>
+popPred = getState >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                setState (bUrl, dUrl, i, pms, ss, tail ps, cs, subjC, subjBNodeList, ts, genMap) >>
                   when (null ps) (error "Cannot pop predicate off empty stack.") >>
                   return (head ps)
 
 isInColl :: GenParser ParseState Bool
-isInColl = getState >>= \(_, _, _, _, _, _, cs, _, _, _) -> return . not . null $ cs
+isInColl = getState >>= \(_, _, _, _, _, _, cs, _, _, _, _) -> return . not . null $ cs
 
 isInSubjColl :: GenParser ParseState Bool
-isInSubjColl = getState >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
+isInSubjColl = getState >>= \(_, _, _, _, _, _, _, xs, _, _, _) -> do
                if null xs then return False else return (head xs)
 
 {-
@@ -588,20 +608,20 @@ isInObjColl = getState >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
 -}
 
 pushSubjColl :: GenParser ParseState ()
-pushSubjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts)
+pushSubjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts, genMap)
 
 popColl :: GenParser ParseState ()
-popColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) -> do
+popColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) -> do
                 when (null subjC) $ error "null in popColl"
-                setState (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts)
+                setState (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts, genMap)
 
 pushObjColl :: GenParser ParseState ()
-pushObjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts)
+pushObjColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts,genMap)
 
 isSubjPropList :: GenParser ParseState Bool
-isSubjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
+isSubjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _,_) -> do
                 return subjBNodeList
 
 {-
@@ -611,12 +631,12 @@ isObjPropList = getState >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
 -}
 
 setSubjBlankNodePropList :: GenParser ParseState ()
-setSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts)
+setSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
 
 setNotSubjBlankNodePropList :: GenParser ParseState ()
-setNotSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
-                 setState (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts)
+setNotSubjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
+                 setState (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
 
 -- setObjBlankNodePropList :: GenParser ParseState ()
 -- setObjBlankNodePropList = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
@@ -632,32 +652,32 @@ updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
 nextIdCounter :: GenParser ParseState Int
-nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
-                setState (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts) >> return i
+nextIdCounter = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
+                setState (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) >> return i
 
 updatePMs :: Maybe PrefixMappings -> GenParser ParseState ()
 updatePMs val = _modifyState no no val no no no
 
 -- Register that we have begun processing a collection
 beginColl :: GenParser ParseState ()
-beginColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
-            setState (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts)
+beginColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
+            setState (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts,genMap)
 
 onCollFirstItem :: GenParser ParseState Bool
-onCollFirstItem = getState >>= \(_, _, _, _, _, _, cs, _, _, _) -> return (not (null cs) && head cs)
+onCollFirstItem = getState >>= \(_, _, _, _, _, _, cs, _, _, _,_) -> return (not (null cs) && head cs)
 
 collFirstItemProcessed :: GenParser ParseState ()
-collFirstItemProcessed = getState >>= \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts) ->
-                         setState (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts)
+collFirstItemProcessed = getState >>= \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts,genMap) ->
+                         setState (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts,genMap)
 
 -- Register that a collection is finished being processed; the bool value
 -- in the monad is *not* the value that was popped from the stack, but whether
 -- we are still processing a parent collection or have finished processing
 -- all collections and are no longer in a collection at all.
 finishColl :: GenParser ParseState Bool
-finishColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts) ->
+finishColl = getState >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
              let cs' = drop 1 cs
-             in setState (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts) >> return (not $ null cs')
+             in setState (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts,genMap) >> return (not $ null cs')
 
 -- Alias for Nothing for use with _modifyState calls, which can get very long with
 -- many Nothing values.
@@ -667,8 +687,8 @@ no = Nothing
 -- Update the subject and predicate values of the ParseState to Nothing.
 resetSubjectPredicate :: GenParser ParseState ()
 resetSubjectPredicate =
-  getState >>= \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts) ->
-  setState (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts)
+  getState >>= \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts,genMap) ->
+  setState (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts,genMap)
 
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
@@ -676,7 +696,7 @@ _modifyState :: Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappi
                 Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
                 GenParser ParseState ()
 _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
-  do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _subjC, _subjBNodeList, _ts) <- getState
+  do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _subjC, _subjBNodeList, _ts,genMap) <- getState
      setState (fromMaybe _bUrl mb_bUrl,
               _dUrl,
               maybe _n (const _n) mb_n,
@@ -686,16 +706,16 @@ _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
               _cs,
               _subjC,
               _subjBNodeList,
-              fromMaybe _ts mb_trps)
+              fromMaybe _ts mb_trps,genMap)
 
 addTripleForObject :: Object -> GenParser ParseState ()
 addTripleForObject obj =
-  do (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts) <- getState
+  do (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts,genMap) <- getState
      when (null ss) $
        unexpected $ "No Subject with which to create triple for: " ++ show obj
      when (null ps) $
        unexpected $ "No Predicate with which to create triple for: " ++ show obj
-     setState (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj)
+     setState (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj,genMap)
 
 -- |Parse the document at the given location URL as a Turtle document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the Turtle document itself.
@@ -731,14 +751,14 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl docUrl fpath = do
   TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser t_turtleDoc initialState (maybe "" T.unpack docUrl) bs')
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
 parseString' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
 parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser t_turtleDoc initialState "" ttlStr)
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty)
+  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result =
