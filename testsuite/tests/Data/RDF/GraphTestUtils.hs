@@ -25,9 +25,7 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 --  property based quick check test cases         --
 ----------------------------------------------------
 
-instance Arbitrary (RDF a)
-
-graphTests :: (Arbitrary rdf, Rdf rdf)
+graphTests :: (Arbitrary (RDF rdf), Rdf rdf)
            => TestName -> (RDF rdf -> Triples) -> (RDF rdf -> Triples) -> RDF rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> TestTree
 graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = testGroup testGroupName
             [

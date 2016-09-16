@@ -10,8 +10,6 @@ import Data.RDF.Graph.TList
 import Data.RDF.Types
 import Test.QuickCheck.Arbitrary
 
-instance Arbitrary TList
-
 instance Arbitrary (RDF TList) where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
   --coarbitrary = undefined

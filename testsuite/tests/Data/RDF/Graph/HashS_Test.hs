@@ -10,8 +10,6 @@ import Control.Monad
 
 import Test.QuickCheck
 
-instance Arbitrary HashS
-
 instance Arbitrary (RDF HashS) where
   arbitrary = liftM3 mkRdf arbitraryTs (return Nothing) (return $ PrefixMappings Map.empty)
   --coarbitrary = undefined
