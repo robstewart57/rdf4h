@@ -114,10 +114,15 @@ getRDF = proc xml -> do
             rdf <- isElem <<< getChildren -< xml
             bUrl <- arr (BaseUrl . T.pack) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
             prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
-            triples <- parseDescription' >. id -< (bUrl, rdf)
+            triples <- (parseDescription' >. failOnEmptyList >>> unlistA) -< (bUrl,rdf)
             returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
         toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
+
+        failOnEmptyList :: [b] -> [[b]]
+        failOnEmptyList [] = []
+        failOnEmptyList xs = [xs]
+
 
 -- |Read the initial state from an rdf element
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple
@@ -254,8 +259,22 @@ mkNode state = choiceA [ hasAttr "rdf:about" :-> (attrExpandURI state "rdf:about
                        , hasAttr "rdf:resource" :-> (attrExpandURI state "rdf:resource" >>> mkUNode)
                        , hasAttr "rdf:nodeID" :-> (getAttrValue "rdf:nodeID" >>> arr (bnode . T.pack))
                        , hasAttr "rdf:ID" :-> mkRelativeNode state
-                       , this :-> mkBlankNode
+                       , this :-> (validNodeElementName >>> mkBlankNode)
                        ]
+
+-- See https://www.w3.org/2000/03/rdf-tracking/
+-- Section "Issue rdfms-rdf-names-use: Illegal or unusual use of names from the RDF namespace"
+validNodeElementName :: (ArrowXml a, ArrowState GParseState a) => a XmlTree XmlTree
+validNodeElementName = neg (hasName "rdf:RDF")
+                       >>> neg (hasName "rdf:ID")
+                       >>> neg (hasName "rdf:about")
+                       >>> neg (hasName "rdf:bagID")
+                       >>> neg (hasName "rdf:parseType")
+                       >>> neg (hasName "rdf:resource")
+                       >>> neg (hasName "rdf:nodeID")
+                       >>> neg (hasName "rdf:li")
+                       >>> neg (hasName "rdf:aboutEach")
+                       >>> neg (hasName "rdf:aboutEachPrefix")
 
 rdfXmlLiteral :: T.Text
 rdfFirst,rdfRest,rdfNil,rdfType,rdfStatement,rdfSubject,rdfPredicate,rdfObject :: Node
