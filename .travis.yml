@@ -1,6 +1,10 @@
 # Copy these contents into the root directory of your Github project in a file
 # named .travis.yml
 
+# do not send Travis CI email notifications
+notifications:
+  email: false
+
 # Use new container infrastructure to enable caching
 sudo: false
 
