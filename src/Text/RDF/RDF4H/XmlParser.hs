@@ -172,6 +172,7 @@ isMetaAttr = isA (== "rdf:about")
 parsePredicatesFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
                             => a (LParseState, XmlTree) Triple
 parsePredicatesFromChildren = updateState
+    >>> validPropElementName
     >>> choiceA
         [ second (hasAttrValue "rdf:parseType" (== "Literal")) :-> arr2A parseAsLiteralTriple
         , second (hasAttrValue "rdf:parseType" (== "Resource")) :-> (mkBlankNode &&& arr id >>> arr2A parseAsResource)
@@ -191,6 +192,23 @@ parsePredicatesFromChildren = updateState
         parsePredicateAttr n = (second getName >>> arr (\(s, p) -> Triple (stateSubject s) ((unode . T.pack) p) n))
                            <+> (first (arr (\s -> s { stateSubject = n })) >>> arr2A parsePredicatesFromAttr)
         hasPredicateAttr = getAttrl >>> neg (getName >>> isMetaAttr)
+
+-- See https://www.w3.org/2000/03/rdf-tracking/
+-- Section "Issue rdfms-rdf-names-use: Illegal or unusual use of names from the RDF namespace"
+validPropElementName :: (ArrowXml a, ArrowState GParseState a) => a (LParseState,XmlTree) (LParseState,XmlTree)
+validPropElementName = proc (state,predXml) -> do
+  neg (hasName "rdf:Description") -< predXml
+  neg (hasName "rdf:RDF") -< predXml
+  neg (hasName "rdf:ID") -< predXml
+  neg (hasName "rdf:about") -< predXml
+  neg (hasName "rdf:bagID") -< predXml
+  neg (hasName "rdf:parseType") -< predXml
+  neg (hasName "rdf:resource") -< predXml
+  neg (hasName "rdf:nodeID") -< predXml
+  neg (hasName "rdf:aboutEach") -< predXml
+  neg (hasName "rdf:aboutEachPrefix") -< predXml
+  returnA -< (state,predXml)
+
 
 parseObjectsFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
