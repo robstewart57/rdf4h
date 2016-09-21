@@ -16,7 +16,6 @@ import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec
 import Text.Parsec.Text
-import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Sequence(Seq, (|>))
@@ -24,7 +23,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
 import Data.Char (isDigit)
 import Control.Monad
-import Debug.Trace
 
 -- |An 'RdfParser' implementation for parsing RDF in the
 -- Turtle format. It is an implementation of W3C Turtle grammar rules at
