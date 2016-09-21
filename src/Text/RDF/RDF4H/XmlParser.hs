@@ -18,7 +18,7 @@ import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import qualified Data.Text as T (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
-import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
+import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,hasNamePrefix,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
@@ -177,23 +177,42 @@ isMetaAttr = isA (== "rdf:about")
 --   rdf:Seq, rdf:Bag, rdf:Alt, rdf:Statement, rdf:Property, rdf:List
 --   rdf:subject, rdf:predicate, rdf:object, rdf:type, rdf:value,
 --   rdf:first, rdf:rest, rdf:_1, rdf:li
+--
+-- but in fact the wording at the above URL says:
+--
+-- "The WG reaffirmed its decision not to restrict names in the RDF
+--  namespaces which are not syntactic. The WG decided that an RDF
+--  processor SHOULD emit a warning when encountering names in the RDF
+--  namespace which are not defined, but should otherwise behave
+--  normally."
+--
+-- And that specifically:
+--
+--   <rdf:Description> 
+--     <rdf:foo>foo</rdf:foo>
+--    </rdf:Description>
+--
+-- is equivalent to:
+--  _:a <rdf:foo> "foo" .
+--
+-- And hence the use of `hasNamePrefix "rdf"`
 isValidPropElemName :: (ArrowXml a, ArrowState GParseState a) => a XmlTree XmlTree
-isValidPropElemName =
-  hasName "rdf:Seq"
-  <+> hasName "rdf:Bag"
-  <+> hasName "rdf:Alt"
-  <+> hasName "rdf:Statement"
-  <+> hasName "rdf:Property"
-  <+> hasName "rdf:List"
-  <+> hasName "rdf:subject"
-  <+> hasName "rdf:predicate"
-  <+> hasName "rdf:object"
-  <+> hasName "rdf:type"
-  <+> hasName "rdf:value"
-  <+> hasName "rdf:first"
-  <+> hasName "rdf:rest"
-  <+> hasName "rdf:_1"
-  <+> hasName "rdf:li"
+isValidPropElemName = hasNamePrefix "rdf"
+  -- hasName "rdf:Seq"
+  -- <+> hasName "rdf:Bag"
+  -- <+> hasName "rdf:Alt"
+  -- <+> hasName "rdf:Statement"
+  -- <+> hasName "rdf:Property"
+  -- <+> hasName "rdf:List"
+  -- <+> hasName "rdf:subject"
+  -- <+> hasName "rdf:predicate"
+  -- <+> hasName "rdf:object"
+  -- <+> hasName "rdf:type"
+  -- <+> hasName "rdf:value"
+  -- <+> hasName "rdf:first"
+  -- <+> hasName "rdf:rest"
+  -- <+> hasName "rdf:_1"
+  -- <+> hasName "rdf:li"
 
 
 -- |Read a children of an rdf:Description element.  These correspond to the Predicate portion of the Triple
