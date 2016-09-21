@@ -168,6 +168,34 @@ isMetaAttr = isA (== "rdf:about")
          <+> isA (== "rdf:parseType")
          <+> isA (== "xml:base")
 
+-- See: Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use
+--   section: Illegal or unusual use of names from the RDF namespace
+--
+-- test cases:
+--   rdf-tests/rdf-xml/rdfms-rdf-names-use/test-017.rdf to
+--   rdf-tests/rdf-xml/rdfms-rdf-names-use/test-032.rdf
+--   rdf:Seq, rdf:Bag, rdf:Alt, rdf:Statement, rdf:Property, rdf:List
+--   rdf:subject, rdf:predicate, rdf:object, rdf:type, rdf:value,
+--   rdf:first, rdf:rest, rdf:_1, rdf:li
+isValidPropElemName :: (ArrowXml a, ArrowState GParseState a) => a XmlTree XmlTree
+isValidPropElemName =
+  hasName "rdf:Seq"
+  <+> hasName "rdf:Bag"
+  <+> hasName "rdf:Alt"
+  <+> hasName "rdf:Statement"
+  <+> hasName "rdf:Property"
+  <+> hasName "rdf:List"
+  <+> hasName "rdf:subject"
+  <+> hasName "rdf:predicate"
+  <+> hasName "rdf:object"
+  <+> hasName "rdf:type"
+  <+> hasName "rdf:value"
+  <+> hasName "rdf:first"
+  <+> hasName "rdf:rest"
+  <+> hasName "rdf:_1"
+  <+> hasName "rdf:li"
+
+
 -- |Read a children of an rdf:Description element.  These correspond to the Predicate portion of the Triple
 parsePredicatesFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
                             => a (LParseState, XmlTree) Triple
@@ -178,17 +206,28 @@ parsePredicatesFromChildren = updateState
         , second (hasAttrValue "rdf:parseType" (== "Resource")) :-> (mkBlankNode &&& arr id >>> arr2A parseAsResource)
         , second (hasAttrValue "rdf:parseType" (== "Collection")) :-> (listA (defaultA >>> arr id &&& mkBlankNode) >>> mkCollectionTriples >>> unlistA)
         , second (hasAttr "rdf:datatype") :-> arr2A getTypedTriple
-        , second (hasAttr "rdf:resource") :-> arr2A getResourceTriple
---        , second (hasAttr "rdf:nodeID") >>> hasAttr "rdf:ID" :-> ERROR.
+        -- for the following case, see rdfms-syntax-incomplete-error006
+        , second (hasAttr "rdf:nodeID") :-> (neg (second (hasAttr "rdf:resource")) >>> arr2A getResourceTriple)
         , second (hasAttr "rdf:nodeID") :-> arr2A getNodeIdTriple
         , second (hasAttr "rdf:ID") :-> (arr2A mkRelativeNode &&& defaultA >>> arr2A reifyTriple >>> unlistA)
+        , second isValidPropElemName :-> arr2A validPropElemNames
         , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
         , this :-> defaultA
         ]
-  where defaultA = proc (state, predXml) -> do
+        -- See: Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use
+        --   section: Illegal or unusual use of names from the RDF namespace
+        --
+        -- Avoid making blank nodes for some property names.
+  where validPropElemNames state = proc (predXml) -> do
+            p <- arr(unode . T.pack) <<< getName -< predXml
+            o <- getAttrValue "rdf:resource" <<< isValidPropElemName -< predXml
+            returnA -< Triple (stateSubject state) p (unode (T.pack o))
+
+        defaultA = proc (state, predXml) -> do
                          p <- arr(unode . T.pack) <<< getName -< predXml
                          t <- arr2A (arr2A . parseObjectsFromChildren) <<< second (second getChildren) -< (state, (p, predXml))
                          returnA -< t
+        -- parsePredicateAttr :: Node -> a (LParseState,XmlTree) Triple
         parsePredicateAttr n = (second getName >>> arr (\(s, p) -> Triple (stateSubject s) ((unode . T.pack) p) n))
                            <+> (first (arr (\s -> s { stateSubject = n })) >>> arr2A parsePredicatesFromAttr)
         hasPredicateAttr = getAttrl >>> neg (getName >>> isMetaAttr)
@@ -209,18 +248,19 @@ validPropElementName = proc (state,predXml) -> do
   neg (hasName "rdf:aboutEachPrefix") -< predXml
   returnA -< (state,predXml)
 
-
-parseObjectsFromChildren :: forall a. (ArrowXml a, ArrowState GParseState a)
+parseObjectsFromChildren :: forall a. (ArrowIf a, ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p = choiceA
     [ isText :-> (neg( isWhiteSpace) >>> getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
     , isElem :-> (parseObjectDescription)
     ]
-  where parseObjectDescription = proc desc -> do
-                                      o <- mkNode s -< desc
-                                      t0 <- arr (\(sub, (p', o)) -> Triple sub p' o) -< (stateSubject s, (p, o))
-                                      t <- arr fst <+> (parseDescription <<< arr snd) -< (t0, (s { stateSubject = o }, desc))
-                                      returnA -< t
+  where parseObjectDescription =
+          proc desc -> do
+            _ <- (second (neg (hasAttr "rdf:nodeID")) &&& (second (neg (hasName "rdf:resource")))) -< (p,desc)
+            o <- mkNode s -< desc
+            t0 <- arr (\(sub, (p', o)) -> Triple sub p' o) -< (stateSubject s, (p, o))
+            t <- arr fst <+> (parseDescription <<< arr snd) -< (t0, (s { stateSubject = o }, desc))
+            returnA -< t
 
 attachSubject :: Subject -> (Predicate, Object) -> Triple
 attachSubject s (p, o) = Triple s p o
