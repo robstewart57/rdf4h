@@ -747,5 +747,7 @@ fileSchemeToFilePath :: Node -> Maybe T.Text
 fileSchemeToFilePath (UNode fileScheme) =
     if T.pack "file://" `T.isPrefixOf` fileScheme
     then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
-    else Nothing
+    else if T.pack "http://" `T.isPrefixOf` fileScheme
+         then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
+         else Nothing
 fileSchemeToFilePath _ = Nothing
