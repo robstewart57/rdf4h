@@ -84,7 +84,8 @@ instance Rdf TList where
 --  show ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
 
 showGraph' :: RDF TList -> [Char]
-showGraph' ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
+-- showGraph' ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
+showGraph' gr = concatMap (\t -> show t ++ "\n") (expandTriples gr)
 
 prefixMappings' :: RDF TList -> PrefixMappings
 prefixMappings' (TListC(_, _, pms)) = pms
