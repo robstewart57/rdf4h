@@ -229,6 +229,7 @@ parsePredicatesFromChildren = updateState
         , second (hasAttr "rdf:nodeID") :-> (neg (second (hasAttr "rdf:resource")) >>> arr2A getResourceTriple)
         , second (hasAttr "rdf:nodeID") :-> arr2A getNodeIdTriple
         , second (hasAttr "rdf:ID") :-> (arr2A mkRelativeNode &&& defaultA >>> arr2A reifyTriple >>> unlistA)
+        , second (hasAttr "rdf:resource") :-> arr2A validPropElemNames
         , second isValidPropElemName :-> arr2A validPropElemNames
         , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
         , this :-> defaultA
@@ -239,7 +240,7 @@ parsePredicatesFromChildren = updateState
         -- Avoid making blank nodes for some property names.
   where validPropElemNames state = proc (predXml) -> do
             p <- arr(unode . T.pack) <<< getName -< predXml
-            o <- getAttrValue "rdf:resource" <<< isValidPropElemName -< predXml
+            o <- getAttrValue "rdf:resource" -< predXml
             returnA -< Triple (stateSubject state) p (unode (T.pack o))
 
         defaultA = proc (state, predXml) -> do
