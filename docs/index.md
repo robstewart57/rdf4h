@@ -47,26 +47,24 @@ representation.
 {% highlight haskell %}
 data family RDF a
 
--- function provided a hash based adjacency map.
-foo :: RDF HashS -> [Triple]
+-- function provided a hash based adjacency map RDF graph.
+foo :: RDF AdjHashMap -> [Triple]
 foo rdfGraph = ...
 
--- function provided graph mapping (S,P) to O.
-bar :: RDF SP -> Bool
+-- function provided a (s,p,o) triples based RDF graph.
+bar :: RDF TList -> Bool
 bar rdfGraph = ...
 {% endhighlight %}
 
  Those implementations
 differ in their in-memory representation of RDF graphs.
 
-* `RDF HashS` is an adjacency map with each subject mapping to a
+* `RDF AdjHashMap` is an adjacency map with each subject mapping to a
   mapping from a predicate node to to the adjacent nodes via that
   predicate.
 
-* `RDF SP` mapping (S,P) pairs to O, backed by `Data.Map`.
-
-* `RDF TList` is a simple representation that represents triples as
-  Haskell lists.
+* `RDF TList` is a simple representation that represents (s,p,o)
+  triples as Haskell lists.
 
 These data family instance represent application specific tradeoffs in
 terms of space and runtime performance. See
@@ -215,7 +213,7 @@ compares the querying performance for the different type indexed graph
 representations.
 
 See
-[criterion results from September 2016](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html).
+[criterion results from October 2016](http://robstewart57.github.io/rdf4h/rdf-bench-04102016.html).
 
 To run the criterion benchmarks locally:
 
