@@ -13,9 +13,9 @@ module Data.RDF (
 
   -- * RDF type class instances
   module Data.RDF.Graph.TList,
-  module Data.RDF.Graph.HashMapS,
-  module Data.RDF.Graph.HashMapSP,
-  module Data.RDF.Graph.MapSP,
+  module Data.RDF.Graph.AdjHashMap,
+  -- module Data.RDF.Graph.HashMapSP,
+  -- module Data.RDF.Graph.MapSP,
 
   -- * RDF parsers and serializers
   module Text.RDF.RDF4H.NTriplesSerializer,
@@ -28,9 +28,9 @@ where
 
 import Data.RDF.Namespace
 import Data.RDF.Graph.TList
-import Data.RDF.Graph.HashMapS
-import Data.RDF.Graph.HashMapSP
-import Data.RDF.Graph.MapSP
+import Data.RDF.Graph.AdjHashMap
+-- import Data.RDF.Graph.HashMapSP
+-- import Data.RDF.Graph.MapSP
 import Text.RDF.RDF4H.NTriplesSerializer
 import Text.RDF.RDF4H.TurtleSerializer
 import Text.RDF.RDF4H.NTriplesParser

@@ -106,7 +106,7 @@ empty' = TListC([], Nothing, PrefixMappings Map.empty)
 -- from the results of the select' and query' functions, since it is cheap to do
 -- there in most cases, but not when triplesOf' is called.
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList
-mkRdf' ts baseURL pms = TListC(ts, baseURL, pms)
+mkRdf' ts baseURL pms = TListC (ts, baseURL, pms)
 
 triplesOf' :: RDF TList -> Triples
 triplesOf' ((TListC(ts, _, _))) = ts
