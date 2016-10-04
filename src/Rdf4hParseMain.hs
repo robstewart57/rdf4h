@@ -5,12 +5,13 @@
 
 module Main where
 
-import Data.RDF.Types
-import Data.RDF.Graph.TList
-import Text.RDF.RDF4H.NTriplesParser
-import Text.RDF.RDF4H.NTriplesSerializer
-import Text.RDF.RDF4H.TurtleParser
-import Text.RDF.RDF4H.TurtleSerializer
+import Data.RDF
+-- import Data.RDF.Types
+-- import Data.RDF.Graph.TList
+-- import Text.RDF.RDF4H.NTriplesParser
+-- import Text.RDF.RDF4H.NTriplesSerializer
+-- import Text.RDF.RDF4H.TurtleParser
+-- import Text.RDF.RDF4H.TurtleSerializer
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -82,6 +83,17 @@ main =
                                   >>=
                                   \ (res :: Either ParseFailure (RDF TList)) ->
                                     write outputFormat Nothing emptyPms res
+         ("xml", True) -> parseURL (XmlParser mInputUri docUri)
+                          inputUri
+                          >>=
+                          \ (res :: Either ParseFailure (RDF TList)) ->
+                            write outputFormat docUri emptyPms res
+         ("xml", False) -> (if inputUri /= "-" then
+                                   parseFile (XmlParser mInputUri docUri) inputUri else
+                                   liftM (parseString (XmlParser mInputUri docUri)) TIO.getContents)
+                                  >>=
+                                  \ (res :: Either ParseFailure (RDF TList)) ->
+                                    write outputFormat docUri emptyPms res
          (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
 write :: (Rdf a) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure (RDF a) -> IO ()
@@ -167,7 +179,8 @@ options =
  , Option "d"  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
  , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
                                                                    "  turtle      Turtle (default)\n" ++
-                                                                   "  ntriples    N-Triples"
+                                                                   "  ntriples    N-Triples\n" ++
+                                                                   "  xml         RDF/XML"
  , Option "I"  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 

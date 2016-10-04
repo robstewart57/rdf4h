@@ -18,7 +18,7 @@ import qualified Data.Text as T
 
 import Data.RDF.Types hiding (baseUrl)
 import Data.RDF.Graph.TList()
-import Data.RDF.Graph.HashMapS()
+import Data.RDF.Graph.AdjHashMap()
 
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.TurtleParser
