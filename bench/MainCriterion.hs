@@ -3,6 +3,7 @@
 module Main where
 
 import Criterion
+import Criterion.Types
 import Criterion.Main
 import Data.RDF
 import qualified Data.Text as T
@@ -12,11 +13,24 @@ import qualified Data.Text as T
 -- $ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
 -- $ gzip -d bills.099.actions.rdf.gz
 
-parseXmlRDF :: Rdf a => String -> RDF a
+parseXmlRDF :: Rdf a => T.Text -> RDF a
 parseXmlRDF s =
-  let (Right rdf) = parseString (XmlParser Nothing Nothing) (T.pack s)
+  let (Right rdf) = parseString (XmlParser Nothing Nothing) s
   in rdf
-  
+{-# INLINE parseXmlRDF #-}
+
+parseNtRDF :: Rdf a => T.Text -> RDF a
+parseNtRDF s =
+  let (Right rdf) = parseString NTriplesParser s
+  in rdf
+{-# INLINE parseNtRDF #-}
+
+parseTtlRDF :: Rdf a => T.Text -> RDF a
+parseTtlRDF s =
+  let (Right rdf) = parseString (TurtleParser Nothing Nothing) s
+  in rdf
+{-# INLINE parseTtlRDF #-}
+
 queryGr :: Rdf a => (Maybe Node,Maybe Node,Maybe Node,RDF a) -> [Triple]
 queryGr (maybeS,maybeP,maybeO,rdf) = query rdf maybeS maybeP maybeO
 
@@ -24,49 +38,58 @@ selectGr :: Rdf a => (NodeSelector,NodeSelector,NodeSelector,RDF a) -> [Triple]
 selectGr (selectorS,selectorP,selectorO,rdf) = select rdf selectorS selectorP selectorO
 
 main :: IO ()
-main = defaultMain [
-   -- env (readFile "bills.102.rdf") $ \ ~(ttl_countries) ->
-   -- bgroup "parse" [
-   --   bench "HashS" $
-   --     nf (parseXmlRDF  :: String -> RDF HashS) ttl_countries
-   -- , bench "HashSP" $
-   --     nf (parseXmlRDF  :: String -> RDF HashSP) ttl_countries
-   -- , bench "SP" $
-   --     nf (parseXmlRDF  :: String -> RDF SP) ttl_countries
-   -- , bench "TList" $
-   --     nf (parseXmlRDF  :: String -> RDF TList) ttl_countries
-   -- , bench "TPatriciaTree" $
-   --     nf (parseXmlRDF  :: String -> RDF TPatriciaTree) ttl_countries
-   -- ]
+main =
+  defaultMainWith
+    (defaultConfig {resamples = 100})
+    [ env
+      -- fawltyContent <- T.pack <$> readFile "data/ttl/fawlty1.ttl"
+        (do rdfContent <- T.pack <$> readFile "bills.099.actions.rdf"
+            let (Right rdf1) =
+                  parseString (XmlParser Nothing Nothing) rdfContent
+            let (Right rdf2) =
+                  parseString (XmlParser Nothing Nothing) rdfContent
+            -- let (Right rdf3) =
+            --       parseString (XmlParser Nothing Nothing) rdfContent
+            -- let (Right rdf4) =
+            --       parseString (XmlParser Nothing Nothing) rdfContent
+            return
+              ( rdf1 :: RDF TList
+              , rdf2 :: RDF AdjHashMap
+              )) $ \ ~(triplesList, adjMap) ->
+        bgroup
+          "rdf4h"
+          --  bgroup
+          --     "parsers"
+          --     [ bench "AdjHashMap" $
+          --       nf (parseTtlRDF :: T.Text -> RDF AdjHashMap) fawlty_towers
+          --     , bench "HashSP" $
+          --       nf (parseTtlRDF :: T.Text -> RDF HashSP) fawlty_towers
+          --     , bench "SP" $ nf (parseTtlRDF :: T.Text -> RDF SP) fawlty_towers
+          --     , bench "TList" $
+          --       nf (parseTtlRDF :: T.Text -> RDF TList) fawlty_towers
+          --     ]
+          -- ,
+          [ bgroup
+              "query"
+              (queryBench "TList" triplesList ++
+               queryBench "AdjHashMap" adjMap
+               -- queryBench "SP" mapSP ++ queryBench "HashSP" hashMapSP
+              )
+          , bgroup
+              "select"
+              (selectBench "TList" triplesList ++
+               selectBench "AdjHashMap" adjMap
+               -- selectBench "SP" mapSP ++ selectBench "HashSP" hashMapSP
+              )
+          , bgroup
+            "count_triples"
+            [ bench "TList" (nf (length . triplesOf) triplesList)
+            , bench "AdjHashMap" (nf (length . triplesOf) adjMap)
+            ]
+          ]
+    ]
 
-   -- ,
-   env (do ttl_countries <- readFile "bills.099.actions.rdf"
-           let (Right rdf1) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf2) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf3) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf4) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: RDF TList,rdf2 :: RDF HashS,rdf3 :: RDF SP,rdf4::RDF HashSP) )
-     $ \ ~(triplesList,hashMapS,mapSP,hashMapSP) ->
-   bgroup "query"
-     (queryBench "TList" triplesList
-     ++ queryBench "HashS" hashMapS
-     ++ queryBench "SP" mapSP
-     ++ queryBench "HashSP" hashMapSP)
-
-   ,
-   env (do ttl_countries <- readFile "bills.099.actions.rdf"
-           let (Right rdf1) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf2) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf3) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           let (Right rdf4) = parseString (XmlParser Nothing Nothing) (T.pack ttl_countries)
-           return (rdf1 :: RDF TList,rdf2 :: RDF HashS,rdf3 :: RDF SP,rdf4 :: RDF HashSP) )
-     $ \ ~(triplesList,hashMapS,mapSP,hashMapSP) ->
-   bgroup "select"
-     (selectBench "TList" triplesList
-     ++ selectBench "HashS" hashMapS
-     ++ selectBench "SP" mapSP
-     ++ selectBench "HashSP" hashMapSP)
- ]
+        
 
 selectBench :: Rdf a => String -> RDF a -> [Benchmark]
 selectBench label gr =
