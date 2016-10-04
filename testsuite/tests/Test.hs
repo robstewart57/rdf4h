@@ -3,9 +3,9 @@ module Main where
 import Test.Tasty (defaultMain,testGroup)
 
 import qualified Data.RDF.Graph.TList_Test as TList
-import qualified Data.RDF.Graph.HashS_Test as HashS
-import qualified Data.RDF.Graph.HashSP_Test as HashSP
-import qualified Data.RDF.Graph.SP_Test as SP
+import qualified Data.RDF.Graph.AdjHashMap_Test as AdjHashMap
+-- import qualified Data.RDF.Graph.HashSP_Test as HashSP
+-- import qualified Data.RDF.Graph.SP_Test as SP
 -- very slow implementation, disabled for now.
 -- import qualified Data.RDF.Graph.TriplesPatriciaTree_Test as TriplesPatriciaTree
 import           Data.RDF.Types
@@ -61,23 +61,23 @@ main = do
           TList.empty'
           TList.mkRdf'
 
-        , graphTests "HashS"
-          HashS.triplesOf'
-          HashS.uniqTriplesOf'
-          HashS.empty'
-          HashS.mkRdf'
+        , graphTests "AdjHashMap"
+          AdjHashMap.triplesOf'
+          AdjHashMap.uniqTriplesOf'
+          AdjHashMap.empty'
+          AdjHashMap.mkRdf'
 
-        , graphTests "HashSP"
-          HashSP.triplesOf'
-          HashSP.uniqTriplesOf'
-          HashSP.empty'
-          HashSP.mkRdf'
+        -- , graphTests "HashSP"
+        --   HashSP.triplesOf'
+        --   HashSP.uniqTriplesOf'
+        --   HashSP.empty'
+        --   HashSP.mkRdf'
 
-        , graphTests "SP"
-          SP.triplesOf'
-          SP.uniqTriplesOf'
-          SP.empty'
-          SP.mkRdf'
+        -- , graphTests "SP"
+        --   SP.triplesOf'
+        --   SP.uniqTriplesOf'
+        --   SP.empty'
+        --   SP.mkRdf'
 
         -- , graphTests "TriplesPatriciaTree"
         --   TriplesPatriciaTree.triplesOf'
