@@ -96,6 +96,7 @@ instance Rdf AdjHashMap where
   select            = select'
   query             = query'
   showGraph         = showGraph'
+  addTriple         = addTriple'
 
 -- instance Show (AdjHashMap) where
 --   show (AdjHashMap ((spoMap, _), _, _)) =
@@ -140,6 +141,11 @@ empty' = AdjHashMap ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap
 mkRdf' ts baseURL pms = AdjHashMap (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
+
+addTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
+addTriple' (AdjHashMap (tmaps, baseURL, pms)) t =
+  let newTMaps = mergeTs tmaps [t]
+  in AdjHashMap (newTMaps, baseURL, pms)
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT

@@ -4,7 +4,7 @@ module Data.RDF.Query (
   equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf, isEmpty,
   rdfContainsNode, tripleContainsNode,
-  subjectsWithPredicate, objectsOfPredicate,
+  subjectsWithPredicate, objectsOfPredicate, uordered,
 
   -- * RDF graph functions
   isIsomorphic, isGraphIsomorphic, expandTriples, fromEither,
@@ -92,6 +92,10 @@ fromEither res =
   case res of
     (Left err) -> error (show err)
     (Right rdf) -> rdf
+
+-- |Convert a list of triples into a sorted list of unique triples.
+uordered :: Triples -> Triples
+uordered  =  sort . nub
 
 -- graphFromEdges :: Ord key => [(node, key, [key])] -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
 

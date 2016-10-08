@@ -26,7 +26,7 @@ module Data.RDF.Types (
   RDF,
 
   -- * Rdf type class
-  Rdf(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,triplesOf,uniqTriplesOf,select,query,showGraph),
+  Rdf(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,addTriple,triplesOf,uniqTriplesOf,select,query,showGraph),
 
   -- * Parsing RDF
   RdfParser(parseString,parseFile,parseURL),
@@ -357,6 +357,9 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   -- |Return a RDF containing all the given triples. Handling of duplicates
   -- in the input depend on the particular RDF implementation.
   mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdfImpl
+
+  -- |Adds a triple to an RDF graph.
+  addTriple :: RDF rdfImpl -> Triple -> RDF rdfImpl
 
   -- |Return all triples in the RDF, as a list.
   --

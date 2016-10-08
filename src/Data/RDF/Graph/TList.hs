@@ -74,6 +74,7 @@ instance Rdf TList where
   addPrefixMappings = addPrefixMappings'
   empty             = empty'
   mkRdf             = mkRdf'
+  addTriple         = addTriple'
   triplesOf         = triplesOf'
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
@@ -107,6 +108,9 @@ empty' = TListC([], Nothing, PrefixMappings Map.empty)
 -- there in most cases, but not when triplesOf' is called.
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList
 mkRdf' ts baseURL pms = TListC (ts, baseURL, pms)
+
+addTriple' :: RDF TList -> Triple -> RDF TList
+addTriple' (TListC (ts, bURL, preMapping)) t = TListC (t:ts,bURL,preMapping)
 
 triplesOf' :: RDF TList -> Triples
 triplesOf' ((TListC(ts, _, _))) = ts

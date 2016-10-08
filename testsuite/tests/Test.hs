@@ -60,12 +60,14 @@ main = do
           TList.uniqTriplesOf'
           TList.empty'
           TList.mkRdf'
+          TList.addTriple'
 
         , graphTests "AdjHashMap"
           AdjHashMap.triplesOf'
           AdjHashMap.uniqTriplesOf'
           AdjHashMap.empty'
           AdjHashMap.mkRdf'
+          AdjHashMap.addTriple'
 
         -- , graphTests "HashSP"
         --   HashSP.triplesOf'

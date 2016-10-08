@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Data.RDF.Graph.AdjHashMap_Test (triplesOf',uniqTriplesOf',empty',mkRdf') where
+module Data.RDF.Graph.AdjHashMap_Test (triplesOf',uniqTriplesOf',empty',mkRdf',addTriple') where
 
 import Data.RDF.Types
 import Data.RDF.Graph.AdjHashMap (AdjHashMap)
@@ -25,3 +25,6 @@ triplesOf' = triplesOf
 
 uniqTriplesOf' :: RDF AdjHashMap -> Triples
 uniqTriplesOf' = uniqTriplesOf
+
+addTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
+addTriple' = addTriple

@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Data.RDF.GraphTestUtils where
+module Data.RDF.GraphTestUtils (graphTests,arbitraryTs) where
 
 import Data.RDF.Types
 import Data.RDF.Query
@@ -14,7 +14,6 @@ import qualified Data.Map as Map
 import Control.Monad
 import GHC.Generics ()
 import System.Directory (removeFile)
-import System.IO.Unsafe(unsafePerformIO)
 import System.IO
 
 import Test.Tasty
@@ -25,9 +24,16 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 --  property based quick check test cases         --
 ----------------------------------------------------
 
-graphTests :: (Arbitrary (RDF rdf), Rdf rdf)
-           => TestName -> (RDF rdf -> Triples) -> (RDF rdf -> Triples) -> RDF rdf -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> TestTree
-graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = testGroup testGroupName
+graphTests
+  :: (Arbitrary (RDF rdf), Rdf rdf)
+  => TestName
+  -> (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triples) -- ^ uniqTriplesOf
+  -> RDF rdf -- ^ empty
+  -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -- ^ mkRdf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ addTriple
+  -> TestTree
+graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple = testGroup testGroupName
             [
               testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)
@@ -52,6 +58,8 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf = testGroup tes
             , testProperty "select_match_po"            (p_select_match_po _triplesOf)
             , testProperty "select_match_spo"           (p_select_match_spo _triplesOf)
             , testProperty "reversed RDF handle write"  (p_reverseRdfTest _mkRdf)
+
+            , testProperty "add_triple" (p_add_triple _mkRdf _triplesOf _addTriple)
             ]
 
 
@@ -185,6 +193,7 @@ mk_query_match_fn tripleCompareFn  mkPatternFn _triplesOf rdf =
         all_ts = _triplesOf rdf
         all_ts_sorted = uordered all_ts
         results = uordered $ queryC rdf (mkPatternFn t)
+        -- `notResults` is the difference of the two sets of triples
         notResults = ldiff all_ts_sorted results
       in
         all (tripleCompareFn t) results &&
@@ -257,6 +266,29 @@ p_select_match_spo =
                    Just (\n -> n == predicateOf t),
                    Just (\n -> n /= objectOf t))
 
+-- |adding a triple to a graph.
+p_add_triple
+  :: (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
+  -> (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ addTriple
+  -> Triples
+  -> Maybe BaseUrl
+  -> PrefixMappings
+  -> Triple -- ^ new triple to be added
+  -> Bool
+p_add_triple _mkRdf _triplesOf _addTriple ts bUrl pms newTriple =
+  uordered (newTriple : _triplesOf oldGr)
+  == uordered (_triplesOf newGr) 
+  where
+    oldGr = _mkRdf ts bUrl pms
+    newGr =  _addTriple oldGr newTriple
+  
+-- p_query_match_none :: Rdf rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
+-- p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result
+  -- where
+  --   result = query (_mkRdf ts bUrl pms) Nothing Nothing Nothing
+
+
 equivNode :: (Node -> Node -> Bool) -> (Triple -> Node) -> Triple -> Triple -> Bool
 equivNode eqFn exFn t1 t2 = exFn t1 `eqFn` exFn t2
 
@@ -278,9 +310,9 @@ p_select_match_fn tripleCompareFn mkPatternFn _triplesOf rdf =
         all (tripleCompareFn t) results &&
         all (not . tripleCompareFn t) notResults
 
-mkRdfWithDupe :: Rdf rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> RDF rdf -> Triple -> RDF rdf
-mkRdfWithDupe _triplesOf _mkRdf rdf t = _mkRdf ts (baseUrl rdf) (prefixMappings rdf)
-  where ts = t : _triplesOf rdf
+-- mkRdfWithDupe :: Rdf rdf => (RDF rdf -> Triples) -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> RDF rdf -> Triple -> RDF rdf
+-- mkRdfWithDupe _triplesOf _mkRdf rdf t = _mkRdf ts (baseUrl rdf) (prefixMappings rdf)
+--   where ts = t : _triplesOf rdf
 
 
 -- Utility functions and test data ... --
@@ -293,16 +325,16 @@ queryC rdf (s, p, o) = query rdf s p o
 selectC :: Rdf rdf => RDF rdf -> (NodeSelector, NodeSelector, NodeSelector) -> Triples
 selectC rdf (s, p, o) = select rdf s p o
 
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 fn (x, y, z) = fn x y z
+-- uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+-- uncurry3 fn (x, y, z) = fn x y z
 
-curry3 :: ((a, b, c) -> d) -> a -> b -> c -> d
-curry3 fn x y z = fn (x, y, z)
+-- curry3 :: ((a, b, c) -> d) -> a -> b -> c -> d
+-- curry3 fn x y z = fn (x, y, z)
 
-debug :: String -> Triples -> Bool
-debug msg ts =
-  unsafePerformIO $
-    putStrLn msg >> mapM print ts >> return True
+-- debug :: String -> Triples -> Bool
+-- debug msg ts =
+--   unsafePerformIO $
+--     putStrLn msg >> mapM print ts >> return True
 
 ldiff :: Triples -> Triples -> Triples
 ldiff l1 l2 = Set.toList $(Set.fromList l1) `Set.difference` Set.fromList l2
@@ -316,10 +348,7 @@ samePred t1 t2 = predicateOf t1 == predicateOf t2
 sameObj :: Triple -> Triple -> Bool
 sameObj  t1 t2 = objectOf t1 == objectOf t2
 
--- Convert a list of triples into a sorted list of unique triples.
-uordered :: Triples -> Triples
-uordered  =  sort . nub
-
+-- |pick a random triple from an RDF graph if the graph is not empty.
 tripleFromGen :: Rdf rdf => (RDF rdf -> Triples) -> RDF rdf -> Gen (Maybe Triple)
 tripleFromGen _triplesOf rdf =
   if null ts
@@ -371,19 +400,19 @@ instance Arbitrary Node where
   arbitrary = oneof $ map return unodes
   --coarbitrary = undefined
 
-arbitraryTNum :: Gen Int
-arbitraryTNum = choose (0, maxN - 1)
+-- arbitraryTNum :: Gen Int
+-- arbitraryTNum = choose (0, maxN - 1)
 
 arbitraryTs :: Gen Triples
 arbitraryTs = do
   n <- sized (\_ -> choose (0, maxN))
   sequence [arbitrary | _ <- [1..n]]
 
-arbitraryT :: Gen Triple
-arbitraryT = elements test_triples
+-- arbitraryT :: Gen Triple
+-- arbitraryT = elements test_triples
 
-arbitraryN :: Gen Int
-arbitraryN = choose (0, maxN - 1)
+-- arbitraryN :: Gen Int
+-- arbitraryN = choose (0, maxN - 1)
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
 arbitraryS = oneof $ map return $ unodes ++ bnodes
