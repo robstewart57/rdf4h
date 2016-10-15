@@ -82,6 +82,8 @@ class Rdf a where
   addPrefixMappings :: RDF a -> PrefixMappings -> Bool -> RDF a
   empty             :: RDF a
   mkRdf             :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a
+  addTriple         :: RDF a -> Triple -> RDF a
+  removeTriple      :: RDF a -> Triple -> RDF a
   triplesOf         :: RDF a -> Triples
   uniqTriplesOf     :: RDF a -> Triples
   select            :: RDF a -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
@@ -92,21 +94,61 @@ class Rdf a where
 See the `Data.RDF.Query` module for more query functions,
 [here](http://hackage.haskell.org/package/rdf4h-3.0.0/docs/Data-RDF-Query.html).
 
-### RDF parsing and writing
+### Building RDF graphs interactively
 
-To parse and write RDF:
+An RDF graph can be constructed with `empty`, and its triples contents
+modified with `addTriple` and `removeTriple`, e.g.:
+
+{% highlight haskell %}
+{-# LANGUAGE OverloadedStrings #-}
+module Main where
+import Data.RDF
+
+main :: IO ()
+main = do
+  -- empty list based RDF graph
+  let myEmptyGraph = empty :: RDF TList
+
+  -- add a triple to the empty graph
+      triple1 = triple
+        (unode "http://www.example.com/rob")
+        (unode "http://xmlns.com/foaf/0.1/interest")
+        (unode "http://dbpedia.org/resource/Scotch_whisky")
+      graph1 = addTriple myEmptyGraph triple1
+
+  -- add another triple to the graph
+      triple2 = triple
+        (unode "http://www.example.com/rob")
+        (unode "http://xmlns.com/foaf/0.1/interest")
+        (unode "http://dbpedia.org/resource/Haskell_(programming_language)")
+      graph2 = addTriple graph1 triple2
+
+  -- remove one of my interests
+      graph3 = removeTriple graph2 triple1
+
+  putStrLn (showGraph graph3)
+{% endhighlight %}
+
+### Bulk RDF graphs with parsing and writing
+
+RDF graphs can also be populated by parsing RDF content from strings,
+files or URLs:
 
 {% highlight haskell %}
 class RdfParser p where
   parseString :: (Rdf a) => p -> T.Text -> Either ParseFailure (RDF a)
   parseFile   :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
   parseURL    :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
-
-class RdfSerializer s where
-  hWriteRdf     :: (Rdf a) => s -> Handle -> RDF a -> IO ()
 {% endhighlight %}
 
-To write an RDF graph to a file:
+RDF graphs can also be serialised to handles with `hWriteRdf`:
+
+{% highlight haskell %}
+class RdfSerializer s where
+  hWriteRdf :: (Rdf a) => s -> Handle -> RDF a -> IO ()
+{% endhighlight %}
+
+E.g. to write an RDF graph to a file:
 
 {% highlight haskell %}
 withFile "out.nt" WriteMode (\h -> hWriteRdf NTriplesSerializer h rdfGraph)
