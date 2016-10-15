@@ -148,12 +148,11 @@ addTriple' (AdjHashMap (tmaps, baseURL, pms)) t =
   let newTMaps = mergeTs tmaps [t]
   in AdjHashMap (newTMaps, baseURL, pms)
 
--- | yes, broken for now. use property tests to fix.
 removeTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
-removeTriple' gr@(AdjHashMap ((spoMap,opsMap), baseURL, pms)) (Triple s p o) =
+removeTriple' (AdjHashMap ((spoMap, opsMap), baseURL, pms)) (Triple s p o) =
   (AdjHashMap (new_tmaps, baseURL, pms))
   where
-    new_tmaps = (newSpoMap,newOpsMap)
+    new_tmaps = (newSpoMap, newOpsMap)
     newSpoMap =
       case HashMap.lookup s spoMap of
         Nothing -> spoMap
@@ -163,15 +162,29 @@ removeTriple' gr@(AdjHashMap ((spoMap,opsMap), baseURL, pms)) (Triple s p o) =
             Just oHashSet ->
               case Set.member o oHashSet of
                 False -> spoMap
-                True  ->
-                  -- if Set.size oHashSet == 1
-                  -- then
-                  --   HashMap.delete s spoMap
-                  -- else
-                    let newPoAdjMap =
-                          HashMap.adjust (\oHashSet' -> Set.delete o oHashSet') p poAdjMap
-                    in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
-    newOpsMap = opsMap -- TODO implement this.
+                True ->
+                  let newPoAdjMap =
+                        HashMap.adjust
+                          (\oHashSet' -> Set.delete o oHashSet')
+                          p
+                          poAdjMap
+                  in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
+    newOpsMap =
+      case HashMap.lookup o opsMap of
+        Nothing -> opsMap
+        Just poAdjMap ->
+          case HashMap.lookup p poAdjMap of
+            Nothing -> opsMap
+            Just sHashSet ->
+              case Set.member s sHashSet of
+                False -> opsMap
+                True ->
+                  let newPoAdjMap =
+                        HashMap.adjust
+                          (\sHashSet' -> Set.delete s sHashSet')
+                          p
+                          poAdjMap
+                  in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) o opsMap      
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
