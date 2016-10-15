@@ -160,15 +160,14 @@ removeTriple' (AdjHashMap ((spoMap, opsMap), baseURL, pms)) (Triple s p o) =
           case HashMap.lookup p poAdjMap of
             Nothing -> spoMap
             Just oHashSet ->
-              case Set.member o oHashSet of
-                False -> spoMap
-                True ->
-                  let newPoAdjMap =
-                        HashMap.adjust
-                          (\oHashSet' -> Set.delete o oHashSet')
-                          p
-                          poAdjMap
-                  in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
+              if not (Set.member o oHashSet)
+                then spoMap
+                else let newPoAdjMap =
+                           HashMap.adjust
+                             (\oHashSet' -> Set.delete o oHashSet')
+                             p
+                             poAdjMap
+                     in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
     newOpsMap =
       case HashMap.lookup o opsMap of
         Nothing -> opsMap
@@ -176,15 +175,14 @@ removeTriple' (AdjHashMap ((spoMap, opsMap), baseURL, pms)) (Triple s p o) =
           case HashMap.lookup p poAdjMap of
             Nothing -> opsMap
             Just sHashSet ->
-              case Set.member s sHashSet of
-                False -> opsMap
-                True ->
-                  let newPoAdjMap =
-                        HashMap.adjust
-                          (\sHashSet' -> Set.delete s sHashSet')
-                          p
-                          poAdjMap
-                  in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) o opsMap      
+              if not (Set.member s sHashSet)
+                then opsMap
+                else let newPoAdjMap =
+                           HashMap.adjust
+                             (\sHashSet' -> Set.delete s sHashSet')
+                             p
+                             poAdjMap
+                     in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) o opsMap      
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
