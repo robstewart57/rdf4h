@@ -65,19 +65,39 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple _rem
             , testProperty "add_triple" (p_add_triple _mkRdf _triplesOf _addTriple)
             , testProperty "remove_triple" (p_remove_triple _mkRdf _triplesOf _removeTriple)
             , testProperty "remove_triple_from_graph" (p_remove_triple_from_graph _mkRdf _triplesOf _removeTriple)
+            , testProperty "remove_triple_from_singleton_graph_query_s" (p_remove_triple_from_singleton_graph_query_s _triplesOf _removeTriple)
+            , testProperty "remove_triple_from_singleton_graph_query_p" (p_remove_triple_from_singleton_graph_query_p _triplesOf _removeTriple)
+            , testProperty "remove_triple_from_singleton_graph_query_o" (p_remove_triple_from_singleton_graph_query_o _triplesOf _removeTriple)
             ]
 
+newtype SingletonGraph rdf = SingletonGraph { rdfGraph :: (RDF rdf) }
+
+instance (Rdf rdf) => Arbitrary (SingletonGraph rdf) where
+  arbitrary = do
+    pref <- arbitraryPrefixMappings
+    baseU' <- arbitraryBaseUrl
+    baseU <- oneof [return (Just baseU'), return Nothing]
+    t <- liftM3 triple arbitraryS arbitraryP arbitraryO
+    return SingletonGraph { rdfGraph = (mkRdf [t] baseU pref) }
+
+instance (Rdf rdf) => Show (SingletonGraph rdf) where
+  show singletonGraph = showGraph (rdfGraph singletonGraph)
 
 instance Arbitrary BaseUrl where
-  arbitrary = oneof $ map (return . BaseUrl . T.pack) ["http://example.com/a","http://asdf.org/b","http://asdf.org/c"]
-  --coarbitrary = undefined
+  arbitrary = arbitraryBaseUrl
 
 instance Arbitrary PrefixMappings where
-  arbitrary = oneof [return $ PrefixMappings Map.empty, return $ PrefixMappings $
+  arbitrary = arbitraryPrefixMappings
+
+arbitraryBaseUrl :: Gen BaseUrl
+arbitraryBaseUrl = oneof $ map (return . BaseUrl . T.pack) ["http://example.com/a","http://asdf.org/b","http://asdf.org/c"]
+
+arbitraryPrefixMappings :: Gen PrefixMappings
+arbitraryPrefixMappings = oneof [return $ PrefixMappings Map.empty, return $ PrefixMappings $
                           Map.fromAscList [(T.pack "eg1", T.pack "http://example.com/1"),
                                            (T.pack "eg2", T.pack "http://example.com/2"),
                                            (T.pack "eg3", T.pack "http://example.com/3")]]
-  --coarbitrary = undefined
+
 
 -- Test stubs, which just require the appropriate RDF impl function
 -- passed in to determine the implementation to be tested.
@@ -288,8 +308,8 @@ p_add_triple _mkRdf _triplesOf _addTriple ts bUrl pms newTriple =
     oldGr = _mkRdf ts bUrl pms
     newGr =  _addTriple oldGr newTriple
 
--- |removing a triple from a graph. Triple might not exist in the
---  graph, in which case this operation is silently ignored.
+-- |removing a triple that may or may not be in a graph. If it is not,
+--  this operation is silently ignored.
 p_remove_triple
   :: (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
   -> (RDF rdf -> Triples) -- ^ triplesOf
@@ -308,9 +328,8 @@ p_remove_triple _mkRdf _triplesOf _removeTriple ts bUrl pms tripleToBeRemoved =
     oldTriples = _triplesOf oldGr
     newTriples = _triplesOf newGr
 
--- |removing a triple from a graph. The triple is definitely in the
--- graph. The new graph should not contain any instances of the
--- triple.
+-- |removing a triple from a graph. The new graph should not contain
+-- any instances of the triple.
 p_remove_triple_from_graph
   :: (Rdf rdf)
   => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
@@ -329,6 +348,54 @@ p_remove_triple_from_graph  _mkRdf _triplesOf _removeTriple ts bUrl pms =
     f (Just tripleToBeRemoved) =
       p_remove_triple _mkRdf _triplesOf _removeTriple ts bUrl pms tripleToBeRemoved
 
+-- TODO: refactor the following 3 functions.
+
+-- |removing a triple from a graph that contained only that triple.
+-- Performing a ((Just s) Nothing Nothing) query should return an
+-- empty list.
+p_remove_triple_from_singleton_graph_query_s
+  :: (Rdf rdf)
+  => (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
+  -> SingletonGraph rdf
+  -> Bool
+p_remove_triple_from_singleton_graph_query_s _tripleOf _removeTriple singletonGraph =
+  query newGr (Just s) Nothing Nothing == []
+  where
+    tripleInGraph@(Triple s _p _o) = head (_tripleOf (rdfGraph singletonGraph))
+    newGr = _removeTriple (rdfGraph singletonGraph) tripleInGraph
+
+-- |removing a triple from a graph that contained only that triple.
+-- Performing a (Nothing (Just p) Nothing) query should return an
+-- empty list.
+p_remove_triple_from_singleton_graph_query_p
+  :: (Rdf rdf)
+  => (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
+  -> SingletonGraph rdf
+  -> Bool
+p_remove_triple_from_singleton_graph_query_p _tripleOf _removeTriple singletonGraph =
+  query newGr Nothing (Just p) Nothing == []
+  where
+    tripleInGraph@(Triple _s p _o) = head (_tripleOf (rdfGraph singletonGraph))
+    newGr = _removeTriple (rdfGraph singletonGraph) tripleInGraph
+
+-- |removing a triple from a graph that contained only that triple.
+-- Performing a (Nothing Nothing (Just o)) query should return an
+-- empty list.
+p_remove_triple_from_singleton_graph_query_o
+  :: (Rdf rdf)
+  => (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
+  -> SingletonGraph rdf
+  -> Bool
+p_remove_triple_from_singleton_graph_query_o _tripleOf _removeTriple singletonGraph =
+  query newGr Nothing Nothing (Just o) == []
+  where
+    tripleInGraph@(Triple _s _p o) = head (_tripleOf (rdfGraph singletonGraph))
+    newGr = _removeTriple (rdfGraph singletonGraph) tripleInGraph
+
+  
 -- p_query_match_none :: Rdf rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 -- p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result
   -- where
@@ -454,8 +521,8 @@ arbitraryTs = do
   n <- sized (\_ -> choose (0, maxN))
   sequence [arbitrary | _ <- [1..n]]
 
--- arbitraryT :: Gen Triple
--- arbitraryT = elements test_triples
+-- arbitraryTriple :: Gen Triple
+-- arbitraryTriple = elements test_triples
 
 -- arbitraryN :: Gen Int
 -- arbitraryN = choose (0, maxN - 1)
