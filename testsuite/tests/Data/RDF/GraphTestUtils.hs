@@ -68,6 +68,7 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple _rem
             , testProperty "remove_triple_from_singleton_graph_query_s" (p_remove_triple_from_singleton_graph_query_s _triplesOf _removeTriple)
             , testProperty "remove_triple_from_singleton_graph_query_p" (p_remove_triple_from_singleton_graph_query_p _triplesOf _removeTriple)
             , testProperty "remove_triple_from_singleton_graph_query_o" (p_remove_triple_from_singleton_graph_query_o _triplesOf _removeTriple)
+            , testProperty "p_add_then_remove_triples" (p_add_then_remove_triples _empty)
             ]
 
 newtype SingletonGraph rdf = SingletonGraph { rdfGraph :: (RDF rdf) }
@@ -395,7 +396,19 @@ p_remove_triple_from_singleton_graph_query_o _tripleOf _removeTriple singletonGr
     tripleInGraph@(Triple _s _p o) = head (_tripleOf (rdfGraph singletonGraph))
     newGr = _removeTriple (rdfGraph singletonGraph) tripleInGraph
 
-  
+p_add_then_remove_triples
+  :: (Rdf rdf)
+  => RDF rdf -- ^ empty
+  -> Triples -- ^ triples to add then remove
+  -> Bool
+p_add_then_remove_triples _empty genTriples =
+  let emptyGraph = _empty
+      populatedGraph =
+        foldr (\triple gr -> addTriple gr triple) emptyGraph genTriples
+      emptiedGraph =
+        foldr (\triple gr -> removeTriple gr triple) populatedGraph genTriples
+  in triplesOf emptiedGraph == []
+
 -- p_query_match_none :: Rdf rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 -- p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result
   -- where
