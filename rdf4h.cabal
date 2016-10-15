@@ -10,7 +10,7 @@ description:
 
 author:          Calvin Smith, Rob Stewart, Slava Kravchenko
 copyright:       (c) Calvin Smith, Rob Stewart, Slava Kravchenko
-maintainer:      Rob Stewart <robstewart@gmail.com>, Slava Kravchenko
+maintainer:      Rob Stewart <robstewart@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
 license:         BSD3
