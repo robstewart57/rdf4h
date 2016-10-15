@@ -75,6 +75,7 @@ instance Rdf TList where
   empty             = empty'
   mkRdf             = mkRdf'
   addTriple         = addTriple'
+  removeTriple      = removeTriple'
   triplesOf         = triplesOf'
   uniqTriplesOf     = uniqTriplesOf'
   select            = select'
@@ -111,6 +112,13 @@ mkRdf' ts baseURL pms = TListC (ts, baseURL, pms)
 
 addTriple' :: RDF TList -> Triple -> RDF TList
 addTriple' (TListC (ts, bURL, preMapping)) t = TListC (t:ts,bURL,preMapping)
+
+-- | yes, broken for now. use property tests to fix.
+removeTriple' :: RDF TList -> Triple -> RDF TList
+removeTriple' (TListC (ts, bURL, preMapping)) t =
+  TListC (newTs,bURL,preMapping)
+  where
+    newTs = filter (/= t) ts
 
 triplesOf' :: RDF TList -> Triples
 triplesOf' ((TListC(ts, _, _))) = ts

@@ -26,7 +26,7 @@ module Data.RDF.Types (
   RDF,
 
   -- * Rdf type class
-  Rdf(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,addTriple,triplesOf,uniqTriplesOf,select,query,showGraph),
+  Rdf(baseUrl,prefixMappings,addPrefixMappings,empty,mkRdf,addTriple,removeTriple,triplesOf,uniqTriplesOf,select,query,showGraph),
 
   -- * Parsing RDF
   RdfParser(parseString,parseFile,parseURL),
@@ -360,6 +360,9 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
 
   -- |Adds a triple to an RDF graph.
   addTriple :: RDF rdfImpl -> Triple -> RDF rdfImpl
+
+  -- |Removes all occurrences of a triple in an RDF graph.
+  removeTriple :: RDF rdfImpl -> Triple -> RDF rdfImpl
 
   -- |Return all triples in the RDF, as a list.
   --

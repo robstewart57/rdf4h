@@ -6,7 +6,7 @@ import Test.Tasty.HUnit as TU
 
 -- Import common libraries to facilitate tests
 import Control.Monad (liftM)
-import Data.RDF.GraphTestUtils
+-- import Data.RDF.GraphTestUtils
 import Data.RDF.Query
 import Data.RDF.Graph.TList
 import Data.RDF.Types

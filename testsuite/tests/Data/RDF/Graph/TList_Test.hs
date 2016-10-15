@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Data.RDF.Graph.TList_Test (empty',triplesOf',uniqTriplesOf',mkRdf',addTriple') where
+module Data.RDF.Graph.TList_Test (empty',triplesOf',uniqTriplesOf',mkRdf',addTriple',removeTriple') where
 
 import Control.Monad
 import qualified Data.Map as Map
@@ -28,3 +28,6 @@ uniqTriplesOf' = uniqTriplesOf
 
 addTriple' :: RDF TList -> Triple -> RDF TList
 addTriple' = addTriple
+
+removeTriple' :: RDF TList -> Triple -> RDF TList
+removeTriple' = removeTriple

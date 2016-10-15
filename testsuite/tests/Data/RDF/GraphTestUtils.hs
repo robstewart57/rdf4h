@@ -32,8 +32,10 @@ graphTests
   -> RDF rdf -- ^ empty
   -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -- ^ mkRdf
   -> (RDF rdf -> Triple -> RDF rdf) -- ^ addTriple
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
   -> TestTree
-graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple = testGroup testGroupName
+graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple _removeTriple =
+  testGroup testGroupName
             [
               testProperty "empty"                      (p_empty _triplesOf _empty)
             , testProperty "mkRdf_triplesOf"            (p_mkRdf_triplesOf _triplesOf _mkRdf)
@@ -59,7 +61,10 @@ graphTests testGroupName _triplesOf _uniqTriplesOf _empty _mkRdf _addTriple = te
             , testProperty "select_match_spo"           (p_select_match_spo _triplesOf)
             , testProperty "reversed RDF handle write"  (p_reverseRdfTest _mkRdf)
 
+            -- adding and removing triples from a graph.
             , testProperty "add_triple" (p_add_triple _mkRdf _triplesOf _addTriple)
+            , testProperty "remove_triple" (p_remove_triple _mkRdf _triplesOf _removeTriple)
+            , testProperty "remove_triple_from_graph" (p_remove_triple_from_graph _mkRdf _triplesOf _removeTriple)
             ]
 
 
@@ -282,7 +287,48 @@ p_add_triple _mkRdf _triplesOf _addTriple ts bUrl pms newTriple =
   where
     oldGr = _mkRdf ts bUrl pms
     newGr =  _addTriple oldGr newTriple
-  
+
+-- |removing a triple from a graph. Triple might not exist in the
+--  graph, in which case this operation is silently ignored.
+p_remove_triple
+  :: (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
+  -> (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
+  -> Triples
+  -> Maybe BaseUrl
+  -> PrefixMappings
+  -> Triple -- ^ triple to be removed
+  -> Bool
+p_remove_triple _mkRdf _triplesOf _removeTriple ts bUrl pms tripleToBeRemoved =
+  uordered (filter (/= tripleToBeRemoved) oldTriples)
+  == uordered newTriples
+  where
+    oldGr      = _mkRdf ts bUrl pms
+    newGr      = _removeTriple oldGr tripleToBeRemoved
+    oldTriples = _triplesOf oldGr
+    newTriples = _triplesOf newGr
+
+-- |removing a triple from a graph. The triple is definitely in the
+-- graph. The new graph should not contain any instances of the
+-- triple.
+p_remove_triple_from_graph
+  :: (Rdf rdf)
+  => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
+  -> (RDF rdf -> Triples) -- ^ triplesOf
+  -> (RDF rdf -> Triple -> RDF rdf) -- ^ removeTriple
+  -> Triples
+  -> Maybe BaseUrl
+  -> PrefixMappings
+  -> Property
+p_remove_triple_from_graph  _mkRdf _triplesOf _removeTriple ts bUrl pms =
+  classify (null ts) "p_remove_triple_from_graph tests were trivial" $
+  forAll (tripleFromGen _triplesOf (_mkRdf ts bUrl pms)) f
+  where
+    f :: Maybe Triple -> Bool
+    f Nothing = True
+    f (Just tripleToBeRemoved) =
+      p_remove_triple _mkRdf _triplesOf _removeTriple ts bUrl pms tripleToBeRemoved
+
 -- p_query_match_none :: Rdf rdf => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -> Triples -> Maybe BaseUrl -> PrefixMappings -> Bool
 -- p_query_match_none  _mkRdf ts bUrl pms = uordered ts == uordered result
   -- where

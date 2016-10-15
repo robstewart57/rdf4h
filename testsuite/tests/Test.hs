@@ -61,6 +61,7 @@ main = do
           TList.empty'
           TList.mkRdf'
           TList.addTriple'
+          TList.removeTriple'
 
         , graphTests "AdjHashMap"
           AdjHashMap.triplesOf'
@@ -68,6 +69,7 @@ main = do
           AdjHashMap.empty'
           AdjHashMap.mkRdf'
           AdjHashMap.addTriple'
+          AdjHashMap.removeTriple'
 
         -- , graphTests "HashSP"
         --   HashSP.triplesOf'

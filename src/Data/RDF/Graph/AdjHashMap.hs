@@ -97,6 +97,7 @@ instance Rdf AdjHashMap where
   query             = query'
   showGraph         = showGraph'
   addTriple         = addTriple'
+  removeTriple      = removeTriple'
 
 -- instance Show (AdjHashMap) where
 --   show (AdjHashMap ((spoMap, _), _, _)) =
@@ -146,6 +147,31 @@ addTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
 addTriple' (AdjHashMap (tmaps, baseURL, pms)) t =
   let newTMaps = mergeTs tmaps [t]
   in AdjHashMap (newTMaps, baseURL, pms)
+
+-- | yes, broken for now. use property tests to fix.
+removeTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
+removeTriple' gr@(AdjHashMap ((spoMap,opsMap), baseURL, pms)) (Triple s p o) =
+  (AdjHashMap (new_tmaps, baseURL, pms))
+  where
+    new_tmaps = (newSpoMap,newOpsMap)
+    newSpoMap =
+      case HashMap.lookup s spoMap of
+        Nothing -> spoMap
+        Just poAdjMap ->
+          case HashMap.lookup p poAdjMap of
+            Nothing -> spoMap
+            Just oHashSet ->
+              case Set.member o oHashSet of
+                False -> spoMap
+                True  ->
+                  -- if Set.size oHashSet == 1
+                  -- then
+                  --   HashMap.delete s spoMap
+                  -- else
+                    let newPoAdjMap =
+                          HashMap.adjust (\oHashSet' -> Set.delete o oHashSet') p poAdjMap
+                    in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
+    newOpsMap = opsMap -- TODO implement this.
 
 mergeTs :: TMaps -> [Triple] -> TMaps
 mergeTs = foldl' mergeT
