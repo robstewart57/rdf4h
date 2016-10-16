@@ -308,10 +308,11 @@ t_object = do
 -- grammar rule: [15] collection
 -- 15]	collection ::= '(' object* ')'
 t_collection :: GenParser ParseState ()
-t_collection =
+t_collection = do
   between (char '(') (char ')') $ do
     beginColl
     (try empty_list <|> non_empty_list)
+    void (many t_ws)
     void finishColl
     -- popColl
       where
