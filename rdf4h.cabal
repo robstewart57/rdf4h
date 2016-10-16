@@ -34,10 +34,6 @@ library
                  , Data.RDF.Types
                  , Data.RDF.Query
                  , Data.RDF.Graph.AdjHashMap
-                 -- , Data.RDF.Graph.HashMapSP
-                 -- , Data.RDF.Graph.MapSP
-                 -- this is very slow
-                 -- , Data.RDF.Graph.TPatriciaTree
                  , Data.RDF.Graph.TList
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
@@ -49,9 +45,6 @@ library
                  , directory
                  , containers
                  , parsec >= 3
-                 -- was needed for the patricia tree RDF implementation,
-                 -- which was too slow.
-                 -- , fgl >= 5.5.2.0
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text >= 1.2.1.0
@@ -97,12 +90,7 @@ executable rdf4h
 test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
-  other-modules: Data.RDF.GraphTestUtils
-                 Data.RDF.Graph.AdjHashMap_Test
-                 -- Data.RDF.Graph.HashSP_Test
-                 -- Data.RDF.Graph.SP_Test
-                 -- Data.RDF.Graph.TriplesPatriciaTree_Test
-                 Data.RDF.Graph.TList_Test
+  other-modules: Data.RDF.PropertyTests
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
