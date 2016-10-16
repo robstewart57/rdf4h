@@ -66,19 +66,26 @@ main
     (testGroup
        "rdf4h tests"
        -- RDF graph API tests
-       [ graphTests
+       [ testGroup
+         "property-tests"
+         [(graphTests
            "TList"
            (empty :: RDF TList)
-           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList)
-       , graphTests
+           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList))
+         ,
+         (graphTests
            "AdjHashMap"
            (empty :: RDF AdjHashMap)
-           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap)
-         -- rdf4h unit tests
-       , TurtleParser.tests
-       , XmlParser.tests
-         -- W3C tests
-       , W3CTurtleTest.tests turtleManifest
+           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))]
+       ,
+       testGroup
+       "parser-unit-tests"
+        [ TurtleParser.tests
+        , XmlParser.tests]
+       ,
+       testGroup
+       "parser-w3c-tests"
+       [ W3CTurtleTest.tests turtleManifest
        , W3CRdfXmlTest.tests xmlManifest
-       , W3CNTripleTest.tests nTriplesManifest
+       , W3CNTripleTest.tests nTriplesManifest]
        ])
