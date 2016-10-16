@@ -96,7 +96,23 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
         (s2, p2, o2) = f t2
         f t = (subjectOf t, predicateOf t, objectOf t)
     -- equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == T.pack ("_:genid" ++ show i)
-    equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" ++ show i)
+    -- equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" ++ show i)
+
+    -- I'm not sure it's right to compare blank nodes with generated
+    -- blank nodes. This is because parsing an already generated blank
+    -- node is parsed as a blank node. Moreover, a parser is free to
+    -- generate the blank node how ever they wish. E.g. parsing [] could be:
+    --
+    -- _:genid1
+    --
+    -- or
+    --
+    -- _:Bb71dd4e4b81c097db8d7f79078bbc7c0
+    --
+    -- which just so happens to be what Apache Jena just created when
+    -- [] was parsed.
+    equalNodes (BNode _) (BNodeGen _) = True
+    equalNodes (BNodeGen _) (BNode _) = True
     equalNodes n1          n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
