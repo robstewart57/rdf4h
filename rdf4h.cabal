@@ -40,7 +40,7 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
-  build-depends:   base >= 3
+  build-depends:   base >= 4.8.0.0
                  , bytestring
                  , directory
                  , containers
@@ -71,7 +71,7 @@ library
 
 executable rdf4h
   main-is:         src/Rdf4hParseMain.hs
-  build-depends:   base >= 4 && < 6
+  build-depends:   base >= 4.8.0.0 && < 6
                  , rdf4h
                  , containers
                  , text >= 1.2.1.0
@@ -99,7 +99,7 @@ test-suite test-rdf4h
                  W3C.W3CAssertions
   ghc-options:   -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fno-warn-name-shadowing -funbox-strict-fields
   extensions:    RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings
-  build-depends: base >= 4 && < 6
+  build-depends: base >= 4.8.0.0 && < 6
                , rdf4h
                , tasty
                , tasty-hunit
@@ -127,7 +127,7 @@ benchmark rdf4h-bench
   type:             exitcode-stdio-1.0
   hs-source-dirs:   bench
   main-is:          MainCriterion.hs
-  build-depends:    base,
+  build-depends:    base >= 4.8.0.0,
                     criterion,
                     rdf4h,
                     text >= 1.2.1.0
