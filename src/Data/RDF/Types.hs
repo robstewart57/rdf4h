@@ -335,9 +335,6 @@ data family RDF a
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
-
-  -- -- |RDF type family
-  -- data RDF rdfImpl
   
   -- |Return the base URL of this RDF, if any.
   baseUrl :: RDF rdfImpl -> Maybe BaseUrl

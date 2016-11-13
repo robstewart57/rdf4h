@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main where
 
@@ -7,6 +8,7 @@ import Criterion.Types
 import Criterion.Main
 import Data.RDF
 import qualified Data.Text as T
+import Control.DeepSeq (NFData)
 
 -- The `bills.102.rdf` XML file is needed to run this benchmark suite
 --
@@ -48,6 +50,7 @@ main =
                   parseString (XmlParser Nothing Nothing) rdfContent
             let (Right rdf2) =
                   parseString (XmlParser Nothing Nothing) rdfContent
+                triples = triplesOf rdf1
             -- let (Right rdf3) =
             --       parseString (XmlParser Nothing Nothing) rdfContent
             -- let (Right rdf4) =
@@ -55,7 +58,8 @@ main =
             return
               ( rdf1 :: RDF TList
               , rdf2 :: RDF AdjHashMap
-              )) $ \ ~(triplesList, adjMap) ->
+              , triples :: Triples
+              )) $ \ ~(triplesList, adjMap,triples) ->
         bgroup
           "rdf4h"
           --  bgroup
@@ -82,14 +86,17 @@ main =
                -- selectBench "SP" mapSP ++ selectBench "HashSP" hashMapSP
               )
           , bgroup
+              "add-remove-triples"
+              (addRemoveTriples "TList" triples (empty :: RDF TList) triplesList
+              ++ addRemoveTriples "AdjHashMap" triples (empty :: RDF AdjHashMap) adjMap
+              )
+          , bgroup
             "count_triples"
             [ bench "TList" (nf (length . triplesOf) triplesList)
             , bench "AdjHashMap" (nf (length . triplesOf) adjMap)
             ]
           ]
     ]
-
-        
 
 selectBench :: Rdf a => String -> RDF a -> [Benchmark]
 selectBench label gr =
@@ -124,3 +131,17 @@ queryBench label gr =
    , bench (label ++ " P")   $ nf queryGr (queryNothing,predQuery,queryNothing,gr)
    , bench (label ++ " O")   $ nf queryGr (queryNothing,queryNothing,objQuery,gr)
    ]
+
+addRemoveTriples :: (NFData a,NFData (RDF a), Rdf a) => String -> Triples -> RDF a -> RDF a -> [Benchmark]
+addRemoveTriples lbl triples emptyGr populatedGr =
+   [ bench (lbl ++ "-add-triples") $ nf addTriples (triples,emptyGr)
+   , bench (lbl ++ "-remove-triples") $ nf removeTriples (triples,populatedGr)
+   ]
+
+addTriples ::  Rdf a => (Triples,RDF a) -> RDF a
+addTriples (triples,emptyGr) =
+  foldr (\t g -> addTriple g t) emptyGr triples
+
+removeTriples ::  Rdf a => (Triples,RDF a) -> RDF a
+removeTriples (triples,populatedGr) =
+  foldr (\t g -> removeTriple g t) populatedGr triples
