@@ -68,7 +68,7 @@ differ in their in-memory representation of RDF graphs.
 
 These data family instance represent application specific tradeoffs in
 terms of space and runtime performance. See
-[these criterion results](http://robstewart57.github.io/rdf4h/rdf4h-bench-12092016.html)
+[these criterion results](http://robstewart57.github.io/rdf4h/rdf4h-bench-13112016.html)
 for `query` and `select` performance for all graph implementations,
 taken in September 2016.
 
@@ -255,7 +255,7 @@ compares the querying performance for the different type indexed graph
 representations.
 
 See
-[criterion results from October 2016](http://robstewart57.github.io/rdf4h/rdf-bench-04102016.html).
+[criterion results from October 2016](http://robstewart57.github.io/rdf4h/rdf4h-bench-13112016.html).
 
 To run the criterion benchmarks locally:
 
