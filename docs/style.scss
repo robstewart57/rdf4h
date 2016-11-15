@@ -258,7 +258,7 @@ tbody tr:nth-child(odd) th {
 }
 
 .container {
-  max-width: 38rem;
+  max-width: 42rem;
   padding: 2rem 1.5rem;
   margin-left:  auto;
   margin-right: auto;
@@ -434,3 +434,11 @@ tbody tr:nth-child(odd) th {
 .highlight .vi { color: #008080 } /* Name.Variable.Instance */
 .highlight .il { color: #009999 } /* Literal.Number.Integer.Long */
 
+
+.imgContainer{
+    float:left;
+}
+
+.masthead-title span {
+  color: MidnightBlue;
+}
