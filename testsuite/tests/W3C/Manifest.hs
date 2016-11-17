@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 module W3C.Manifest (
   loadManifest,
 
@@ -15,6 +16,8 @@ import Text.RDF.RDF4H.TurtleParser
 import qualified Data.Text as T
 import qualified Data.List as L (find)
 import Data.Maybe (fromJust)
+
+import GHC.Stack
 
 -- | Manifest data as represented in W3C test files.
 data Manifest =
@@ -121,12 +124,12 @@ mfUnrecognizedDatatypes = unode "http://www.w3.org/2001/sw/DataAccess/tests/test
 
 -- | Load the manifest from the given file;
 -- apply the given namespace as the base IRI of the manifest.
-loadManifest :: T.Text -> T.Text -> IO Manifest
+loadManifest :: HasCallStack => T.Text -> T.Text -> IO Manifest
 loadManifest manifestPath baseIRI = do
   parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
   where testParser = TurtleParser (Just $ BaseUrl baseIRI) Nothing
 
-rdfToManifest :: RDF TList -> Manifest
+rdfToManifest :: HasCallStack => RDF TList -> Manifest
 rdfToManifest rdf = Manifest desc tpls
   where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
@@ -137,10 +140,10 @@ rdfToManifest rdf = Manifest desc tpls
         collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
         manifestNode = headDef (error "manifestSubjectNodes yielding empty list") $ manifestSubjectNodes rdf
 
-rdfToTestEntry :: RDF TList -> Node -> TestEntry
+rdfToTestEntry :: HasCallStack => RDF TList -> Node -> TestEntry
 rdfToTestEntry rdf teSubject = triplesToTestEntry rdf $ query rdf (Just teSubject) Nothing Nothing
 
-triplesToTestEntry :: RDF TList -> Triples -> TestEntry
+triplesToTestEntry :: HasCallStack => RDF TList -> Triples -> TestEntry
 triplesToTestEntry rdf ts =
   case objectByPredicate rdfType ts of
     (UNode "http://www.w3.org/ns/rdftest#TestTurtleEval") -> mkTestTurtleEval ts
@@ -155,7 +158,7 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesNegativeSyntax") -> mkTestNTriplesNegativeSyntax ts
     n -> error ("Unknown test case: " ++ show n)
 
-mkTestTurtleEval :: Triples -> TestEntry
+mkTestTurtleEval :: HasCallStack => Triples -> TestEntry
 mkTestTurtleEval ts = TestTurtleEval {
                         name = lnodeText $ objectByPredicate mfName ts,
                         comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -164,7 +167,7 @@ mkTestTurtleEval ts = TestTurtleEval {
                         result = objectByPredicate mfResult ts
                       }
 
-mkTestTurtleNegativeEval :: Triples -> TestEntry
+mkTestTurtleNegativeEval :: HasCallStack => Triples -> TestEntry
 mkTestTurtleNegativeEval ts = TestTurtleNegativeEval {
                                 name = lnodeText $ objectByPredicate mfName ts,
                                 comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -172,7 +175,7 @@ mkTestTurtleNegativeEval ts = TestTurtleNegativeEval {
                                 action = objectByPredicate mfAction ts
                               }
 
-mkTestTurtlePositiveSyntax :: Triples -> TestEntry
+mkTestTurtlePositiveSyntax :: HasCallStack => Triples -> TestEntry
 mkTestTurtlePositiveSyntax ts = TestTurtlePositiveSyntax {
                                   name = lnodeText $ objectByPredicate mfName ts,
                                   comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -180,7 +183,7 @@ mkTestTurtlePositiveSyntax ts = TestTurtlePositiveSyntax {
                                   action = objectByPredicate mfAction ts
                                 }
 
-mkTestTurtleNegativeSyntax :: Triples -> TestEntry
+mkTestTurtleNegativeSyntax :: HasCallStack => Triples -> TestEntry
 mkTestTurtleNegativeSyntax ts = TestTurtleNegativeSyntax {
                                   name = lnodeText $ objectByPredicate mfName ts,
                                   comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -188,7 +191,7 @@ mkTestTurtleNegativeSyntax ts = TestTurtleNegativeSyntax {
                                   action = objectByPredicate mfAction ts
                                 }
 
-mkPositiveEntailmentTest :: Triples -> RDF TList -> TestEntry
+mkPositiveEntailmentTest :: HasCallStack => Triples -> RDF TList -> TestEntry
 mkPositiveEntailmentTest ts rdf = PositiveEntailmentTest {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -206,7 +209,7 @@ mkPositiveEntailmentTest ts rdf = PositiveEntailmentTest {
           uDT = rdfCollectionToList rdf uDTCollectionHead
           uDTCollectionHead = objectByPredicate mfUnrecognizedDatatypes ts
 
-mkNegativeEntailmentTest :: Triples -> RDF TList -> TestEntry
+mkNegativeEntailmentTest :: HasCallStack => Triples -> RDF TList -> TestEntry
 mkNegativeEntailmentTest ts rdf = NegativeEntailmentTest {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -224,7 +227,7 @@ mkNegativeEntailmentTest ts rdf = NegativeEntailmentTest {
           uDT = rdfCollectionToList rdf uDTCollectionHead
           uDTCollectionHead = objectByPredicate mfUnrecognizedDatatypes ts
 
-mkTestXMLEval :: Triples -> TestEntry
+mkTestXMLEval :: HasCallStack => Triples -> TestEntry
 mkTestXMLEval ts = TestXMLEval {
                      name = lnodeText $ objectByPredicate mfName ts,
                      comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -235,7 +238,7 @@ mkTestXMLEval ts = TestXMLEval {
                      result = objectByPredicate mfResult ts
                    }
 
-mkTestXMLNegativeSyntax :: Triples -> TestEntry
+mkTestXMLNegativeSyntax :: HasCallStack => Triples -> TestEntry
 mkTestXMLNegativeSyntax ts = TestXMLNegativeSyntax {
                                name = lnodeText $ objectByPredicate mfName ts,
                                comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -245,7 +248,7 @@ mkTestXMLNegativeSyntax ts = TestXMLNegativeSyntax {
                                action = objectByPredicate mfAction ts
                              }
 
-mkTestNTriplesPositiveSyntax :: Triples -> TestEntry
+mkTestNTriplesPositiveSyntax :: HasCallStack => Triples -> TestEntry
 mkTestNTriplesPositiveSyntax ts = TestNTriplesPositiveSyntax {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -253,7 +256,7 @@ mkTestNTriplesPositiveSyntax ts = TestNTriplesPositiveSyntax {
                                     action = objectByPredicate mfAction ts
                                   }
 
-mkTestNTriplesNegativeSyntax :: Triples -> TestEntry
+mkTestNTriplesNegativeSyntax :: HasCallStack => Triples -> TestEntry
 mkTestNTriplesNegativeSyntax ts = TestNTriplesNegativeSyntax {
                                     name = lnodeText $ objectByPredicate mfName ts,
                                     comment = lnodeText $ objectByPredicate rdfsComment ts,
@@ -263,20 +266,20 @@ mkTestNTriplesNegativeSyntax ts = TestNTriplesNegativeSyntax {
 
 -- Filter the triples by given predicate and return the object of the first found triple.
 -- Raises an exception on errors.
-objectByPredicate :: Predicate -> Triples -> Object
+objectByPredicate :: HasCallStack => Predicate -> Triples -> Object
 objectByPredicate p = objectOf . fromJust . L.find (\t -> predicateOf t == p)
 
-manifestSubjectNodes :: RDF TList -> [Subject]
+manifestSubjectNodes :: HasCallStack => RDF TList -> [Subject]
 manifestSubjectNodes rdf = subjectNodes rdf [mfManifest]
 
-subjectNodes :: RDF TList -> [Object] -> [Subject]
+subjectNodes :: HasCallStack => RDF TList -> [Object] -> [Subject]
 subjectNodes rdf = (map subjectOf) . concatMap queryType
   where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
 -- | Text of the literal node.
 -- Note that it doesn't perform type conversion for TypedL.
 -- TODO: Looks useful. Move it to RDF4H lib?
-lnodeText :: Node -> T.Text
+lnodeText :: HasCallStack => Node -> T.Text
 lnodeText (LNode(PlainL t)) = t
 lnodeText (LNode(PlainLL t _)) = t
 lnodeText (LNode(TypedL t _)) = t
@@ -294,15 +297,15 @@ lnodeText _ = error "Not a literal node"
 -- | second argument (`tip`) is the "collection head" (<c1> in the example above),
 -- | (all triples with <rdf:first> and <rdf:rest> pairs).
 -- TODO: Looks useful. Move it to RDF4H lib?
-rdfCollectionToList :: RDF TList -> Node -> [Node]
+rdfCollectionToList :: HasCallStack => RDF TList -> Node -> [Node]
 rdfCollectionToList _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")) = []
 rdfCollectionToList rdf tip = concatMap (tripleToList rdf) $ nextCollectionTriples rdf tip
 
-tripleToList :: RDF TList -> Triple -> [Node]
+tripleToList :: HasCallStack => RDF TList -> Triple -> [Node]
 tripleToList _ (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#first")) n@(UNode _)) = [n]
 tripleToList rdf (Triple _ (UNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#rest")) tip) = rdfCollectionToList rdf tip
-tripleToList _ _ = error "Invalid collection format"
+tripleToList _ trip = error $ "tripleToList: Invalid collection format\n"++show trip
 
-nextCollectionTriples :: RDF TList -> Node -> Triples
+nextCollectionTriples :: HasCallStack => RDF TList -> Node -> Triples
 nextCollectionTriples rdf tip@(BNodeGen _) = query rdf (Just tip) Nothing Nothing
-nextCollectionTriples _ _ = error "Invalid collection format"
+nextCollectionTriples _ node = error $ "nextCollectionTriples: Invalid collection format\n"++show node

@@ -694,8 +694,8 @@ no = Nothing
 -- Update the subject and predicate values of the ParseState to Nothing.
 resetSubjectPredicate :: (MonadState ParseState m,CharParsing m) => m ()
 resetSubjectPredicate =
-  get >>= \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts,genMap) ->
-  put (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts,genMap)
+  modify $ \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts,genMap) ->
+            (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts,genMap)
 
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
