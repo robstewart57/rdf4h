@@ -14,7 +14,7 @@ import Data.Maybe
 import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
-import Text.Parsec (runParserT,ParseError)
+import Text.Parsec (runParser,ParseError)
 -- import Text.Parsec.Text (GenParser)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -758,14 +758,14 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl docUrl fpath = do
-  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (flip evalState initialState $ runParserT t_turtleDoc () (maybe "" T.unpack docUrl) bs')
+  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
 parseString' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
-parseString' bUrl docUrl ttlStr = handleResult bUrl (flip evalState initialState $ runParserT t_turtleDoc () "" ttlStr)
+parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () "" ttlStr)
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
