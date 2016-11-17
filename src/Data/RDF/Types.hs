@@ -1,9 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Data.RDF.Types (
 
@@ -57,10 +55,13 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Network.URI as Network (uriPath,parseURI)
 import Control.DeepSeq (NFData,rnf)
-import Text.Parsec
-import Text.Parsec.Text
+import Text.Parsec(ParseError,parse)
 import Network.URI
 import Codec.Binary.UTF8.String
+
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Control.Applicative
 
 -------------------
 -- LValue and constructor functions
@@ -177,14 +178,14 @@ isRdfURI :: T.Text -> Either ParseError T.Text
 isRdfURI t = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
 
 -- [18]	IRIREF from Turtle spec
-isRdfURIParser :: GenParser () T.Text
+isRdfURIParser :: (CharParsing m, Monad m) => m T.Text
 isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ [' ','<','>','"','{','}','|','^','`','\\']) <|> nt_uchar)
 
 -- [10] UCHAR
-nt_uchar :: GenParser () T.Text
+nt_uchar :: (CharParsing m, Monad m) => m T.Text
 nt_uchar =
-    (try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
-     try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)))
+    try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
+    try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs))
 
 uEscapedToXEscaped :: String -> String
 uEscapedToXEscaped ss =
@@ -207,8 +208,8 @@ uriValidateString t = case isRdfURIString of
     isRdfURIString = parse (isRdfURIParserS  <* eof) ("Invalid URI: " ++ t) t
     isRdfURIParserS = many (validUriChar <|> nt_ucharS)
     nt_ucharS =
-        (try (char '\\' >> char 'u' >> count 4 hexDigit >>= return . head . uEscapedToXEscaped) <|>
-         try (char '\\' >> char 'U' >> count 8 hexDigit >>= return . head . uEscapedToXEscaped))
+        try (char '\\' >> char 'u' >> head . uEscapedToXEscaped <$> count 4 hexDigit) <|>
+        try (char '\\' >> char 'U' >> head . uEscapedToXEscaped <$> count 8 hexDigit)
     -- [18]	IRIREF from Turtle spec
     validUriChar = try $ do
         c <- anyChar
@@ -221,20 +222,13 @@ escapeRDFSyntax :: T.Text -> T.Text
 escapeRDFSyntax t = T.pack uri
     where
       Right uri = parse unicodeEscParser "" (T.unpack t)
-      unicodeEscParser :: Stream s m Char => ParsecT s u m String
+      unicodeEscParser :: (CharParsing m, Monad m) => m String
       unicodeEscParser = do
                 ss <- many (
                     try (do { _ <- char '\\'
                             ; _ <- char 'U'
-                            ; pos1 <- hexDigit
-                            ; pos2 <- hexDigit
-                            ; pos3 <- hexDigit
-                            ; pos4 <- hexDigit
-                            ; pos5 <- hexDigit
-                            ; pos6 <- hexDigit
-                            ; pos7 <- hexDigit
-                            ; pos8 <- hexDigit
-                            ; let str = ['\\','x',pos1,pos2,pos3,pos4,pos5,pos6,pos7,pos8]
+                            ; poss <- count 8 hexDigit
+                            ; let str = ['\\','x']++poss
                             ; return (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
                     try (do { _ <- char '\\'
@@ -335,7 +329,7 @@ data family RDF a
 -- For more information about the concept of an RDF graph, see
 -- the following: <http://www.w3.org/TR/rdf-concepts/#section-rdf-graph>.
 class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
-  
+
   -- |Return the base URL of this RDF, if any.
   baseUrl :: RDF rdfImpl -> Maybe BaseUrl
 
@@ -411,7 +405,7 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   showGraph     :: RDF rdfImpl -> String
 
 instance (Rdf a) => Show (RDF a) where
-  show a = showGraph a
+  show = showGraph
 
 -- |An RdfParser is a parser that knows how to parse 1 format of RDF and
 -- can parse an RDF document of that type from a string, a file, or a URL.
@@ -747,10 +741,9 @@ _decimalStr s =     -- haskell double parser doesn't handle '1.'..,
 
 -- | Removes "file://" schema from URIs in 'UNode' nodes
 fileSchemeToFilePath :: Node -> Maybe T.Text
-fileSchemeToFilePath (UNode fileScheme) =
-    if T.pack "file://" `T.isPrefixOf` fileScheme
-    then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
-    else if T.pack "http://" `T.isPrefixOf` fileScheme
-         then fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
-         else Nothing
+fileSchemeToFilePath (UNode fileScheme)
+    | T.pack "file://" `T.isPrefixOf` fileScheme
+      = fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
+    | T.pack "http://" `T.isPrefixOf` fileScheme
+      = fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
 fileSchemeToFilePath _ = Nothing
