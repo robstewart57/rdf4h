@@ -7,7 +7,7 @@ module Text.RDF.RDF4H.TurtleParser(
 
 where
 
-import Data.Char (isLetter,isAlphaNum,toLower,toUpper)
+import Data.Char (isLetter,isAlphaNum,toLower,isDigit,isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -21,7 +21,6 @@ import qualified Data.Text.IO as TIO
 import Data.Sequence(Seq, (|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as F
-import Data.Char (isDigit)
 import Control.Monad
 
 import Text.Parser.Char
@@ -66,34 +65,41 @@ type ParseState =
 -- t_turtleDoc :: (CharParsing m, Monad m) => m (Seq Triple, PrefixMappings)
 t_turtleDoc :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
 t_turtleDoc =
-  many t_statement >> (eof <?> "eof") >> get >>= \(_, _, _, pms, _, _, _, _, _, ts,_) -> return (ts, pms)
+  many t_statement *> (eof <?> "eof") *> gets (\(_, _, _, pms, _, _, _, _, _, ts,_) -> (ts, pms))
 
 -- grammar rule: [2] statement
 t_statement :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
 t_statement = d <|> t <|> void (some t_ws <?> "blankline-whitespace")
   where
     d = void
-      (try t_directive >>
-      (many t_ws <?> "directive-whitespace2"))
+      (try t_directive
+      *> (many t_ws <?> "directive-whitespace2"))
     t = void
-      (t_triples >> (many t_ws <?> "triple-whitespace1") >>
-      (char '.' <?> "end-of-triple-period") >>
-      (many t_ws <?> "triple-whitespace2"))
+      (t_triples
+      *> (many t_ws <?> "triple-whitespace1")
+      *> (char '.' <?> "end-of-triple-period")
+      *> (many t_ws <?> "triple-whitespace2"))
 
 -- grammar rule: [6] triples
 -- subject predicateObjectList | blankNodePropertyList predicateObjectList?
 t_triples :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
-t_triples = do
-  try (t_subject >> many t_ws >> t_predicateObjectList >> resetSubjectPredicate) <|> (setSubjBlankNodePropList >> t_blankNodePropertyList >> many t_ws >> optional (t_predicateObjectList) >> resetSubjectPredicate >> setNotSubjBlankNodePropList)
+t_triples =
+  try (t_subject *> many t_ws *> t_predicateObjectList *> resetSubjectPredicate)
+  <|> (setSubjBlankNodePropList
+      *> t_blankNodePropertyList
+      *> many t_ws
+      *> optional t_predicateObjectList
+      *> resetSubjectPredicate
+      *> setNotSubjBlankNodePropList)
 
 -- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
 t_blankNodePropertyList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
 t_blankNodePropertyList = between (char '[') (char ']') $ do
                             subjPropList <- isSubjPropList
-                            blankNode <- liftM BNodeGen nextIdCounter
+                            blankNode <- BNodeGen <$> nextIdCounter
                             unless subjPropList $ addTripleForObject blankNode
                             pushSubj blankNode
-                            (many t_ws >> t_predicateObjectList >> void (many t_ws))
+                            many t_ws *> t_predicateObjectList *> void (many t_ws)
                             unless subjPropList $ void popSubj
 
 -- grammar rule: [3] directive
@@ -107,33 +113,31 @@ t_iri =  try t_iriref <|> t_prefixedName
 
 -- grammar rule: [136s] PrefixedName
 t_prefixedName :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
-t_prefixedName = do
-  t <- try t_pname_ln <|> try t_pname_ns
-  return t
+t_prefixedName = try t_pname_ln <|> try t_pname_ns
 
 -- grammar rule: [4] prefixID
 t_prefixID :: (CharParsing m, MonadState ParseState m) => m ()
 t_prefixID =
   do void (try (string "@prefix" <?> "@prefix-directive"))
-     pre <- (some t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
-     void (char ':' >> (some t_ws <?> "whitespace-after-@prefix-colon"))
+     pre <- (some t_ws <?> "whitespace-after-@prefix") *> option T.empty t_pn_prefix
+     void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
      void (many t_ws <?> "prefixID-whitespace")
      void (char '.' <?> "end-of-prefixID-period")
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- get
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
-     return ()
+     pure ()
 
 -- grammar rule: [6s] sparqlPrefix
 t_sparql_prefix :: (CharParsing m, MonadState ParseState m) => m ()
 t_sparql_prefix =
   do void (try (caseInsensitiveString "PREFIX" <?> "@prefix-directive"))
-     pre <- (some t_ws <?> "whitespace-after-@prefix") >> option T.empty t_pn_prefix
-     void (char ':' >> (some t_ws <?> "whitespace-after-@prefix-colon"))
+     pre <- (some t_ws <?> "whitespace-after-@prefix") *> option T.empty t_pn_prefix
+     void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
      (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- get
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
-     return ()
+     pure ()
 
 -- grammar rule: [5] base
 t_base :: (CharParsing m, MonadState ParseState m) => m ()
@@ -142,7 +146,7 @@ t_base =
      void (some t_ws <?> "whitespace-after-@base")
      urlFrag <- t_iriref
      void (many t_ws <?> "base-whitespace")
-     (void (char '.') <?> "end-of-base-period")
+     void (char '.') <?> "end-of-base-period"
      bUrl <- currBaseUrl
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
@@ -159,20 +163,19 @@ t_sparql_base =
 
 t_verb :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
 -- [9]	verb ::= predicate | 'a'
-t_verb = (try t_predicate <|> (char 'a' >> return rdfTypeNode)) >>= pushPred
+t_verb = (try t_predicate <|> (char 'a' *> pure rdfTypeNode)) >>= pushPred
 
 -- grammar rule: [11] predicate
 t_predicate :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m Node
-t_predicate = liftM UNode (t_iri <?> "resource")
+t_predicate = UNode <$> (t_iri <?> "resource")
 
 -- grammar rules: [139s] PNAME_NS
 t_pname_ns :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pname_ns =do
-  pre <- option T.empty (try t_pn_prefix)
-  void (char ':')
+  pre <- option T.empty (try t_pn_prefix) <* char ':'
   (bUrl, _, _, pms, _, _, _, _, _, _, _) <- get
   case resolveQName bUrl pre pms of
-    Just n  -> return n
+    Just n  -> pure n
     Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
 -- grammar rules: [168s] PN_LOCAL
@@ -183,42 +186,37 @@ t_pn_local = do
   xs <- option "" $ try $ do
                let recsve = (t_pn_chars_str <|> string ":" <|> t_plx) <|>
                             (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve))) <|>
-                            (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." >> notFollowedBy t_ws >> return "."))
+                            (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws *> pure "."))
                concat <$> many recsve
-  return (T.pack (x ++ xs))
+  pure (T.pack (x ++ xs))
     where
-      satisfy_str = satisfy (flip in_range [('0', '9')]) >>= \c -> return [c]
-      t_pn_chars_str = t_pn_chars >>= \c -> return [c]
-      t_pn_chars_u_str = t_pn_chars_u >>= \c -> return [c]
+      satisfy_str      = pure <$> satisfy isDigit
+      t_pn_chars_str   = pure <$> t_pn_chars
+      t_pn_chars_u_str = pure <$> t_pn_chars_u
 
 -- PERCENT | PN_LOCAL_ESC
 -- grammar rules: [169s] PLX
 t_plx :: (CharParsing m, Monad m) => m String
 t_plx = t_percent <|> t_pn_local_esc_str
     where
-      t_pn_local_esc_str = do
-        c <- t_pn_local_esc
-        return ([c])
+      t_pn_local_esc_str = pure <$> t_pn_local_esc
 
 --        '%' HEX HEX
 -- grammar rules: [170s] PERCENT
 t_percent :: (CharParsing m, Monad m) => m String
-t_percent = do
-  void (char '%')
-  h1 <- t_hex
-  h2 <- t_hex
-  return (['%',h1,h2])
+t_percent = sequence [char '%',t_hex,t_hex]
+
 
 -- grammar rules: [172s] PN_LOCAL_ESC
-t_pn_local_esc :: (CharParsing m, Monad m) => m Char
-t_pn_local_esc = char '\\' >> oneOf "_~.-!$&'()*+,;=/?#@%"
+t_pn_local_esc :: CharParsing m => m Char
+t_pn_local_esc = char '\\' *> oneOf "_~.-!$&'()*+,;=/?#@%"
 
 -- grammar rules: [140s] PNAME_LN
 t_pname_ln :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
 t_pname_ln =
   do pre <- t_pname_ns
      name <- t_pn_local
-     return (pre `T.append` name)
+     pure (pre `T.append` name)
 
 -- grammar rule: [10] subject
 -- [10] subject	::= iri | BlankNode | collection
@@ -226,17 +224,17 @@ t_subject :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
 t_subject =
   iri <|>
   (t_blankNode >>= pushSubj) <|>
-   (liftM BNodeGen nextIdCounter >>= pushSubj
-    >> pushPred rdfFirstNode
-    >> pushSubjColl
-    >> t_collection)
+   (BNodeGen <$> nextIdCounter >>= \x -> pushSubj x
+    *> pushPred rdfFirstNode
+    *> pushSubjColl
+    *> t_collection)
   where
-    iri         = liftM unode (try t_iri <?> "subject resource") >>= \s -> pushSubj s
+    iri         = unode <$> (try t_iri <?> "subject resource") >>= \s -> pushSubj s
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
 t_blankNode = do
-  genID <- (try t_blank_node_label <|> (t_anon >> return ""))
+  genID <- try t_blank_node_label <|> (t_anon *> pure "")
   mp <- currGenIdLookup
   node <-
     case Map.lookup genID mp of
@@ -244,49 +242,48 @@ t_blankNode = do
         i <- nextIdCounter
         let node = BNodeGen i
         addGenIdLookup genID i
-        return node
+        pure node
       Just i ->
-        return $ BNodeGen i
-  return node
+        pure $ BNodeGen i
+  pure node
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
-t_blank_node_label :: (CharParsing m, MonadState ParseState m) => m [Char]
+t_blank_node_label :: (CharParsing m, MonadState ParseState m) => m String
 t_blank_node_label = do
   void (string "_:")
-  firstChar <- (t_pn_chars_u <|> oneOf ['0'..'9'])
+  firstChar <- t_pn_chars_u <|> satisfy isDigit
 --  optional $ try $ do
   try $ do
     ss <- option "" $ do
             xs <- many (t_pn_chars <|> char '.')
             if null xs
-            then return xs
+            then pure xs
             else if last xs == '.'
                  then unexpected "'.' at the end of a blank node label"
-                 else return xs
-    return (firstChar : ss)
+                 else pure xs
+    pure (firstChar : ss)
 
 -- [162s] ANON ::= '[' WS* ']'
-t_anon :: (CharParsing m, Monad m) => m ()
-t_anon = between (char '[') (char ']') (void (many t_ws))
+t_anon :: CharParsing m => m ()
+t_anon = between (char '[') (char ']') (skipMany t_ws)
 
 -- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
 t_predicateObjectList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
-t_predicateObjectList = do
+t_predicateObjectList =
   void (sepEndBy1
         (optional (try (do { t_verb
                            ; some t_ws
                            ; t_objectList
-                           ; void popPred})))
-        (try (many t_ws >> char ';' >> many t_ws)))
+                           ; popPred})))
+        (try (many t_ws *> char ';' *> many t_ws)))
 
 -- grammar rule: [8] objectlist
 -- [8] objectList ::= object (',' object)*
 t_objectList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
 t_objectList = -- t_object actually adds the triples
-  void
-  ((t_object <?> "object") >>
-  many (try (many t_ws >> char ',' >> many t_ws >> t_object)))
+  () <$ ((t_object <?> "object")
+     *> many (try (many t_ws *> char ',' *> many t_ws *> t_object)))
 
 -- grammar rule: [12] object
 -- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal
@@ -296,36 +293,36 @@ t_object = do
   inSubjColl <- isInSubjColl
   onFirstItem <- onCollFirstItem
   let processObject =
-           (liftM UNode t_iri >>= addTripleForObject) <|>
+           (UNode <$> t_iri >>= addTripleForObject) <|>
            (try t_blankNode >>= addTripleForObject) <|>
-           (try t_collection >> pushObjColl) <|>
-           (try t_blankNodePropertyList) <|>
+           (try t_collection *> pushObjColl) <|>
+           try t_blankNodePropertyList <|>
            (t_literal >>= addTripleForObject)
   case (inColl,inSubjColl,onFirstItem) of
     (False,_,_)    -> processObject
-    (True,False,True)  -> liftM BNodeGen nextIdCounter >>= \bSubj -> addTripleForObject bSubj
-                          >> pushSubj bSubj >> pushPred rdfFirstNode >> processObject >> collFirstItemProcessed
---    (True,True,True)  -> processObject >> collFirstItemProcessed
-    (True,True,True)  -> processObject >> collFirstItemProcessed >> popColl
-    (True,_,False) -> liftM BNodeGen nextIdCounter >>= \bSubj -> pushPred rdfRestNode >>
-                      addTripleForObject bSubj >> popPred >> popSubj >>
-                      pushSubj bSubj >> processObject
+    (True,False,True)  -> BNodeGen <$> nextIdCounter >>= \bSubj -> addTripleForObject bSubj
+                          *> pushSubj bSubj *> pushPred rdfFirstNode *> processObject *> collFirstItemProcessed
+--    (True,True,True)  -> processObject *> collFirstItemProcessed
+    (True,True,True)  -> processObject *> collFirstItemProcessed *> popColl
+    (True,_,False) -> BNodeGen <$> nextIdCounter >>= \bSubj -> pushPred rdfRestNode >>
+                      addTripleForObject bSubj *> popPred *> popSubj >>
+                      pushSubj bSubj *> processObject
 
 -- collection: '(' ws* itemList? ws* ')'
 -- itemList:      object (ws+ object)*
 -- grammar rule: [15] collection
 -- 15]	collection ::= '(' object* ')'
 t_collection :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
-t_collection = do
+t_collection =
   between (char '(') (char ')') $ do
     beginColl
-    (try empty_list <|> non_empty_list)
+    try empty_list <|> non_empty_list
     void (many t_ws)
     void finishColl
     -- popColl
       where
         non_empty_list = do
-          some (many t_ws >> t_object >> many t_ws)
+          some (many t_ws *> t_object *> many t_ws)
 
           _inSubjColl <- isInSubjColl
 
@@ -335,10 +332,10 @@ t_collection = do
 
           -- popPred
           -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
-          -- if inSubjColl then return () else trace "not sub" $ void popSubj
+          -- if inSubjColl then pure () else trace "not sub" $ void popSubj
 
         empty_list = do
-          lookAhead (try (many t_ws >> char ')'))
+          lookAhead (try (many t_ws *> char ')'))
           addTripleForObject rdfNilNode
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
@@ -355,12 +352,12 @@ xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m Node
 t_literal =
-  (try t_rdf_literal >>= \l -> return (LNode l))   <|>
-  liftM (`mkLNode` xsdDoubleUri) (try t_double)    <|>
-  liftM (`mkLNode` xsdDecimalUri) (try t_decimal)  <|>
-  liftM (`mkLNode` xsdIntUri) (try t_integer)      <|>
-  liftM (`mkLNode` xsdBooleanUri) t_boolean
-   where
+  LNode <$> try t_rdf_literal                 <|>
+  (`mkLNode` xsdDoubleUri)  <$> try t_double  <|>
+  (`mkLNode` xsdDecimalUri) <$> try t_decimal <|>
+  (`mkLNode` xsdIntUri)     <$> try t_integer <|>
+  (`mkLNode` xsdBooleanUri) <$> t_boolean
+  where
     mkLNode :: T.Text -> T.Text -> Node
     mkLNode bsType bs' = LNode (typedL bsType bs')
 
@@ -370,9 +367,9 @@ t_rdf_literal :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => 
 t_rdf_literal = do
   str' <- t_string
   let str = escapeRDFSyntax str'
-  option (plainL str) $ do
-                  (try (t_langtag >>= \lang -> return (plainLL str lang)) <|>
-                   ((count 2 (char '^') >> t_iri >>= \iri -> return (typedL str iri))))
+  option (plainL str) $
+                  try (t_langtag >>= \lang -> pure (plainLL str lang)) <|>
+                   (count 2 (char '^') *> t_iri >>= \iri -> pure (typedL str iri))
 
 -- [17] String
 -- STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
@@ -386,7 +383,7 @@ t_string = try t_string_literal_long_quote <|>
 -- '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
 t_string_literal_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_quote =
-     between (char '"') (char '"') $ do
+     between (char '"') (char '"') $
       T.concat <$> many (T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD'] <|>
             t_echar <|>
             t_uchar)
@@ -395,7 +392,7 @@ t_string_literal_quote =
 -- "'" ([^#x27#x5C#xA#xD] | ECHAR | UCHAR)* "'"
 t_string_literal_single_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_single_quote =
-    between (char '\'') (char '\'') $ do
+    between (char '\'') (char '\'') $
       T.concat <$>
        many (T.singleton <$> noneOf ['\x27','\x5C','\xA','\xD'] <|>
              t_echar <|>
@@ -405,12 +402,12 @@ t_string_literal_single_quote =
 -- "'''" (("'" | "''")? ([^'\] | ECHAR | UCHAR))* "'''"
 t_string_literal_long_single_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_long_single_quote =
-    between ((string "'''")) ((string "'''")) $ do
+    between (string "'''") (string "'''") $ do
       ss <- many $ try $ do
         s1 <- T.pack <$> option "" (try (string "''") <|> string "'")
         s2 <- T.singleton <$> noneOf ['\'','\\'] <|> t_echar <|> t_uchar
-        return (s1 `T.append` s2)
-      return (T.concat ss)
+        pure (s1 `T.append` s2)
+      pure (T.concat ss)
 
 -- [25] STRING_LITERAL_LONG_QUOTE
 -- '"""' (('"' | '""')? ([^"\] | ECHAR | UCHAR))* '"""'
@@ -420,100 +417,93 @@ t_string_literal_long_quote =
       ss <- many $ try $ do
               s1 <- T.pack <$> option "" (try (string "\"\"") <|> string "\"")
               s2 <- (T.singleton <$> noneOf ['"','\\']) <|> t_echar <|> t_uchar
-              return (s1 `T.append` s2)
-      return (T.concat ss)
+              pure (s1 `T.append` s2)
+      pure (T.concat ss)
 
 -- [144s] LANGTAG
 -- '@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
 t_langtag :: (CharParsing m, Monad m) => m T.Text
 t_langtag = do
-    void (char '@')
-    ss   <- some (satisfy (\ c -> isLetter c))
-    rest <- concat <$> many (char '-' >> some (satisfy (\ c -> isAlphaNum c)) >>= \lang_str -> return ('-':lang_str))
-    return (T.pack (ss ++ rest))
+    ss   <- char '@' *> some (satisfy isLetter)
+    rest <- concat <$> many (char '-' *> some (satisfy isAlphaNum) >>= \lang_str -> pure ('-':lang_str))
+    pure (T.pack (ss ++ rest))
 
 -- [159s]	ECHAR
 -- '\' [tbnrf"'\]
 t_echar :: (CharParsing m, Monad m) => m T.Text
 t_echar = try $ do
-    void (char '\\')
-    c2 <- oneOf ['t','b','n','r','f','"','\'','\\']
-    return $ case c2 of
-               't'  -> T.singleton '\t'
-               'b'  -> T.singleton '\b'
-               'n'  -> T.singleton '\n'
-               'r'  -> T.singleton '\r'
-               'f'  -> T.singleton '\f'
-               '"'  -> T.singleton '\"'
-               '\'' -> T.singleton '\''
-               '\\' -> T.singleton '\\'
-               _    -> error "nt_echar: impossible error."
+    c2 <- char '\\' *> oneOf ['t','b','n','r','f','"','\'','\\']
+    case c2 of
+       't'  -> pure $ T.singleton '\t'
+       'b'  -> pure $ T.singleton '\b'
+       'n'  -> pure $ T.singleton '\n'
+       'r'  -> pure $ T.singleton '\r'
+       'f'  -> pure $ T.singleton '\f'
+       '"'  -> pure $ T.singleton '\"'
+       '\'' -> pure $ T.singleton '\''
+       '\\' -> pure $ T.singleton '\\'
+       _    -> fail "nt_echar: impossible error."
 
 -- [26]	UCHAR
 -- '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
 t_uchar :: (CharParsing m, Monad m) => m T.Text
 t_uchar =
-    (try (string "\\u" >> count 4 hexDigit) >>= \cs -> return $ T.pack ('\\':'u':cs)) <|>
-     (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack ('\\':'U':cs))
+    (try (string "\\u" *> count 4 hexDigit) >>= \cs -> pure $ T.pack ('\\':'u':cs)) <|>
+     (char '\\' *> char 'U' *> count 8 hexDigit >>= \cs -> pure $ T.pack ('\\':'U':cs))
 
 -- [19] INTEGER ::= [+-]? [0-9]+
 t_integer :: (CharParsing m, Monad m) => m T.Text
 t_integer = try $
   do sign <- sign_parser <?> "+-"
-     ds <- some (oneOf ['0'..'9'] <?> "digit")
-     return $! ( T.pack sign `T.append` T.pack ds)
+     ds <- some (satisfy isDigit <?> "digit")
+     pure $! ( T.pack sign `T.append` T.pack ds)
 
 -- grammar rule: [21] DOUBLE
 -- [21] DOUBLE ::= [+-]? ([0-9]+ '.' [0-9]* EXPONENT | '.' [0-9]+ EXPONENT | [0-9]+ EXPONENT)
 t_double :: (CharParsing m, Monad m) => m T.Text
 t_double =
   do sign <- sign_parser <?> "+-"
-     rest <- try (do { ds <- some (oneOf ['0'..'9']) <?> "digit";
-                      void (char '.');
-                      ds' <- many (oneOf ['0'..'9']) <?> "digit";
+     rest <- try (do { ds <- (some (satisfy isDigit) <?> "digit") <* char '.';
+                      ds' <- many (satisfy isDigit) <?> "digit";
                       e <- t_exponent <?> "exponent";
-                      return ( T.pack ds `T.snoc` '.' `T.append`  T.pack ds' `T.append` e) }) <|>
-             try (do { void (char '.');
-                       ds <- some (oneOf ['0'..'9']) <?> "digit";
+                      pure ( T.pack ds `T.snoc` '.' `T.append`  T.pack ds' `T.append` e) }) <|>
+             try (do { ds <- char '.' *> some (satisfy isDigit) <?> "digit";
                        e <- t_exponent <?> "exponent";
-                       return ('.' `T.cons`  T.pack ds `T.append` e) }) <|>
-                 (do { ds <- some (oneOf ['0'..'9']) <?> "digit";
+                       pure ('.' `T.cons`  T.pack ds `T.append` e) }) <|>
+                 (do { ds <- some (satisfy isDigit) <?> "digit";
                        e <- t_exponent <?> "exponent";
-                       return ( T.pack ds `T.append` e) })
-     return $! T.pack sign `T.append` rest
+                       pure ( T.pack ds `T.append` e) })
+     pure $! T.pack sign `T.append` rest
 
-sign_parser :: (CharParsing m, Monad m) => m String
-sign_parser = option "" (oneOf "-+" >>= (\c -> return [c]))
+sign_parser :: CharParsing m => m String
+sign_parser = option "" (pure <$> oneOf "-+")
 
 -- [20]	DECIMAL ::= [+-]? [0-9]* '.' [0-9]+
 t_decimal :: (CharParsing m, Monad m) => m T.Text
 t_decimal = try $ do
               sign <- sign_parser
-              dig1 <- many (oneOf ['0'..'9'])
-              void (char '.')
-              dig2 <- some (oneOf ['0'..'9'])
-              return (T.pack sign `T.append`  T.pack dig1 `T.append` T.pack "." `T.append` T.pack dig2)
+              dig1 <- many (satisfy isDigit) <* char '.'
+              dig2 <- some (satisfy isDigit)
+              pure (T.pack sign `T.append`  T.pack dig1 `T.append` T.pack "." `T.append` T.pack dig2)
 
 t_exponent :: (CharParsing m, Monad m) => m T.Text
 t_exponent = do e <- oneOf "eE"
-                s <- option "" (oneOf "-+" >>= \c -> return [c])
-                ds <- some digit;
-                return $! (e `T.cons` ( T.pack s `T.append` T.pack ds))
+                s <- option "" (pure <$> oneOf "-+")
+                ds <- some digit
+                pure $! (e `T.cons` ( T.pack s `T.append` T.pack ds))
 
-t_boolean :: (CharParsing m, Monad m) => m T.Text
+t_boolean :: CharParsing m => m T.Text
 t_boolean =
-  try (liftM T.pack (string "true") <|>
-  liftM T.pack (string "false"))
+  T.pack <$> try (string "true" <|> string "false")
 
-t_comment :: (CharParsing m, Monad m) => m ()
+t_comment :: CharParsing m => m ()
 t_comment =
-  void (char '#' >> many (satisfy (\ c -> c /= '\n' && c /= '\r')))
+  void (char '#' *> many (noneOf "\n\r"))
 
 -- [161s] WS ::= #x20 | #x9 | #xD | #xA
-t_ws :: (CharParsing m, Monad m) => m ()
+t_ws :: CharParsing m => m ()
 t_ws =
-    (void (try (char '\t' <|> char '\n' <|> char '\r' <|> char ' '))
-     <|> try t_comment)
+    (void (try (oneOf "\t\n\r "))) <|> try t_comment
     <?> "whitespace-or-comment"
 
 -- grammar rule: [167s] PN_PREFIX
@@ -521,7 +511,7 @@ t_pn_prefix :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pn_prefix = do
   i <- try t_pn_chars_base
   r <- option "" (many (try t_pn_chars <|> char '.')) -- TODO: ensure t_pn_chars is last char
-  return (T.pack (i:r))
+  pure (T.pack (i:r))
 
 -- [18] IRIREF
 t_iriref :: (CharParsing m, MonadState ParseState m) => m T.Text
@@ -556,8 +546,10 @@ t_pn_chars_u :: CharParsing m => m Char
 t_pn_chars_u = t_pn_chars_base <|> char '_'
 
 -- grammar rules: [171s] HEX
+-- TODO Should this support lowercase hex characters? if so, use Char.isHexDigit
 t_hex :: CharParsing m => m Char
-t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
+-- t_hex = satisfy (\c -> isDigit c || (c >= 'A' && c <= 'F')) <?> "hexadecimal digit"
+t_hex = satisfy isHexDigit <?> "hexadecimal digit"
 
 {-# INLINE in_range #-}
 in_range :: Char -> [(Char, Char)] -> Bool
@@ -568,82 +560,84 @@ newBaseUrl Nothing               url = BaseUrl url
 newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
 currGenIdLookup :: MonadState ParseState m => m (Map String Int)
-currGenIdLookup = get >>= \(_, _, _, _, _, _, _, _, _, _,genMap) -> return genMap
+currGenIdLookup = gets $ \(_, _, _, _, _, _, _, _, _, _,genMap) -> genMap
 
 addGenIdLookup :: MonadState ParseState m => String -> Int -> m ()
-addGenIdLookup genId counter = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                  put (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, Map.insert genId counter genMap)
+addGenIdLookup genId counter =
+  modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+            (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, Map.insert genId counter genMap)
 
 currBaseUrl :: MonadState ParseState m => m (Maybe BaseUrl)
-currBaseUrl = get >>= \(bUrl, _, _, _, _, _, _, _, _, _,_) -> return bUrl
+currBaseUrl = gets $ \(bUrl, _, _, _, _, _, _, _, _, _,_) -> bUrl
 
 currDocUrl :: MonadState ParseState m => m (Maybe T.Text)
-currDocUrl = get >>= \(_, dUrl, _, _, _, _, _, _, _, _,_) -> return dUrl
+currDocUrl = gets $ \(_, dUrl, _, _, _, _, _, _, _, _,_) -> dUrl
 
 pushSubj :: MonadState ParseState m => Subject -> m ()
-pushSubj s = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                  put (bUrl, dUrl, i, pms, s:ss, ps, cs, subjC, subjBNodeList, ts, genMap)
+pushSubj s = modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                       (bUrl, dUrl, i, pms, s:ss, ps, cs, subjC, subjBNodeList, ts, genMap)
 
 popSubj :: (CharParsing m, MonadState ParseState m) => m Subject
 popSubj = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                put (bUrl, dUrl, i, pms, tail ss, ps, cs, subjC, subjBNodeList, ts, genMap) >>
-                  when (null ss) (error "Cannot pop subject off empty stack.") >>
-                  return (head ss)
+                put (bUrl, dUrl, i, pms, tail ss, ps, cs, subjC, subjBNodeList, ts, genMap)
+                  *> when (null ss) (fail "Cannot pop subject off empty stack.")
+                  *> pure (head ss)
 
 pushPred :: MonadState ParseState m => Predicate -> m ()
-pushPred p = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                  put (bUrl, dUrl, i, pms, ss, p:ps, cs, subjC, subjBNodeList, ts, genMap)
+pushPred p = modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
+                       (bUrl, dUrl, i, pms, ss, p:ps, cs, subjC, subjBNodeList, ts, genMap)
 
 popPred :: MonadState ParseState m => m Predicate
 popPred = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                put (bUrl, dUrl, i, pms, ss, tail ps, cs, subjC, subjBNodeList, ts, genMap) >>
-                  when (null ps) (error "Cannot pop predicate off empty stack.") >>
-                  return (head ps)
+                put (bUrl, dUrl, i, pms, ss, tail ps, cs, subjC, subjBNodeList, ts, genMap)
+                  *> when (null ps) (fail "Cannot pop predicate off empty stack.")
+                  *> pure (head ps)
 
 isInColl :: MonadState ParseState m => m Bool
-isInColl = get >>= \(_, _, _, _, _, _, cs, _, _, _, _) -> return . not . null $ cs
+isInColl = gets $ \(_, _, _, _, _, _, cs, _, _, _, _) -> not . null $ cs
 
 isInSubjColl :: MonadState ParseState m => m Bool
-isInSubjColl = get >>= \(_, _, _, _, _, _, _, xs, _, _, _) -> do
-               if null xs then return False else return (head xs)
+isInSubjColl = gets $ \(_, _, _, _, _, _, _, xs, _, _, _) ->
+                   if null xs then False else (head xs)
 
 {-
 isInObjColl :: (CharParsing m, MonadState ParseState m) => m Bool
 isInObjColl = get >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
                when (null xs) $ error "null in isInObjColl"
-               return (not (head xs))
+               pure (not (head xs))
 -}
 
 pushSubjColl :: MonadState ParseState m => m ()
-pushSubjColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
-                 put (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts, genMap)
+pushSubjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
+                         (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts, genMap)
 
 popColl :: (CharParsing m, MonadState ParseState m) => m ()
 popColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) -> do
-                when (null subjC) $ error "null in popColl"
+                when (null subjC) $ fail "null in popColl"
                 put (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts, genMap)
 
 pushObjColl :: MonadState ParseState m => m ()
-pushObjColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-                 put (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts,genMap)
+pushObjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
+                        (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts,genMap)
 
 isSubjPropList :: MonadState ParseState m => m Bool
-isSubjPropList = get >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _,_) -> do
-                return subjBNodeList
+isSubjPropList = gets $ \(_, _, _, _, _, _, _, _, subjBNodeList, _,_) -> subjBNodeList
 
 {-
 isObjPropList :: (CharParsing m, MonadState ParseState m) => m Bool
 isObjPropList = get >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
-                return subjBNodeList
+                pure subjBNodeList
 -}
 
 setSubjBlankNodePropList :: MonadState ParseState m => m ()
-setSubjBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
-                 put (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
+setSubjBlankNodePropList =
+  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
+            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
 
 setNotSubjBlankNodePropList :: MonadState ParseState m => m ()
-setNotSubjBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
-                 put (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
+setNotSubjBlankNodePropList =
+  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
+            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
 
 -- setObjBlankNodePropList :: (CharParsing m, Monad m) => m ()
 -- setObjBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
@@ -660,22 +654,23 @@ updateBaseUrl val = _modifyState val no no no no no
 -- combines get_current and increment into a single function
 nextIdCounter :: MonadState ParseState m => m Int
 nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-                put (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) >> return i
+                put (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) *> pure i
 
 updatePMs :: MonadState ParseState m => Maybe PrefixMappings -> m ()
 updatePMs val = _modifyState no no val no no no
 
 -- Register that we have begun processing a collection
 beginColl :: MonadState ParseState m => m ()
-beginColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-            put (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts,genMap)
+beginColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
+                      (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts,genMap)
 
 onCollFirstItem :: MonadState ParseState m => m Bool
-onCollFirstItem = get >>= \(_, _, _, _, _, _, cs, _, _, _,_) -> return (not (null cs) && head cs)
+onCollFirstItem = gets $ \(_, _, _, _, _, _, cs, _, _, _,_) -> (not (null cs) && head cs)
 
 collFirstItemProcessed :: MonadState ParseState m => m ()
-collFirstItemProcessed = get >>= \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts,genMap) ->
-                         put (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts,genMap)
+collFirstItemProcessed =
+  modify $ \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts,genMap) ->
+            (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts,genMap)
 
 -- Register that a collection is finished being processed; the bool value
 -- in the monad is *not* the value that was popped from the stack, but whether
@@ -684,7 +679,7 @@ collFirstItemProcessed = get >>= \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBN
 finishColl :: MonadState ParseState m => m Bool
 finishColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
              let cs' = drop 1 cs
-             in put (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts,genMap) >> return (not $ null cs')
+             in put (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts,genMap) *> pure (not $ null cs')
 
 -- Alias for Nothing for use with _modifyState calls, which can get very long with
 -- many Nothing values.
@@ -757,8 +752,8 @@ parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
-parseFile' bUrl docUrl fpath = do
-  TIO.readFile fpath >>= \bs' -> return $ handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () (maybe "" T.unpack docUrl) bs')
+parseFile' bUrl docUrl fpath =
+  TIO.readFile fpath >>= \bs' -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () (maybe "" T.unpack docUrl) bs')
   where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
@@ -774,24 +769,24 @@ handleResult bUrl result =
     (Left err)         -> Left (ParseFailure $ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
 
-validateUNode :: (CharParsing m, Monad m) => T.Text -> m Node
+validateUNode :: CharParsing m => T.Text -> m Node
 validateUNode t =
     case unodeValidate t of
       Nothing        -> unexpected ("Invalid URI in Turtle parser URI validation: " ++ show t)
-      Just u@(UNode{}) -> return u
+      Just u@UNode{} -> pure u
       Just node      -> unexpected ("Unexpected node in Turtle parser URI validation: " ++ show node)
 
 validateURI :: (CharParsing m, Monad m) => T.Text -> m T.Text
 validateURI t = do
     UNode uri <- validateUNode t
-    return uri
+    pure uri
 
 --------------
 -- auxiliary parsing functions
 
 -- Match the lowercase or uppercase form of 'c'
 caseInsensitiveChar :: CharParsing m => Char -> m Char
-caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
+caseInsensitiveChar c = satisfy ((==c) . toLower)
 
 -- Match the string 's', accepting either lowercase or uppercase form of each character
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
