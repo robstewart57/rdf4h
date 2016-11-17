@@ -55,6 +55,8 @@ library
                  , text-binary
                  , utf8-string
                  , hgal
+                 , parsers
+                 , mtl
   if impl(ghc < 7.6)
     build-depends: ghc-prim
 
