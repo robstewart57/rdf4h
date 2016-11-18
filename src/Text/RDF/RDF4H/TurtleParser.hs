@@ -213,10 +213,7 @@ t_pn_local_esc = char '\\' *> oneOf "_~.-!$&'()*+,;=/?#@%"
 
 -- grammar rules: [140s] PNAME_LN
 t_pname_ln :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
-t_pname_ln =
-  do pre <- t_pname_ns
-     name <- t_pn_local
-     pure (pre `T.append` name)
+t_pname_ln = T.append <$> t_pname_ns <*> t_pn_local
 
 -- grammar rule: [10] subject
 -- [10] subject	::= iri | BlankNode | collection
@@ -229,23 +226,21 @@ t_subject =
     *> pushSubjColl
     *> t_collection)
   where
-    iri         = unode <$> (try t_iri <?> "subject resource") >>= \s -> pushSubj s
+    iri         = unode <$> (try t_iri <?> "subject resource") >>= pushSubj
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
 t_blankNode = do
   genID <- try t_blank_node_label <|> (t_anon *> pure "")
   mp <- currGenIdLookup
-  node <-
-    case Map.lookup genID mp of
-      Nothing -> do
-        i <- nextIdCounter
-        let node = BNodeGen i
-        addGenIdLookup genID i
-        pure node
-      Just i ->
-        pure $ BNodeGen i
-  pure node
+  case Map.lookup genID mp of
+    Nothing -> do
+      i <- nextIdCounter
+      let node = BNodeGen i
+      addGenIdLookup genID i
+      pure node
+    Just i ->
+      pure $ BNodeGen i
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
@@ -304,8 +299,8 @@ t_object = do
                           *> pushSubj bSubj *> pushPred rdfFirstNode *> processObject *> collFirstItemProcessed
 --    (True,True,True)  -> processObject *> collFirstItemProcessed
     (True,True,True)  -> processObject *> collFirstItemProcessed *> popColl
-    (True,_,False) -> BNodeGen <$> nextIdCounter >>= \bSubj -> pushPred rdfRestNode >>
-                      addTripleForObject bSubj *> popPred *> popSubj >>
+    (True,_,False) -> BNodeGen <$> nextIdCounter >>= \bSubj -> pushPred rdfRestNode *>
+                      addTripleForObject bSubj *> popPred *> popSubj *>
                       pushSubj bSubj *> processObject
 
 -- collection: '(' ws* itemList? ws* ')'
