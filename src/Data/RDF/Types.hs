@@ -46,7 +46,6 @@ import qualified Data.Text as T
 import System.IO
 import Text.Printf
 import Data.Binary
-import Control.Monad (guard)
 import Data.Map(Map)
 import Data.Maybe (fromJust)
 import GHC.Generics (Generic)
@@ -178,19 +177,17 @@ isRdfURI :: T.Text -> Either ParseError T.Text
 isRdfURI t = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
 
 -- [18]	IRIREF from Turtle spec
-isRdfURIParser :: (CharParsing m, Monad m) => m T.Text
-isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ [' ','<','>','"','{','}','|','^','`','\\']) <|> nt_uchar)
+isRdfURIParser :: CharParsing m => m T.Text
+isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ " <>\"{}|^`\\") <|> nt_uchar)
 
 -- [10] UCHAR
-nt_uchar :: (CharParsing m, Monad m) => m T.Text
+nt_uchar :: CharParsing m => m T.Text
 nt_uchar =
-    try (char '\\' >> char 'u' >> count 4 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs)) <|>
-    try (char '\\' >> char 'U' >> count 8 hexDigit >>= \cs -> return $ T.pack (uEscapedToXEscaped cs))
+    try (T.pack . uEscapedToXEscaped <$> (string "\\u" *> count 4 hexDigit)) <|>
+    try (T.pack . uEscapedToXEscaped <$> (string "\\U" *> count 8 hexDigit))
 
 uEscapedToXEscaped :: String -> String
-uEscapedToXEscaped ss =
-    let str = ['\\','x'] ++ ss
-    in read ("\"" ++ str ++ "\"")
+uEscapedToXEscaped ss = read ("\"\\x" ++ ss ++ "\"")
 
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
@@ -208,13 +205,12 @@ uriValidateString t = case isRdfURIString of
     isRdfURIString = parse (isRdfURIParserS  <* eof) ("Invalid URI: " ++ t) t
     isRdfURIParserS = many (validUriChar <|> nt_ucharS)
     nt_ucharS =
-        try (char '\\' >> char 'u' >> head . uEscapedToXEscaped <$> count 4 hexDigit) <|>
-        try (char '\\' >> char 'U' >> head . uEscapedToXEscaped <$> count 8 hexDigit)
+        try (head . uEscapedToXEscaped <$> (string "\\u" *> count 4 hexDigit)) <|>
+        try (head . uEscapedToXEscaped <$> (string "\\U" *> count 8 hexDigit))
     -- [18]	IRIREF from Turtle spec
-    validUriChar = try $ do
-        c <- anyChar
-        guard $ not (c >= '\x00' && c <= '\x20') && c `notElem` [' ','<','>','"','{','}','|','^','`','\\']
-        return c
+    validUriChar = try $ satisfy $ \c ->
+      not (c >= '\x00' && c <= '\x20')
+      && c `notElem` [' ','<','>','"','{','}','|','^','`','\\']
 
 -- | Escapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
 --   to the RDF specification.
@@ -223,25 +219,15 @@ escapeRDFSyntax t = T.pack uri
     where
       Right uri = parse unicodeEscParser "" (T.unpack t)
       unicodeEscParser :: (CharParsing m, Monad m) => m String
-      unicodeEscParser = do
-                ss <- many (
-                    try (do { _ <- char '\\'
-                            ; _ <- char 'U'
-                            ; poss <- count 8 hexDigit
-                            ; let str = ['\\','x']++poss
-                            ; return (read ("\"" ++ str ++ "\"") :: String)})
+      unicodeEscParser =
+                concat <$> many (
+                    try (do { str <- ("\\x"++) <$> (string "\\U" *> count 8 hexDigit)
+                            ; pure (read ("\"" ++ str ++ "\"") :: String)})
                    <|>
-                    try (do { _ <- char '\\'
-                            ; _ <- char 'u'
-                            ; pos1 <- hexDigit
-                            ; pos2 <- hexDigit
-                            ; pos3 <- hexDigit
-                            ; pos4 <- hexDigit
-                            ; let str = ['\\','x',pos1,pos2,pos3,pos4]
-                            ; return (read ("\"" ++ str ++ "\"") :: String)})
-                   <|>
-                    (anyChar >>= \c -> return [c]))
-                return (concat ss :: String)
+                    try (do { str <- ("\\x"++) <$> (string "\\u" *> count 4 hexDigit)
+                            ; pure (read ("\"" ++ str ++ "\"") :: String)})
+                   <|> (pure <$> anyChar)
+                   )
 
 
 -- |Return a blank node using the given string identifier.

@@ -69,7 +69,7 @@ nt_triple    =
   do
     subj <- nt_subject   <* optional (skipSome nt_space)
     pred <- nt_predicate <* optional (skipSome nt_space)
-    obj  <- nt_object    <* optional (skipSome nt_space) <* (char '.') <* (many nt_space)
+    obj  <- nt_object    <* optional (skipSome nt_space) <* char '.' <* many nt_space
     pure $ Just (Triple subj pred obj)
 -- [6] literal
 nt_literal :: (CharParsing m, Monad m) => m LValue
