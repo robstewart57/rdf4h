@@ -18,6 +18,7 @@ import Control.Monad (void)
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Control.Applicative
+import Data.Maybe (catMaybes)
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
 -- NTriples format. It requires no configuration options. To use this parser,
@@ -42,12 +43,12 @@ nt_ntripleDoc = manyTill nt_line eof
 
 nt_line :: (CharParsing m, Monad m) => m (Maybe Triple)
 nt_line =
-    skipMany nt_space >>
-     ((nt_comment >>= \res -> pure res)
-      <|> try (nt_triple >>= \res -> nt_eoln *> pure res)
-      <|> try (nt_triple >>= \res -> char '#' *> manyTill anyChar nt_eoln *> pure res)
-      <|> (nt_empty >>= \res -> nt_eoln *> pure res))
-     >>= \res -> pure res
+    skipMany nt_space *>
+     (nt_comment
+      <|> try (nt_triple <* nt_eoln)
+      <|> try (nt_triple <* char '#' <* manyTill anyChar nt_eoln)
+      <|> (nt_empty <* nt_eoln)
+      )
 
 nt_comment :: CharParsing m => m (Maybe Triple)
 nt_comment   = char '#' *> manyTill anyChar nt_eoln *> pure Nothing
@@ -66,27 +67,20 @@ nt_comment   = char '#' *> manyTill anyChar nt_eoln *> pure Nothing
 nt_triple :: (CharParsing m, Monad m) => m (Maybe Triple)
 nt_triple    =
   do
-    subj <- nt_subject
-    optional (skipSome nt_space)
-    pred <- nt_predicate
-    optional (skipSome nt_space)
-    obj <- nt_object
-    optional (skipSome nt_space)
-    void (char '.')
-    void (many nt_space)
+    subj <- nt_subject   <* optional (skipSome nt_space)
+    pred <- nt_predicate <* optional (skipSome nt_space)
+    obj  <- nt_object    <* optional (skipSome nt_space) <* (char '.') <* (many nt_space)
     pure $ Just (Triple subj pred obj)
-
 -- [6] literal
 nt_literal :: (CharParsing m, Monad m) => m LValue
 nt_literal = do
-  s' <- nt_string_literal_quote
-  let s = escapeRDFSyntax s'
+  s <- escapeRDFSyntax <$> nt_string_literal_quote
   option (plainL s) $
                (count 2 (char '^') *> nt_iriref >>= validateURI >>= isAbsoluteParser >>= \iri -> pure (typedL s iri))
-                <|> (nt_langtag >>= \lang -> pure (plainLL s lang))
+                <|> (plainLL s <$> nt_langtag)
 
 -- [9] STRING_LITERAL_QUOTE
-nt_string_literal_quote :: (CharParsing m, Monad m) => m T.Text
+nt_string_literal_quote :: CharParsing m => m T.Text
 nt_string_literal_quote =
     between (char '"') (char '"') $
       T.concat <$> many ((T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD']) <|>
@@ -96,33 +90,28 @@ nt_string_literal_quote =
 -- [144s] LANGTAG
 nt_langtag :: (CharParsing m, Monad m) => m T.Text
 nt_langtag = do
-  void (char '@')
-  ss   <- some (satisfy isLetter)
-  rest <- concat <$> many (char '-' *> some (satisfy isAlphaNum) >>= \lang_str -> pure ('-':lang_str))
+  ss   <- char '@' *> some (satisfy isLetter)
+  rest <- concat <$> many ((:) <$> char '-' <*> some (satisfy isAlphaNum))
   pure (T.pack (ss ++ rest))
 
 -- [8] IRIREF
-nt_iriref ::(CharParsing m, Monad m) => m T.Text
+nt_iriref :: CharParsing m => m T.Text
 nt_iriref =
   between (char '<') (char '>') $
-              T.concat <$> many ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ ['<','>','"','{','}','|','^','`','\\']) <|>
-                                  nt_uchar )
+              T.concat <$> many ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ "<>\"{}|^`\\") <|> nt_uchar )
 
 -- [153s] ECHAR
-nt_echar :: (CharParsing m, Monad m) => m T.Text
-nt_echar = try $ do
-  void (char '\\')
-  c2 <- satisfy isEchar
-  pure (T.pack [c2])
+nt_echar :: CharParsing m => m T.Text
+nt_echar = try $ T.singleton <$> (char '\\' *> satisfy isEchar)
 
 isEchar :: Char -> Bool
 isEchar = (`elem` ['t','b','n','r','f','"','\'','\\'])
 
 -- [10] UCHAR
-nt_uchar :: (CharParsing m, Monad m) => m T.Text
+nt_uchar :: CharParsing m => m T.Text
 nt_uchar =
-    try (char '\\' *> char 'u' *> count 4 hexDigit >>= \cs -> pure $ T.pack ('\\':'u':cs)) <|>
-    try (char '\\' *> char 'U' *> count 8 hexDigit >>= \cs -> pure $ T.pack ('\\':'U':cs))
+    try (T.pack <$> ((++) <$> string "\\u" <*> count 4 hexDigit)) <|>
+    try (T.pack <$> ((++) <$> string "\\U" <*> count 8 hexDigit))
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
@@ -133,27 +122,27 @@ nt_empty     = skipMany nt_space *> pure Nothing
 -- blank node.
 nt_subject :: (CharParsing m, Monad m) => m Node
 nt_subject   =
-  fmap unode nt_uriref <|>
-  fmap bnode nt_blank_node_label
+  unode <$> nt_uriref <|>
+  bnode <$> nt_blank_node_label
 
 -- A predicate may only be a URI reference to a resource.
 nt_predicate :: (CharParsing m, Monad m) => m Node
-nt_predicate = fmap unode nt_uriref
+nt_predicate = unode <$> nt_uriref
 
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
 nt_object :: (CharParsing m, Monad m) => m Node
 nt_object =
-  fmap unode nt_uriref <|>
-  fmap bnode nt_blank_node_label <|>
-  fmap LNode nt_literal
+  unode <$> nt_uriref <|>
+  bnode <$> nt_blank_node_label <|>
+  LNode <$> nt_literal
 
 validateUNode :: CharParsing m => T.Text -> m Node
 validateUNode t =
     case unodeValidate t of
-      Nothing        -> unexpected ("Invalid URI in NTriples parser URI validation: " ++ show t)
       Just u@UNode{} -> pure u
       Just node      -> unexpected ("Unexpected node in NTriples parser URI validation: " ++ show node)
+      Nothing        -> unexpected ("Invalid URI in NTriples parser URI validation: " ++ show t)
 
 validateURI :: (CharParsing m, Monad m) => T.Text -> m T.Text
 validateURI t = do
@@ -173,19 +162,15 @@ absoluteURI = isAbsoluteParser
 nt_uriref :: (CharParsing m, Monad m) => m T.Text
 nt_uriref = between (char '<') (char '>') $ do
               unvalidatedUri <- many (satisfy ( /= '>'))
-              t <- validateURI (T.pack unvalidatedUri)
-              absoluteURI t
+              absoluteURI =<< validateURI (T.pack unvalidatedUri)
 
 -- [141s] BLANK_NODE_LABEL
 nt_blank_node_label :: (CharParsing m, Monad m) => m T.Text
 nt_blank_node_label = do
   void (char '_' *> char ':')
   s1 <- nt_pn_chars_u <|> satisfy isDigit
-  s2 <- option "" $ try $ do
-          sub_dots <- many (char '.')
-          sub_s1   <- some nt_pn_chars
-          pure (sub_dots ++ sub_s1)
-  pure (T.pack ("_:" ++ [s1] ++ s2))
+  s2 <- option "" $ try $ (++) <$> many (char '.') <*> some nt_pn_chars
+  pure (T.pack ("_:" ++ s1:s2))
 
 -- [157s] PN_CHARS_BASE
 -- Not used. It used to be. What's happened?
@@ -257,19 +242,16 @@ parseURL' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURL' = _parseURL parseString'
 
 parseFile' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseFile' path = fmap (handleParse mkRdf . runParser nt_ntripleDoc () path)
-                   (TIO.readFile path)
+parseFile' path =
+  handleParse mkRdf . runParser nt_ntripleDoc () path
+  <$> TIO.readFile path
 
 handleParse :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
                                         Either ParseError [Maybe Triple] ->
                                         Either ParseFailure (RDF a)
 handleParse _mkRdf result
 --  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
-  | otherwise          =
-      case result of
+--  | otherwise          =
+  = case result of
         Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
-        Right ts -> Right $ _mkRdf (conv ts) Nothing (PrefixMappings Map.empty)
-  where
-    conv []            = []
-    conv (Nothing:ts)  = conv ts
-    conv (Just t:ts) = t : conv ts
+        Right ts -> Right $ _mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
