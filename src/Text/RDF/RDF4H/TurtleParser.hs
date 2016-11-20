@@ -7,7 +7,7 @@ module Text.RDF.RDF4H.TurtleParser(
 
 where
 
-import Data.Char (isLetter,isAlphaNum,toLower,isDigit,isHexDigit)
+import Data.Char (isLetter,isAlphaNum,toLower,toUpper,isDigit,isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
@@ -781,7 +781,7 @@ validateURI t = do
 
 -- Match the lowercase or uppercase form of 'c'
 caseInsensitiveChar :: CharParsing m => Char -> m Char
-caseInsensitiveChar c = satisfy ((==c) . toLower)
+caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 
 -- Match the string 's', accepting either lowercase or uppercase form of each character
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
