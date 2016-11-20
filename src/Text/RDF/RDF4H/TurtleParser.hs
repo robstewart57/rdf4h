@@ -2,11 +2,14 @@
 -- <http://www.w3.org/TeamSubmission/turtle/>.
 
 module Text.RDF.RDF4H.TurtleParser(
-  TurtleParser(TurtleParser)
+  TurtleParser(TurtleParser),
+  parseTurtleStringAttoparsec,parseTurtleFileAttoparsec,
+  parseTurtleStringParsec,parseTurtleFileParsec
 )
 
 where
 
+import Data.Attoparsec.ByteString (parse,IResult(..))
 import Data.Char (isLetter,isAlphaNum,toLower,toUpper,isDigit,isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -17,6 +20,7 @@ import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec (runParser,ParseError)
 -- import Text.Parsec.Text (GenParser)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import Data.Sequence(Seq, (|>))
 import qualified Data.Sequence as Seq
@@ -775,6 +779,31 @@ validateURI :: (CharParsing m, Monad m) => T.Text -> m T.Text
 validateURI t = do
     UNode uri <- validateUNode t
     pure uri
+
+---------------------------------
+-- for benchmarking purposes only, exposed temporarily
+
+parseTurtleStringAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
+parseTurtleStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtleDoc initialState) (T.encodeUtf8 bs)
+  where
+    handleResult' res = case res of
+        Fail _ _ err -> error err
+        Partial f -> handleResult' (f (T.encodeUtf8 T.empty))
+        Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
+
+    initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
+
+parseTurtleFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
+parseTurtleFileAttoparsec bUrl docUrl path = parseTurtleStringAttoparsec bUrl docUrl <$> TIO.readFile path
+
+parseTurtleStringParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
+parseTurtleStringParsec = parseString'
+parseTurtleFileParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
+parseTurtleFileParsec = parseFile'
+
+-- end of benchmarks
+---------------------------------
+
 
 --------------
 -- auxiliary parsing functions

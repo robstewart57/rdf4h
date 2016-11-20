@@ -44,8 +44,9 @@ main =
   defaultMainWith
     (defaultConfig {resamples = 100})
     [ env
-      -- fawltyContent <- T.pack <$> readFile "data/ttl/fawlty1.ttl"
         (do rdfContent <- T.pack <$> readFile "bills.099.actions.rdf"
+            fawltyContentTurtle <- T.pack <$> readFile "data/ttl/fawlty1.ttl"
+            fawltyContentNTriples <- T.pack <$> readFile "data/nt/all-fawlty-towers.nt"
             let (Right rdf1) =
                   parseString (XmlParser Nothing Nothing) rdfContent
             let (Right rdf2) =
@@ -59,21 +60,44 @@ main =
               ( rdf1 :: RDF TList
               , rdf2 :: RDF AdjHashMap
               , triples :: Triples
-              )) $ \ ~(triplesList, adjMap,triples) ->
+              , fawltyContentNTriples :: T.Text
+              , fawltyContentTurtle :: T.Text
+              )) $ \ ~(triplesList, adjMap, triples, fawltyContentNTriples, fawltyContentTurtle) ->
         bgroup
           "rdf4h"
-          --  bgroup
-          --     "parsers"
-          --     [ bench "AdjHashMap" $
-          --       nf (parseTtlRDF :: T.Text -> RDF AdjHashMap) fawlty_towers
-          --     , bench "HashSP" $
-          --       nf (parseTtlRDF :: T.Text -> RDF HashSP) fawlty_towers
-          --     , bench "SP" $ nf (parseTtlRDF :: T.Text -> RDF SP) fawlty_towers
-          --     , bench "TList" $
-          --       nf (parseTtlRDF :: T.Text -> RDF TList) fawlty_towers
-          --     ]
-          -- ,
-          [ bgroup
+           [ bgroup
+              "parsers"
+              [ bench "ntriples-parsec" $
+                nf (\t ->
+                      let res = parseNTriplesStringParsec t :: Either ParseFailure (RDF TList)
+                      in case res of
+                        Left e -> error (show e)
+                        Right rdfG -> rdfG
+                   ) fawltyContentNTriples
+              , bench "ntriples-attoparsec" $
+                nf (\t ->
+                      let res = parseNTriplesStringAttoparsec t :: Either ParseFailure (RDF TList)
+                      in case res of
+                        Left e -> error (show e)
+                        Right rdfG -> rdfG
+                   ) fawltyContentNTriples
+              , bench "turtle-parsec" $
+                nf (\t ->
+                      let res = parseTurtleStringParsec Nothing Nothing t :: Either ParseFailure (RDF TList)
+                      in case res of
+                        Left e -> error (show e)
+                        Right rdfG -> rdfG
+                   ) fawltyContentTurtle
+              , bench "turtle-attoparsec" $
+                nf (\t ->
+                      let res = parseTurtleStringAttoparsec Nothing Nothing t :: Either ParseFailure (RDF TList)
+                      in case res of
+                        Left e -> error (show e)
+                        Right rdfG -> rdfG
+                   ) fawltyContentTurtle
+              ]
+          ,
+            bgroup
               "query"
               (queryBench "TList" triplesList ++
                queryBench "AdjHashMap" adjMap

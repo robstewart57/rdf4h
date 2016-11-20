@@ -2,14 +2,18 @@
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 module Text.RDF.RDF4H.NTriplesParser
-  (NTriplesParser(NTriplesParser), ParseFailure)
+  (NTriplesParser(NTriplesParser), ParseFailure
+  ,parseNTriplesStringAttoparsec,parseNTriplesFileAttoparsec
+  ,parseNTriplesStringParsec,parseNTriplesFileParsec)
   where
 
 import Prelude hiding (init,pred)
 import Data.RDF.Types
 import Text.RDF.RDF4H.ParserUtils
+import Data.Attoparsec.ByteString (parse,IResult(..))
 import Data.Char (isLetter, isDigit,isAlphaNum, isAsciiUpper, isAsciiLower)
 import Data.Map as Map (empty)
+import qualified Data.Text.Encoding as T
 import Text.Parsec (runParser,ParseError)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -234,6 +238,28 @@ nt_lf          =   char '\n'
 -- Tab is \t.
 nt_tab :: CharParsing m => m Char
 nt_tab         =   char '\t'
+
+---------------------------------
+-- for benchmarking purposes only, exposed temporarily
+
+parseNTriplesStringAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
+parseNTriplesStringAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
+  where
+    handleResult res = case res of
+        Fail _ _ err -> error err
+        Partial f -> handleResult (f (T.encodeUtf8 T.empty))
+        Done _ ts -> Right $ mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
+
+parseNTriplesFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseNTriplesFileAttoparsec path = parseNTriplesStringAttoparsec <$> TIO.readFile path
+
+parseNTriplesStringParsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
+parseNTriplesStringParsec = parseString'
+parseNTriplesFileParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseNTriplesFileParsec = parseFile'
+
+-- end of benchmarks
+---------------------------------
 
 parseString' :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
 parseString' bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)

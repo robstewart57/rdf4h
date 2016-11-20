@@ -40,7 +40,8 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
-  build-depends:   base >= 4.8.0.0
+  build-depends:   attoparsec >= 0.13.1.0
+                 , base >= 4.8.0.0
                  , bytestring
                  , directory
                  , containers
