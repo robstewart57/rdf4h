@@ -520,8 +520,7 @@ sameObj  t1 t2 = objectOf t1 == objectOf t2
 
 -- |pick a random triple from an RDF graph if the graph is not empty.
 tripleFromGen
-  :: Rdf rdf
-  => (RDF rdf -> Triples) -> RDF rdf -> Gen (Maybe Triple)
+  :: (RDF rdf -> Triples) -> RDF rdf -> Gen (Maybe Triple)
 tripleFromGen _triplesOf rdf =
   if null ts
     then return Nothing

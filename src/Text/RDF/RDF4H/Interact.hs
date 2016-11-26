@@ -70,7 +70,7 @@ printTriples  = mapM_ print
 -- Load an RDF using the given parseFunc, parser, and the location (filesystem path
 -- or HTTP URL), calling error with the 'ParseFailure' message if unable to load
 -- or parse for any reason.
-_load :: (RdfParser p, Rdf a) => 
+_load :: (Rdf a) => 
             (p -> String -> IO (Either ParseFailure (RDF a))) -> 
              p -> String -> IO (RDF a)
 _load parseFunc parser location = parseFunc parser location >>= _handle

@@ -7,7 +7,7 @@ module Text.RDF.RDF4H.XmlParser(
   XmlParser(XmlParser)
 ) where
 
-import Control.Arrow (Arrow,(>>>),(<<<),(&&&),(***),arr,returnA)
+import Control.Arrow ((>>>),(<<<),(&&&),(***),arr,returnA)
 import Control.Arrow.ArrowState (ArrowState,nextState)
 import Control.Exception
 import Data.List (isPrefixOf)
@@ -139,7 +139,7 @@ parseDescription = updateState
                    <+> (second (getChildren >>> isElem) >>> parsePredicatesFromChildren)
                    <+> (second (neg (hasName "rdf:Description") >>> neg (hasName "Description")) >>> arr2A readTypeTriple))
                >>. replaceLiElems [] (1 :: Int)
-  where readTypeTriple :: (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
+  where readTypeTriple :: (ArrowXml a) => LParseState -> a XmlTree Triple
         readTypeTriple state = getName >>> arr (Triple (stateSubject state) rdfType . unode . T.pack)
         replaceLiElems acc n (Triple s p o : rest) | p == (unode . T.pack) "rdf:li" =
             replaceLiElems (Triple s ((unode . T.pack) ("rdf:_" ++ show n)) o : acc) (n + 1) rest
@@ -154,13 +154,13 @@ parseAsResource n = updateState
         <+> (arr (\s -> s { stateSubject = n }) *** (getChildren >>> isElem) >>> parsePredicatesFromChildren))
 
 -- |Read the attributes of an rdf:Description element.  These correspond to the Predicate Object pairs of the Triple
-parsePredicatesFromAttr :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
+parsePredicatesFromAttr :: forall a. (ArrowXml a) => LParseState -> a XmlTree Triple
 parsePredicatesFromAttr state = getAttrl
     >>> (getName >>> neg isMetaAttr >>> mkUNode) &&& (getChildren >>> getText >>> arr (mkLiteralNode state))
     >>> arr (attachSubject (stateSubject state))
 
 -- | Arrow to determine if special processing is required for an attribute
-isMetaAttr :: forall a. (ArrowXml a, ArrowState GParseState a) => a String String
+isMetaAttr :: forall a. (ArrowXml a) => a String String
 isMetaAttr = isA (== "rdf:about")
          <+> isA (== "rdf:nodeID")
          <+> isA (== "rdf:ID")
@@ -196,7 +196,7 @@ isMetaAttr = isA (== "rdf:about")
 --  _:a <rdf:foo> "foo" .
 --
 -- And hence the use of `hasNamePrefix "rdf"`
-isValidPropElemName :: (ArrowXml a, ArrowState GParseState a) => a XmlTree XmlTree
+isValidPropElemName :: (ArrowXml a) => a XmlTree XmlTree
 isValidPropElemName = hasNamePrefix "rdf"
   -- hasName "rdf:Seq"
   -- <+> hasName "rdf:Bag"
@@ -254,7 +254,7 @@ parsePredicatesFromChildren = updateState
 
 -- See https://www.w3.org/2000/03/rdf-tracking/
 -- Section "Issue rdfms-rdf-names-use: Illegal or unusual use of names from the RDF namespace"
-validPropElementName :: (ArrowXml a, ArrowState GParseState a) => a (LParseState,XmlTree) (LParseState,XmlTree)
+validPropElementName :: (ArrowXml a) => a (LParseState,XmlTree) (LParseState,XmlTree)
 validPropElementName = proc (state,predXml) -> do
   neg (hasName "rdf:Description") -< predXml
   neg (hasName "rdf:RDF") -< predXml
@@ -285,7 +285,7 @@ parseObjectsFromChildren s p = choiceA
 attachSubject :: Subject -> (Predicate, Object) -> Triple
 attachSubject s (p, o) = Triple s p o
 
-reifyTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => Subject -> a Triple Triples
+reifyTriple :: forall a. (ArrowXml a) => Subject -> a Triple Triples
 reifyTriple node = arr (\(Triple s p o) -> [ Triple s p o
                                            , Triple node rdfType rdfStatement
                                            , Triple node rdfSubject s
@@ -294,7 +294,7 @@ reifyTriple node = arr (\(Triple s p o) -> [ Triple s p o
                                            ])
 
 -- |Updates the local state at a given node
-updateState :: forall a. (ArrowXml a, ArrowState GParseState a)
+updateState :: forall a. (ArrowXml a)
             => a (LParseState, XmlTree) (LParseState, XmlTree)
 updateState = ifA (second (hasAttr "xml:lang")) (arr2A readLang) (arr id)
           >>> ifA (second (hasAttr "xml:base")) (arr2A readBase) (arr id)
@@ -302,11 +302,11 @@ updateState = ifA (second (hasAttr "xml:lang")) (arr2A readLang) (arr id)
         readBase state = (getAttrValue0 "xml:base" >>> arr (\base -> state { stateBaseUrl = (BaseUrl . T.pack) base } ) ) &&& arr id
 
 -- |Read a Triple with an rdf:parseType of Literal
-parseAsLiteralTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
+parseAsLiteralTriple :: forall a. (ArrowXml a) => LParseState -> a XmlTree Triple
 parseAsLiteralTriple state = (nameToUNode &&& (xshow getChildren >>> arr (mkTypedLiteralNode rdfXmlLiteral)))
     >>> arr (attachSubject (stateSubject state))
 
-mkCollectionTriples :: forall a. (ArrowXml a, ArrowState GParseState a) => a [(Triple, Node)] Triples
+mkCollectionTriples :: forall a. (ArrowXml a) => a [(Triple, Node)] Triples
 mkCollectionTriples = arr (mkCollectionTriples' [])
   where mkCollectionTriples' [] ((Triple s1 p1 o1, n1):rest) =
             mkCollectionTriples' [Triple s1 p1 n1] ((Triple s1 p1 o1, n1):rest)
@@ -317,16 +317,16 @@ mkCollectionTriples = arr (mkCollectionTriples' [])
         mkCollectionTriples' _ [] = []
 
 -- |Read a Triple and it's type when rdf:datatype is available
-getTypedTriple :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Triple
+getTypedTriple :: forall a. (ArrowXml a) => LParseState -> a XmlTree Triple
 getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& xshow getChildren >>> arr (\(t, v) -> mkTypedLiteralNode (T.pack t) v))
     >>> arr (attachSubject (stateSubject state))
 
-getResourceTriple :: forall a. (ArrowXml a, ArrowState GParseState a)
+getResourceTriple :: forall a. (ArrowXml a)
                   => LParseState -> a XmlTree Triple
 getResourceTriple state = nameToUNode &&& (attrExpandURI state "rdf:resource" >>> mkUNode)
     >>> arr (attachSubject (stateSubject state))
 
-getNodeIdTriple :: forall a. (ArrowXml a, ArrowState GParseState a)
+getNodeIdTriple :: forall a. (ArrowXml a)
                 => LParseState -> a XmlTree Triple
 getNodeIdTriple state = nameToUNode &&& (getAttrValue "rdf:nodeID" >>> arr (bnode . T.pack))
     >>> arr (attachSubject (stateSubject state))
@@ -342,7 +342,7 @@ mkNode state = choiceA [ hasAttr "rdf:about" :-> (attrExpandURI state "rdf:about
 
 -- See https://www.w3.org/2000/03/rdf-tracking/
 -- Section "Issue rdfms-rdf-names-use: Illegal or unusual use of names from the RDF namespace"
-validNodeElementName :: (ArrowXml a, ArrowState GParseState a) => a XmlTree XmlTree
+validNodeElementName :: (ArrowXml a) => a XmlTree XmlTree
 validNodeElementName = neg (hasName "rdf:RDF")
                        >>> neg (hasName "rdf:ID")
                        >>> neg (hasName "rdf:about")
@@ -375,13 +375,13 @@ attrExpandURI state attr = getAttrValue attr &&& baseUrl >>> expandURI
   where baseUrl = constA (case stateBaseUrl state of BaseUrl b -> T.unpack b)
 
 -- |Make a UNode from an absolute string
-mkUNode :: forall a. (Arrow a, ArrowIf a) => a String Node
+mkUNode :: forall a. (ArrowIf a) => a String Node
 mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (fromJust . unodeValidate . T.pack))
                   , arr (\_ -> True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
                   ]
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs
-mkRelativeNode :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Node
+mkRelativeNode :: forall a. (ArrowXml a) => LParseState -> a XmlTree Node
 mkRelativeNode s = (getAttrValue "rdf:ID" >>> arr (\x -> '#':x)) &&& baseUrl
     >>> expandURI >>> arr (unode . T.pack)
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> T.unpack b)
