@@ -40,6 +40,7 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
+                 , Text.RDF.RDF4H.ParserUtils
   build-depends:   attoparsec >= 0.13.1.0
                  , base >= 4.8.0.0
                  , bytestring
@@ -66,8 +67,7 @@ library
   else
     build-depends: network-uri < 2.6, network < 2.6
 
-  other-modules:   Text.RDF.RDF4H.ParserUtils
-                 , Text.RDF.RDF4H.Interact
+  other-modules:   Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
   extensions:      BangPatterns RankNTypes MultiParamTypeClasses Arrows FlexibleContexts OverloadedStrings DoAndIfThenElse
   ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields

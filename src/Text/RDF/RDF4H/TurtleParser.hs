@@ -3,8 +3,7 @@
 
 module Text.RDF.RDF4H.TurtleParser(
   TurtleParser(TurtleParser),
-  parseTurtleStringAttoparsec,parseTurtleFileAttoparsec,
-  parseTurtleStringParsec,parseTurtleFileParsec
+  TurtleParserCustom(TurtleParserCustom)
 )
 
 where
@@ -46,11 +45,24 @@ import Control.Monad.State.Strict
 -- class.
 data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe T.Text)
 
--- |'TurtleParser' is an instance of 'RdfParser'.
+data TurtleParserCustom = TurtleParserCustom (Maybe BaseUrl) (Maybe T.Text) Parser 
+
+-- |'TurtleParser' is an instance of 'RdfParser' using a parsec based parser.
 instance RdfParser TurtleParser where
-  parseString (TurtleParser bUrl dUrl)  = parseString' bUrl dUrl
-  parseFile   (TurtleParser bUrl dUrl)  = parseFile' bUrl dUrl
-  parseURL    (TurtleParser bUrl dUrl)  = parseURL'  bUrl dUrl
+  parseString (TurtleParser bUrl dUrl)  = parseStringParsec bUrl dUrl
+  parseFile   (TurtleParser bUrl dUrl)  = parseFileParsec bUrl dUrl
+  parseURL    (TurtleParser bUrl dUrl)  = parseURLParsec  bUrl dUrl
+
+-- |'TurtleParser' is an instance of 'RdfParser' using either a
+-- parsec or an attoparsec based parser.
+instance RdfParser TurtleParserCustom where
+  parseString (TurtleParserCustom bUrl dUrl Parsec)      = parseStringParsec bUrl dUrl
+  parseString (TurtleParserCustom bUrl dUrl Attoparsec)  = parseStringAttoparsec bUrl dUrl
+  parseFile   (TurtleParserCustom bUrl dUrl Parsec)      = parseFileParsec bUrl dUrl
+  parseFile   (TurtleParserCustom bUrl dUrl Attoparsec)  = parseFileAttoparsec bUrl dUrl
+  parseURL    (TurtleParserCustom bUrl dUrl Parsec)      = parseURLParsec  bUrl dUrl
+  parseURL    (TurtleParserCustom bUrl dUrl Attoparsec)  = parseURLAttoparsec  bUrl dUrl
+
 
 type ParseState =
   (Maybe BaseUrl,    -- the current BaseUrl, may be Nothing initially, but not after it is once set
@@ -719,6 +731,10 @@ addTripleForObject obj =
        unexpected $ "No Predicate with which to create triple for: " ++ show obj
      put (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj,genMap)
 
+
+---------------------------------
+-- parsec based parsers
+
 -- |Parse the document at the given location URL as a Turtle document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the Turtle document itself.
 --
@@ -736,31 +752,60 @@ addTripleForObject obj =
 -- base URI against which the relative URI is resolved.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseURL' :: (Rdf a) =>
+parseURLParsec :: (Rdf a) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
                  -> Maybe T.Text     -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the Turtle document.
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
-parseURL' bUrl docUrl = _parseURL (parseString' bUrl docUrl)
+parseURLParsec bUrl docUrl = _parseURL (parseStringParsec bUrl docUrl)
 
 -- |Parse the given file as a Turtle document. The arguments and return type have the same semantics
 -- as 'parseURL', except that the last @String@ argument corresponds to a filesystem location rather
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
-parseFile' bUrl docUrl fpath =
-  TIO.readFile fpath >>= \bs' -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () (maybe "" T.unpack docUrl) bs')
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
+parseFileParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
+parseFileParsec bUrl docUrl fpath =
+  TIO.readFile fpath >>= \bs' -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc (initialState bUrl docUrl)) () (maybe "" T.unpack docUrl) bs')
+
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
 -- a string rather than a location URI.
-parseString' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
-parseString' bUrl docUrl ttlStr = handleResult bUrl (runParser (evalStateT t_turtleDoc initialState) () "" ttlStr)
-  where initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
+parseStringParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
+parseStringParsec bUrl docUrl ttlStr = handleResult bUrl (runParser (evalStateT t_turtleDoc (initialState bUrl docUrl)) () "" ttlStr)
+
+
+---------------------------------
+-- attoparsec based parsers
+
+parseStringAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
+parseStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtleDoc (initialState bUrl docUrl)) (T.encodeUtf8 bs)
+  where
+    handleResult' res = case res of
+        Fail _ _ err -> error err
+        Partial f -> handleResult' (f (T.encodeUtf8 T.empty))
+        Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
+
+parseFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
+parseFileAttoparsec bUrl docUrl path = parseStringAttoparsec bUrl docUrl <$> TIO.readFile path
+
+parseURLAttoparsec :: (Rdf a) =>
+                 Maybe BaseUrl       -- ^ The optional base URI of the document.
+                 -> Maybe T.Text     -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> String           -- ^ The location URI from which to retrieve the Turtle document.
+                 -> IO (Either ParseFailure (RDF a))
+                                     -- ^ The parse result, which is either a @ParseFailure@ or the RDF
+                                     --   corresponding to the Turtle document.
+parseURLAttoparsec bUrl docUrl = _parseURL (parseStringAttoparsec bUrl docUrl)
+
+---------------------------------
+
+initialState :: Maybe BaseUrl -> Maybe T.Text -> ParseState
+initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
+
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result =
@@ -780,29 +825,6 @@ validateURI t = do
     UNode uri <- validateUNode t
     pure uri
 
----------------------------------
--- for benchmarking purposes only, exposed temporarily
-
-parseTurtleStringAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
-parseTurtleStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtleDoc initialState) (T.encodeUtf8 bs)
-  where
-    handleResult' res = case res of
-        Fail _ _ err -> error err
-        Partial f -> handleResult' (f (T.encodeUtf8 T.empty))
-        Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
-
-    initialState = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
-
-parseTurtleFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
-parseTurtleFileAttoparsec bUrl docUrl path = parseTurtleStringAttoparsec bUrl docUrl <$> TIO.readFile path
-
-parseTurtleStringParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
-parseTurtleStringParsec = parseString'
-parseTurtleFileParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
-parseTurtleFileParsec = parseFile'
-
--- end of benchmarks
----------------------------------
 
 
 --------------

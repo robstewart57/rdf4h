@@ -13,34 +13,44 @@ import Data.RDF.Types
 import Data.RDF.Query
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.NTriplesParser
+import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Graph.TList
 
-tests :: Manifest -> TestTree
-tests = runManifestTests mfEntryToTest
+testsParsec :: Manifest -> TestTree
+testsParsec = runManifestTests (mfEntryToTest testParserParsec)
 
-mfEntryToTest :: TestEntry -> TestTree
-mfEntryToTest (TestTurtleEval nm _ _ act' res') =
+testsAttoparsec :: Manifest -> TestTree
+testsAttoparsec = runManifestTests (mfEntryToTest testParserAttoparsec)
+
+mfEntryToTest :: TurtleParserCustom -> TestEntry -> TestTree
+mfEntryToTest parser (TestTurtleEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       res = (UNode . fromJust . fileSchemeToFilePath) res'
-      parsedRDF   = parseFile testParser (nodeURI act) >>= return . fromEither :: IO (RDF TList)
+      parsedRDF   = parseFile parser (nodeURI act) >>= return . fromEither :: IO (RDF TList)
       expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TList)
   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
-mfEntryToTest (TestTurtleNegativeEval nm _ _ act') =
+mfEntryToTest parser (TestTurtleNegativeEval nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
+      rdf = parseFile parser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest (TestTurtlePositiveSyntax nm _ _ act') =
+mfEntryToTest parser (TestTurtlePositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
+      rdf = parseFile parser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
-mfEntryToTest (TestTurtleNegativeSyntax nm _ _ act') =
+mfEntryToTest parser (TestTurtleNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
-      rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
+      rdf = parseFile parser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 mfBaseURITurtle :: BaseUrl
 mfBaseURITurtle   = BaseUrl "http://www.w3.org/2013/TurtleTests/"
 
-testParser :: TurtleParser
-testParser = TurtleParser (Just mfBaseURITurtle) Nothing
+-- testParser :: TurtleParser
+-- testParser = TurtleParser (Just mfBaseURITurtle) Nothing
+
+testParserParsec :: TurtleParserCustom
+testParserParsec = TurtleParserCustom (Just mfBaseURITurtle) Nothing Parsec
+
+testParserAttoparsec :: TurtleParserCustom
+testParserAttoparsec = TurtleParserCustom (Just mfBaseURITurtle) Nothing Attoparsec

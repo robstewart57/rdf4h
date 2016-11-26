@@ -1,5 +1,6 @@
 module Text.RDF.RDF4H.ParserUtils(
-  _parseURL, justTriples
+  _parseURL, justTriples,
+  Parser(..)
 ) where
 
 import Data.RDF.Types
@@ -12,6 +13,8 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
 -- import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+
+data Parser = Parsec | Attoparsec
 
 -- | A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.

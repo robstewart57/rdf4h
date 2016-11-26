@@ -10,8 +10,6 @@ import qualified Data.Text as T
 import System.Directory (getCurrentDirectory)
 import Test.QuickCheck.Arbitrary
 import Test.Tasty (defaultMain,testGroup)
-import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleParser
-import qualified Text.RDF.RDF4H.XmlParser_Test as XmlParser
 import W3C.Manifest
 import qualified W3C.NTripleTest as W3CNTripleTest
 import qualified W3C.RdfXmlTest as W3CRdfXmlTest
@@ -79,13 +77,28 @@ main
            (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))]
        ,
        testGroup
-       "parser-unit-tests"
-        [ TurtleParser.tests
-        , XmlParser.tests]
+       "parser-w3c-tests-ntriples"
+       [ testGroup
+         "parser-w3c-tests-ntriples-parsec"
+         [W3CNTripleTest.testsParsec nTriplesManifest]
+       , testGroup
+         "parser-w3c-tests-ntriples-attoparsec"
+         [W3CNTripleTest.testsAttoparsec nTriplesManifest]
+       ]
        ,
        testGroup
-       "parser-w3c-tests"
-       [ W3CTurtleTest.tests turtleManifest
-       , W3CRdfXmlTest.tests xmlManifest
-       , W3CNTripleTest.tests nTriplesManifest]
-       ])
+       "parser-w3c-tests-turtle"
+       [ testGroup
+         "parser-w3c-tests-turtle-parsec"
+         [W3CTurtleTest.testsParsec turtleManifest]
+       , testGroup
+         "parser-w3c-tests-turtle-attoparsec"
+         [W3CTurtleTest.testsAttoparsec turtleManifest]
+       ]
+       ,
+       testGroup
+       "parser-w3c-tests-xml"
+       [ W3CRdfXmlTest.tests xmlManifest
+       ]
+       ]
+    )

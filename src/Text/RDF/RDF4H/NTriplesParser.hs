@@ -2,9 +2,7 @@
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
 module Text.RDF.RDF4H.NTriplesParser
-  (NTriplesParser(NTriplesParser), ParseFailure
-  ,parseNTriplesStringAttoparsec,parseNTriplesFileAttoparsec
-  ,parseNTriplesStringParsec,parseNTriplesFileParsec)
+  (NTriplesParser(NTriplesParser), NTriplesParserCustom(NTriplesParserCustom),ParseFailure)
   where
 
 import Prelude hiding (init,pred)
@@ -31,11 +29,22 @@ import Data.Maybe (catMaybes)
 -- class.
 data NTriplesParser = NTriplesParser
 
--- |'NTriplesParser' is an instance of 'RdfParser'.
+data NTriplesParserCustom = NTriplesParserCustom Parser
+
+-- |'NTriplesParser' is an instance of 'RdfParser' using parsec based parsers.
 instance RdfParser NTriplesParser where
-  parseString _  = parseString'
-  parseFile   _  = parseFile'
-  parseURL    _  = parseURL'
+  parseString _  = parseStringParsec
+  parseFile   _  = parseFileParsec
+  parseURL    _  = parseURLParsec
+
+-- |'NTriplesParser' is an instance of 'RdfParser'.
+instance RdfParser NTriplesParserCustom where
+  parseString (NTriplesParserCustom Parsec) = parseStringParsec
+  parseString (NTriplesParserCustom Attoparsec) = parseStringAttoparsec
+  parseFile   (NTriplesParserCustom Parsec) = parseFileParsec
+  parseFile   (NTriplesParserCustom Attoparsec) = parseFileAttoparsec
+  parseURL    (NTriplesParserCustom Parsec) = parseURLParsec
+  parseURL    (NTriplesParserCustom Attoparsec) = parseURLAttoparsec
 
 -- We define or redefine all here using same names as the spec, but with an
 -- 'nt_' prefix in order to avoid name clashes (e.g., ntripleDoc becomes
@@ -240,37 +249,40 @@ nt_tab :: CharParsing m => m Char
 nt_tab         =   char '\t'
 
 ---------------------------------
--- for benchmarking purposes only, exposed temporarily
+-- parsec based parsers
 
-parseNTriplesStringAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
-parseNTriplesStringAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
+parseStringParsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
+parseStringParsec bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
+
+parseFileParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseFileParsec path =
+  handleParse mkRdf . runParser nt_ntripleDoc () path
+  <$> TIO.readFile path
+
+parseURLParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseURLParsec = _parseURL parseStringParsec
+
+---------------------------------
+
+---------------------------------
+-- attoparsec based parsers
+
+parseStringAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
+parseStringAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
   where
     handleResult res = case res of
         Fail _ _ err -> error err
         Partial f -> handleResult (f (T.encodeUtf8 T.empty))
         Done _ ts -> Right $ mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
 
-parseNTriplesFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseNTriplesFileAttoparsec path = parseNTriplesStringAttoparsec <$> TIO.readFile path
+parseFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseFileAttoparsec path = parseStringAttoparsec <$> TIO.readFile path
 
-parseNTriplesStringParsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
-parseNTriplesStringParsec = parseString'
-parseNTriplesFileParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseNTriplesFileParsec = parseFile'
+parseURLAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseURLAttoparsec = _parseURL parseStringAttoparsec
 
--- end of benchmarks
 ---------------------------------
 
-parseString' :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
-parseString' bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
-
-parseURL' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseURL' = _parseURL parseString'
-
-parseFile' :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseFile' path =
-  handleParse mkRdf . runParser nt_ntripleDoc () path
-  <$> TIO.readFile path
 
 handleParse :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
                                         Either ParseError [Maybe Triple] ->

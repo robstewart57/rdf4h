@@ -10,26 +10,34 @@ import W3C.W3CAssertions
 
 import Data.RDF.Types
 import Text.RDF.RDF4H.NTriplesParser
+import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Graph.TList
 
-tests :: Manifest -> TestTree
-tests = runManifestTests mfEntryToTest
+testsParsec :: Manifest -> TestTree
+testsParsec = runManifestTests (mfEntryToTest testParserParsec)
+
+testsAttoparsec :: Manifest -> TestTree
+testsAttoparsec = runManifestTests (mfEntryToTest testParserAttoparsec)
 
 -- Functions to map manifest test entries to unit tests.
 -- They are defined here to avoid cluttering W3C.Manifest
 -- with functions that may not be needed to those who
 -- just want to parse Manifest files.
 -- TODO: They should probably be moved to W3C.Manifest after all.
-mfEntryToTest :: TestEntry -> TestTree
-mfEntryToTest (TestNTriplesPositiveSyntax nm _ _ act') =
+mfEntryToTest :: NTriplesParserCustom -> TestEntry -> TestTree
+mfEntryToTest testParser (TestNTriplesPositiveSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsParsed rdf
-mfEntryToTest (TestNTriplesNegativeSyntax nm _ _ act') =
+mfEntryToTest testParser (TestNTriplesNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
-testParser :: NTriplesParser
-testParser = NTriplesParser
+testParserParsec :: NTriplesParserCustom
+testParserParsec = NTriplesParserCustom Parsec
+
+testParserAttoparsec :: NTriplesParserCustom
+testParserAttoparsec = NTriplesParserCustom Attoparsec
+
