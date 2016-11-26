@@ -17,3 +17,19 @@ rdf4h is a library for working with RDF in Haskell.
 For details see the GitHub project pages:
 
 http://robstewart57.github.io/rdf4h/
+
+To run the tests:
+
+```shell
+$ git submodule update --init --recursive
+$ git submodule foreach git pull origin gh-pages
+$ stack test
+```
+
+To run the bencharks:
+
+```shell
+$ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
+$ gzip -d bills.099.actions.rdf.gz
+$ stack bench
+```
