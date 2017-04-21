@@ -28,6 +28,7 @@ otherTestFiles = [("data/ttl", "example1"),
 --                  ("data/ttl", "example7"), -- rdf4h URIs support RFC3986, not unicode IRIs in RFC3987
                   ("data/ttl", "example8"),
                   ("data/ttl", "example9"),
+                  ("data/ttl", "example10"),
                   ("data/ttl", "fawlty1")
                  ]
 
