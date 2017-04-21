@@ -27,6 +27,7 @@ otherTestFiles = [("data/ttl", "example1"),
                   ("data/ttl", "example6"),
 --                  ("data/ttl", "example7"), -- rdf4h URIs support RFC3986, not unicode IRIs in RFC3987
                   ("data/ttl", "example8"),
+                  ("data/ttl", "example9"),
                   ("data/ttl", "fawlty1")
                  ]
 
@@ -51,27 +52,27 @@ checkGoodConformanceTest :: Int -> TestTree
 checkGoodConformanceTest i =
   let expGr = loadExpectedGraph "test" i
       inGr  = loadInputGraph    "test" i
-  in doGoodConformanceTest expGr inGr (printf "test %d" i :: String)
+  in doGoodConformanceTest expGr inGr (printf "test-%d" i :: String)
 
 checkGoodOtherTest :: String -> String -> TestTree
 checkGoodOtherTest dir fname =
     let expGr = loadExpectedGraph1 (printf "%s/%s.out" dir fname :: String)
         inGr  = loadInputGraph1 dir fname
-    in doGoodConformanceTest expGr inGr $ printf "test using file \"%s\"" fname
+    in doGoodConformanceTest expGr inGr $ printf "turtle-%s" fname
 
-doGoodConformanceTest   :: IO (Either ParseFailure (RDF TList)) -> 
-                           IO (Either ParseFailure (RDF TList)) -> 
+doGoodConformanceTest   :: IO (Either ParseFailure (RDF TList)) ->
+                           IO (Either ParseFailure (RDF TList)) ->
                            String -> TestTree
 doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    in testGroup (printf "Conformance %s" testname) $ map (uncurry testCase) [("Loading expected graph data", t1), ("Loading input graph data", t2), ("Comparing graphs", t3)]
+    in testGroup (printf "conformance-%s" testname) $ map (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
 
 checkBadConformanceTest :: Int -> TestTree
 checkBadConformanceTest i =
   let t = assertLoadFailure (show i) (loadInputGraph "bad" i)
-  in testCase (printf "Loading test %d (negative)" i) t
+  in testCase (printf "loading-test-%d-negative" i) t
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
