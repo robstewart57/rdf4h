@@ -45,7 +45,7 @@ import Control.Monad.State.Strict
 -- class.
 data TurtleParser = TurtleParser (Maybe BaseUrl) (Maybe T.Text)
 
-data TurtleParserCustom = TurtleParserCustom (Maybe BaseUrl) (Maybe T.Text) Parser 
+data TurtleParserCustom = TurtleParserCustom (Maybe BaseUrl) (Maybe T.Text) Parser
 
 -- |'TurtleParser' is an instance of 'RdfParser' using a parsec based parser.
 instance RdfParser TurtleParser where
@@ -340,6 +340,7 @@ t_collection =
           popPred
           pushPred rdfRestNode
           addTripleForObject rdfNilNode
+          void popSubj
 
           -- popPred
           -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
