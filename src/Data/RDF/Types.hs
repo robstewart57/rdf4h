@@ -712,7 +712,10 @@ canonicalizerTable =
     doubleUri  =  "http://www.w3.org/2001/XMLSchema#double"
 
 _integerStr, _decimalStr, _doubleStr :: T.Text -> T.Text
-_integerStr = T.dropWhile (== '0')
+_integerStr t =
+  if T.length t == 1
+  then t
+  else T.dropWhile (== '0') t
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
