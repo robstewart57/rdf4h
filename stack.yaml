@@ -1,4 +1,5 @@
 resolver: lts-7.9
+compiler-check: newer-minor
 packages:
 - '.'
 extra-deps:
