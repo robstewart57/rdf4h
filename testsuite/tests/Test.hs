@@ -3,6 +3,7 @@
 module Main where
 
 import Control.Monad
+import Data.List.Utils (replace)
 import qualified Data.Map as Map
 import Data.RDF
 import           Data.RDF.PropertyTests
@@ -53,8 +54,9 @@ main
 -- justification for separation: http://stackoverflow.com/a/33046723
  = do
   dir <- getCurrentDirectory
+  let posix_path = replace "\\" "/" dir
   let fileSchemeUri suitesDir =
-        T.pack ("file://" ++ dir ++ "/" ++ T.unpack suitesDir)
+        T.pack ("file://" ++ posix_path ++ "/" ++ T.unpack suitesDir)
   turtleManifest <-
     loadManifest mfPathTurtle (fileSchemeUri suiteFilesDirTurtle)
   xmlManifest <- loadManifest mfPathXml (fileSchemeUri suiteFilesDirXml)

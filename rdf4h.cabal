@@ -114,6 +114,7 @@ test-suite test-rdf4h
                , text >= 1.2.1.0
                , directory
                , safe
+               , MissingH
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
