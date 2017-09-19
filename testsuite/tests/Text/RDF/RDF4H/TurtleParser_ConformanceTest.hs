@@ -29,6 +29,7 @@ otherTestFiles = [("data/ttl", "example1"),
                   ("data/ttl", "example8"),
                   ("data/ttl", "example9"),
                   ("data/ttl", "example10"),
+                  ("data/ttl", "example11"),
                   ("data/ttl", "fawlty1")
                  ]
 
