@@ -7,6 +7,7 @@ import Criterion
 import Criterion.Types
 import Criterion.Main
 import Data.RDF
+import Text.RDF.RDF4H.ParserUtils
 import qualified Data.Text as T
 import Control.DeepSeq (NFData)
 
@@ -69,28 +70,28 @@ main =
               "parsers"
               [ bench "ntriples-parsec" $
                 nf (\t ->
-                      let res = parseNTriplesStringParsec t :: Either ParseFailure (RDF TList)
+                      let res = parseString (NTriplesParserCustom Parsec) t :: Either ParseFailure (RDF TList)
                       in case res of
                         Left e -> error (show e)
                         Right rdfG -> rdfG
                    ) fawltyContentNTriples
               , bench "ntriples-attoparsec" $
                 nf (\t ->
-                      let res = parseNTriplesStringAttoparsec t :: Either ParseFailure (RDF TList)
+                      let res = parseString (NTriplesParserCustom Attoparsec) t :: Either ParseFailure (RDF TList)
                       in case res of
                         Left e -> error (show e)
                         Right rdfG -> rdfG
                    ) fawltyContentNTriples
               , bench "turtle-parsec" $
                 nf (\t ->
-                      let res = parseTurtleStringParsec Nothing Nothing t :: Either ParseFailure (RDF TList)
+                      let res = parseString (TurtleParserCustom Nothing Nothing Parsec) t :: Either ParseFailure (RDF TList)
                       in case res of
                         Left e -> error (show e)
                         Right rdfG -> rdfG
                    ) fawltyContentTurtle
               , bench "turtle-attoparsec" $
                 nf (\t ->
-                      let res = parseTurtleStringAttoparsec Nothing Nothing t :: Either ParseFailure (RDF TList)
+                      let res = parseString (TurtleParserCustom Nothing Nothing Attoparsec)  t :: Either ParseFailure (RDF TList)
                       in case res of
                         Left e -> error (show e)
                         Right rdfG -> rdfG
