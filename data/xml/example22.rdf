@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF xmlns:dcam="http://purl.org/dc/dcam/"
+         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:pgterms="http://www.gutenberg.org/2009/pgterms/"
+         >
+  <pgterms:ebook rdf:about="ebooks/15233">
+    <pgterms:bookshelf>
+      <rdf:Description rdf:nodeID="N8d8ab517be5d4d24a574a79c302445fc">
+        <dcam:memberOf rdf:resource="2009/pgterms/Bookshelf"/>
+        <rdf:value>Napoleonic(Bookshelf)</rdf:value>
+      </rdf:Description>
+    </pgterms:bookshelf>
+  </pgterms:ebook>
+</rdf:RDF>
