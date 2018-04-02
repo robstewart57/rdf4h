@@ -548,7 +548,7 @@ instance Ord Triple where
 -- equal.
 instance Eq LValue where
   (PlainL bs1)        ==  (PlainL bs2)        =  bs1 == bs2
-  (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  bs1' == bs2'    &&  bs1 == bs2
+  (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  T.toLower bs1' == T.toLower bs2'    &&  bs1 == bs2
   (TypedL bsType1 bs1)    ==  (TypedL bsType2 bs2)    =  bsType1 == bsType2 &&  bs1 == bs2
   _                   ==  _                   =  False
 
