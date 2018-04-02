@@ -15,6 +15,7 @@ import qualified W3C.NTripleTest as W3CNTripleTest
 import qualified W3C.RdfXmlTest as W3CRdfXmlTest
 import qualified W3C.TurtleTest as W3CTurtleTest
 import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleUnitTest
+import qualified Text.RDF.RDF4H.XmlParser_Test as XmlUnitTest
 
 suiteFilesDirTurtle,suiteFilesDirXml,suiteFilesDirNTriples :: T.Text
 suiteFilesDirTurtle = "rdf-tests/turtle/"
@@ -78,7 +79,10 @@ main
            (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))]
        ,
        testGroup "parser-unit-tests-turtle"
-       TurtleUnitTest.allCTests
+       TurtleUnitTest.tests
+       ,
+       testGroup "parser-unit-tests-xml"
+       XmlUnitTest.tests
        ,
        testGroup
        "parser-w3c-tests-ntriples"

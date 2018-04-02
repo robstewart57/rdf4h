@@ -1,4 +1,7 @@
-module Text.RDF.RDF4H.TurtleParser_ConformanceTest where
+module Text.RDF.RDF4H.TurtleParser_ConformanceTest
+  (
+    tests
+  ) where
 
 -- Testing imports
 import Test.Tasty
@@ -15,8 +18,8 @@ import qualified Data.Text.IO as TIO
 import Text.Printf
 import Text.RDF.RDF4H.TurtleParser
 
-tests :: TestTree
-tests = testGroup "TurtleParser" allCTests
+-- tests :: TestTree
+-- tests = testGroup "TurtleParser" allCTests
 
 -- A list of other tests to run, each entry of which is (directory, fname_without_ext).
 otherTestFiles :: [(String, String)]
@@ -43,8 +46,8 @@ mtestBaseUri = Just $ BaseUrl $ T.pack testBaseUri
 fpath :: String -> Int -> String -> String
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 
-allCTests :: [TestTree]
-allCTests = ts1 ++ ts2 ++ ts3
+tests :: [TestTree]
+tests = ts1 ++ ts2 ++ ts3
    where
         ts1 = map (checkGoodConformanceTest) [0..30]
         ts2 = map (checkBadConformanceTest) [0..14]
