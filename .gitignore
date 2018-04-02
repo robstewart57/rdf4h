@@ -40,3 +40,10 @@ data/w3c/turtle/TurtleTests/README
 bills.099.actions.rdf
 bills.102.rdf
 docs/_site/
+docs/about.md
+docs/feed.xml
+docs/README.md
+docs/Kiko-mini-2/
+docs/_posts/
+bills.099.actions.nt
+bills.102.nt
