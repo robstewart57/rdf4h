@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<rdf:RDF xmlns:dcam="http://purl.org/dc/dcam/"
+<rdf:RDF xml:base="http://www.gutenberg.org/"
+         xmlns:dcam="http://purl.org/dc/dcam/"
          xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:pgterms="http://www.gutenberg.org/2009/pgterms/"
          >

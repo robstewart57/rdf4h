@@ -1,4 +1,4 @@
-<http://njh.me/ebooks/15233> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.gutenberg.org/2009/pgterms/ebook> .
-<http://njh.me/ebooks/15233> <http://www.gutenberg.org/2009/pgterms/bookshelf> _:genid1 .
-_:genid1 <http://purl.org/dc/dcam/memberOf> <http://njh.me/2009/pgterms/Bookshelf> .
+<http://www.gutenberg.org/ebooks/15233> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.gutenberg.org/2009/pgterms/ebook> .
+<http://www.gutenberg.org/ebooks/15233> <http://www.gutenberg.org/2009/pgterms/bookshelf> _:genid1 .
+_:genid1 <http://purl.org/dc/dcam/memberOf> <http://www.gutenberg.org/2009/pgterms/Bookshelf> .
 _:genid1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "Napoleonic(Bookshelf)" .
