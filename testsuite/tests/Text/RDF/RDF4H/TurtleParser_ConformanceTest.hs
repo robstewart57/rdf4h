@@ -119,6 +119,8 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
     -- [] was parsed.
     equalNodes (BNode _) (BNodeGen _) = True
     equalNodes (BNodeGen _) (BNode _) = True
+    equalNodes (BNodeGen _) (BNodeGen _) = True
+    equalNodes (BNode _) (BNode _) = True
     equalNodes n1          n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
