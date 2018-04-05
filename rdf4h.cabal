@@ -24,10 +24,6 @@ extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
 
-flag network-uri
-   description: Get Network.URI from the network-uri package
-   default: True
-
 library
   exposed-modules: Data.RDF
                  , Data.RDF.Namespace
@@ -41,7 +37,7 @@ library
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
                  , Text.RDF.RDF4H.ParserUtils
-  build-depends:   attoparsec >= 0.13.1.0
+  build-depends:   attoparsec
                  , base >= 4.8.0.0
                  , bytestring
                  , directory
@@ -59,13 +55,10 @@ library
                  , hgal
                  , parsers
                  , mtl
+                 , network-uri >= 2.6
+                 , network >= 2.6
   if impl(ghc < 7.6)
     build-depends: ghc-prim
-
-  if flag(network-uri)
-    build-depends: network-uri >= 2.6, network >= 2.6
-  else
-    build-depends: network-uri < 2.6, network < 2.6
 
   other-modules:   Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
@@ -78,14 +71,11 @@ executable rdf4h
                  , rdf4h
                  , containers
                  , text >= 1.2.1.0
+                 , network-uri >= 2.6
+                 , network >= 2.6
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
-
-  if flag(network-uri)
-    build-depends: network-uri >= 2.6, network >= 2.6
-  else
-    build-depends: network-uri < 2.6, network < 2.6
 
   extensions:      BangPatterns RankNTypes ScopedTypeVariables MultiParamTypeClasses OverloadedStrings
   ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
@@ -114,14 +104,11 @@ test-suite test-rdf4h
                , text >= 1.2.1.0
                , directory
                , safe
+               , network-uri >= 2.6
+               , network >= 2.6
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
-
-  if flag(network-uri)
-    build-depends: network-uri >= 2.6, network >= 2.6
-  else
-    build-depends: network-uri < 2.6, network < 2.6
 
   other-modules: W3C.TurtleTest
   hs-source-dirs: testsuite/tests

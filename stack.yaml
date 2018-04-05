@@ -3,6 +3,3 @@ packages:
 - '.'
 extra-deps:
 - hgal-2.0.0.2
-flags:
-  rdf4h:
-    network-uri: true
