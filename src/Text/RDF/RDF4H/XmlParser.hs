@@ -1,4 +1,9 @@
-{-# Language Arrows,OverloadedStrings,DoAndIfThenElse,DeriveDataTypeable #-}
+{-# LANGUAGE Arrows #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- |An parser for the RDF/XML format
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
@@ -9,6 +14,7 @@ module Text.RDF.RDF4H.XmlParser(
 
 
 import Control.Arrow ((>>>),(<<<),(&&&),(***),arr,returnA)
+import Control.Arrow.ArrowList (arrL)
 import Control.Arrow.ArrowState (ArrowState,nextState)
 import Control.Exception
 import Data.List (isPrefixOf)
@@ -16,10 +22,11 @@ import qualified Data.Map as Map (fromList)
 import Data.Maybe
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
-import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
-import qualified Data.Text as T (Text,pack,unpack)
+import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate,uriValidateString)
+import qualified Data.Text as T -- (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
+
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
@@ -149,7 +156,8 @@ parseDescription = updateState
 
 -- |Parse the current predicate element as a rdf:Description element (used when rdf:parseType = "Resource")
 parseAsResource :: forall a. (ArrowXml a, ArrowState GParseState a) => Node -> a (LParseState, XmlTree) Triple
-parseAsResource n = updateState
+parseAsResource n =
+  updateState
     >>>     (arr2A parsePredicatesFromAttr
         <+> (second getName >>> arr (\(s, p) -> Triple (stateSubject s) ((unode . T.pack) p) n))
         <+> (arr (\s -> s { stateSubject = n }) *** (getChildren >>> isElem) >>> parsePredicatesFromChildren))
@@ -287,7 +295,7 @@ validPropElementName = proc (state,predXml) -> do
 parseObjectsFromChildren :: forall a. (ArrowIf a, ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p =
-  choiceA
+  choiceA 
    [ isText :-> (neg( isWhiteSpace) >>> getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
    , isElem :-> (parseObjectDescription)
    ]
@@ -388,12 +396,34 @@ nameToUNode :: forall a. (ArrowXml a) => a XmlTree Node
 nameToUNode = getName >>> mkUNode
 
 attrExpandURI :: forall a. (ArrowXml a) => LParseState -> String -> a XmlTree String
-attrExpandURI state attr = getAttrValue attr &&& baseUrl >>> expandURI
+attrExpandURI state attr = getAttrValue attr &&& baseUrl >>> my_expandURI
   where baseUrl = constA (case stateBaseUrl state of BaseUrl b -> T.unpack b)
+
+my_expandURI :: ArrowXml a => a (String, String) String
+my_expandURI
+    = arrL (maybeToList . uncurry my_expandURIString)
+
+my_expandURIString :: String -> String -> Maybe String
+my_expandURIString uri base =
+  let absolute = if getPrefix uri == getPrefix base
+                 then base ++ dropPrefix uri
+                 else base ++ uri
+  in uriValidateString absolute
+
+dropPrefix :: String -> String
+dropPrefix s = T.unpack $ T.drop 1 $ T.dropWhile (/= ':') (T.pack s)
+
+getPrefix :: String -> String
+getPrefix s =
+  let pre = T.takeWhile (/= ':') (T.pack s)
+  in T.unpack $
+    if (not (T.null pre))
+    then (pre `T.append` ":")
+    else (T.pack "") 
 
 -- |Make a UNode from an absolute string
 mkUNode :: forall a. (ArrowIf a) => a String Node
-mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (fromJust . unodeValidate . T.pack))
+mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (unode . T.pack))
                   , arr (\_ -> True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
                   ]
 
