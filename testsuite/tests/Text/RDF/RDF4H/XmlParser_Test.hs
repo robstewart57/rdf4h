@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Text.RDF.RDF4H.XmlParser_Test
   (
     tests

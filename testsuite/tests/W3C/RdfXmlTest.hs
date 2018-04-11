@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module W3C.RdfXmlTest where
 
 import Data.Maybe (fromJust)
@@ -36,7 +38,8 @@ mfEntryToTest (TestXMLNegativeSyntax nm _ _ act') =
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 mfBaseURIXml :: BaseUrl
-mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
+-- mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
+mfBaseURIXml = BaseUrl ""
 
 testParser :: XmlParser
 testParser = XmlParser (Just mfBaseURIXml) Nothing

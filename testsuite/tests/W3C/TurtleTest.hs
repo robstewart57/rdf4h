@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module W3C.TurtleTest where
 
 import Test.Tasty

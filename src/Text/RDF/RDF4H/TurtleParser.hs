@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+
 -- |An 'RdfParser' implementation for the Turtle format
 -- <http://www.w3.org/TeamSubmission/turtle/>.
 
