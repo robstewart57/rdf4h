@@ -790,7 +790,8 @@ parseStringAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> E
 parseStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtleDoc (initialState bUrl docUrl)) (T.encodeUtf8 bs)
   where
     handleResult' res = case res of
-        Fail _ _ err -> error err
+        Fail _ _ err -> -- error err
+          Left $ ParseFailure $ "Parse failure: \n" ++ show err
         Partial f -> handleResult' (f (T.encodeUtf8 T.empty))
         Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
 
