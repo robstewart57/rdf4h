@@ -252,44 +252,50 @@ nt_tab         =   char '\t'
 -- parsec based parsers
 
 parseStringParsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
-parseStringParsec bs = handleParse mkRdf (runParser nt_ntripleDoc () "" bs)
+parseStringParsec bs = handleParsec mkRdf (runParser nt_ntripleDoc () "" bs)
 
 parseFileParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseFileParsec path =
-  handleParse mkRdf . runParser nt_ntripleDoc () path
+  handleParsec mkRdf . runParser nt_ntripleDoc () path
   <$> TIO.readFile path
 
 parseURLParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURLParsec = _parseURL parseStringParsec
+
+handleParsec :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
+                                        Either ParseError [Maybe Triple] ->
+                                        Either ParseFailure (RDF a)
+handleParsec _mkRdf result
+--  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
+--  | otherwise          =
+  = case result of
+        Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
+        Right ts -> Right $ _mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
 
 ---------------------------------
 
 ---------------------------------
 -- attoparsec based parsers
 
+parseFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseFileAttoparsec path = handleAttoparsec <$> TIO.readFile path
+
+parseURLAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
+parseURLAttoparsec = _parseURL handleAttoparsec
+
 parseStringAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
-parseStringAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
+parseStringAttoparsec = handleAttoparsec
+
+handleAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
+handleAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
   where
     handleResult res = case res of
-        Fail _ _ err -> error err
+        Fail _i _contexts err -> Left $ ParseFailure $ "Parse failure: \n" ++ show err
+          -- error $
+          -- "\nnot consumed: " ++ show i
+          -- ++ "\ncontexts: " ++ show contexts
+          -- ++ "\nerror: " ++ show err
         Partial f -> handleResult (f (T.encodeUtf8 T.empty))
         Done _ ts -> Right $ mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
 
-parseFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseFileAttoparsec path = parseStringAttoparsec <$> TIO.readFile path
-
-parseURLAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseURLAttoparsec = _parseURL parseStringAttoparsec
-
 ---------------------------------
-
-
-handleParse :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
-                                        Either ParseError [Maybe Triple] ->
-                                        Either ParseFailure (RDF a)
-handleParse _mkRdf result
---  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
---  | otherwise          =
-  = case result of
-        Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
-        Right ts -> Right $ _mkRdf (catMaybes ts) Nothing (PrefixMappings Map.empty)
