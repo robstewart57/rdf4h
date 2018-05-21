@@ -23,15 +23,42 @@ import Data.Maybe
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate,uriValidateString)
+import Data.Text (Text)
 import qualified Data.Text as T -- (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
 
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
-data XmlParser = XmlParser (Maybe BaseUrl) (Maybe T.Text)
-
 -- |'XmlParser' is an instance of 'RdfParser'.
+--
+-- The 'BaseUrl' is used as the base URI within the document for
+-- resolving any relative URI references.  It may be changed within
+-- the document using the @\@base@ directive. At any given point, the
+-- current base URI is the most recent @\@base@ directive, or if none,
+-- the @BaseUrl@ given to @parseURL@, or if none given, the document
+-- URL given to @parseURL@. For example, if the @BaseUrl@ were
+-- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were
+-- encountered (with no preceding @\@base@ directive), then the
+-- relative URI would expand to @http:\/\/example.org\/b@.
+--
+-- The @Maybe Text@ argument is the document URL is for the purpose of
+-- resolving references to 'this document' within the document, and
+-- may be different than the actual location URL from which the
+-- document is retrieved. Any reference to @\<>@ within the document
+-- is expanded to the value given here. Additionally, if no 'BaseUrl'
+-- is given and no @\@base@ directive has appeared before a relative
+-- URI occurs, this value is used as the base URI against which the
+-- relative URI is resolved.
+--
+-- An example of using this RDF/XML parser is:
+--
+-- @
+--  Right (rdf::RDF TList) <- parseURL (XmlParser Nothing Nothing) "http://www.w3.org/People/Berners-Lee/card.rdf"
+-- @
+
+data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
+
 instance RdfParser XmlParser where
   parseString (XmlParser bUrl dUrl)  = parseXmlRDF bUrl dUrl
   parseFile   (XmlParser bUrl dUrl)  = parseFile' bUrl dUrl
@@ -59,30 +86,17 @@ instance Exception ParserException
 -- than a location URI.
 --
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
-parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
+parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl dUrl fpath =
    TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
 
 -- |Parse the document at the given location URL as an XML document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the XML document itself.
 --
--- The @BaseUrl@ is used as the base URI within the document for resolving any relative URI references.
--- It may be changed within the document using the @\@base@ directive. At any given point, the current
--- base URI is the most recent @\@base@ directive, or if none, the @BaseUrl@ given to @parseURL@, or
--- if none given, the document URL given to @parseURL@. For example, if the @BaseUrl@ were
--- @http:\/\/example.org\/@ and a relative URI of @\<b>@ were encountered (with no preceding @\@base@
--- directive), then the relative URI would expand to @http:\/\/example.org\/b@.
---
--- The document URL is for the purpose of resolving references to 'this document' within the document,
--- and may be different than the actual location URL from which the document is retrieved. Any reference
--- to @\<>@ within the document is expanded to the value given here. Additionally, if no @BaseUrl@ is
--- given and no @\@base@ directive has appeared before a relative URI occurs, this value is used as the
--- base URI against which the relative URI is resolved.
---p
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseURL' :: (Rdf a) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
-                 -> Maybe T.Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+                 -> Maybe Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
                  -> String           -- ^ The location URI from which to retrieve the XML document.
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
@@ -90,11 +104,11 @@ parseURL' :: (Rdf a) =>
 parseURL' bUrl docUrl = _parseURL (parseXmlRDF bUrl docUrl)
 
 
--- |Parse a xml T.Text to an RDF representation
+-- |Parse a xml Text to an RDF representation
 parseXmlRDF :: (Rdf a)
             => Maybe BaseUrl           -- ^ The base URL for the RDF if required
-            -> Maybe T.Text        -- ^ DocUrl: The request URL for the RDF if available
-            -> T.Text              -- ^ The contents to parse
+            -> Maybe Text        -- ^ DocUrl: The request URL for the RDF if available
+            -> Text              -- ^ The contents to parse
             -> Either ParseFailure (RDF a) -- ^ The RDF representation of the triples or ParseFailure
 parseXmlRDF bUrl dUrl xmlStr = case runParseArrow of
                                 (_,r:_) -> Right r
@@ -103,7 +117,7 @@ parseXmlRDF bUrl dUrl xmlStr = case runParseArrow of
         initState = GParseState { stateGenId = 0 }
 
 -- |Add a root tag to a given XmlTree to appear as if it was read from a readDocument function
-addMetaData :: (ArrowXml a) => Maybe BaseUrl -> Maybe T.Text -> a XmlTree XmlTree
+addMetaData :: (ArrowXml a) => Maybe BaseUrl -> Maybe Text -> a XmlTree XmlTree
 addMetaData bUrlM dUrlM = mkelem "/"
                         ( [ sattr "transfer-Message" "OK"
                           , sattr "transfer-MimeType" "text/rdf"
@@ -379,7 +393,7 @@ validNodeElementName = neg (hasName "rdf:RDF")
                        >>> neg (hasName "rdf:aboutEach")
                        >>> neg (hasName "rdf:aboutEachPrefix")
 
-rdfXmlLiteral :: T.Text
+rdfXmlLiteral :: Text
 rdfFirst,rdfRest,rdfNil,rdfType,rdfStatement,rdfSubject,rdfPredicate,rdfObject :: Node
 
 rdfXmlLiteral = T.pack "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
@@ -434,7 +448,7 @@ mkRelativeNode s = (getAttrValue "rdf:ID" >>> arr (\x -> '#':x)) &&& baseUrl
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> T.unpack b)
 
 -- |Make a literal node with the given type and content
-mkTypedLiteralNode :: T.Text -> String -> Node
+mkTypedLiteralNode :: Text -> String -> Node
 mkTypedLiteralNode t content = lnode (typedL (T.pack content) t)
 
 -- |Use the given state to create a literal node
