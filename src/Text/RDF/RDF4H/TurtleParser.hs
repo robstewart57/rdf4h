@@ -816,7 +816,7 @@ initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result =
   case result of
-    (Left err)         -> Left (ParseFailure $ show err)
+    (Left err)         -> Left (ParseFailure $ "Parse failure: \n" ++ show err)
     (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
 
 validateUNode :: CharParsing m => T.Text -> m Node
