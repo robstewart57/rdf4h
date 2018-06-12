@@ -6,6 +6,7 @@ module Main where
 import Control.Monad
 import qualified Data.Map as Map
 import Data.RDF
+import           Data.RDF.GraphImplTests
 import           Data.RDF.PropertyTests
 import qualified Data.Text as T
 import System.Directory (getCurrentDirectory)
@@ -78,6 +79,10 @@ main
            "AdjHashMap"
            (empty :: RDF AdjHashMap)
            (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))]
+       ,
+         testGroup
+         "graph-impl-unit-tests"
+         [ graphImplTests ]
        ,
        testGroup "parser-unit-tests-turtle"
        TurtleUnitTest.tests

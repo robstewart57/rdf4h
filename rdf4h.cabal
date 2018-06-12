@@ -82,6 +82,7 @@ test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
   other-modules: Data.RDF.PropertyTests
+                 Data.RDF.GraphImplTests
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
