@@ -1,6 +1,7 @@
 *~
 .*~
-dist
+dist/
+dist-newstyle/
 cabal-dev
 *.o
 *.hi
@@ -18,6 +19,7 @@ countries.ttl
 bench/MainCriterion
 *.tar.gz
 *.zip
+.ghc.environment.*
 
 data/w3c/n3/README
 data/w3c/rdf-mt/LICENSE
