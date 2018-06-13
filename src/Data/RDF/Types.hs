@@ -19,7 +19,7 @@ module Data.RDF.Types (
   isUNode,isLNode,isBNode,
 
   -- * Miscellaneous
-  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,
+  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,filePathToUri,
 
   -- * RDF data family
   RDF,
@@ -47,21 +47,24 @@ import qualified Data.Text as T
 import System.IO
 import Text.Printf
 import Data.Binary
+import Data.String (IsString(..))
 import Data.Map(Map)
 import Data.Maybe (fromJust)
+import Control.Applicative
+import Control.Monad ((<=<))
 import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified System.FilePath as FP
 import qualified Network.URI as Network (uriPath,parseURI)
+import           Network.URI
 import Control.DeepSeq (NFData,rnf)
 import Text.Parsec(ParseError,parse)
-import Network.URI
 import Codec.Binary.UTF8.String
 
 import Text.Parser.Char
 import Text.Parser.Combinators
-import Control.Applicative
 
 -------------------
 -- LValue and constructor functions
@@ -730,10 +733,31 @@ _decimalStr s =     -- haskell double parser doesn't handle '1.'..,
   where f s' = T.pack $ show (read $ T.unpack s' :: Double)
 
 -- | Removes "file://" schema from URIs in 'UNode' nodes
-fileSchemeToFilePath :: Node -> Maybe T.Text
+fileSchemeToFilePath :: (IsString s) => Node -> Maybe s
 fileSchemeToFilePath (UNode fileScheme)
-    | T.pack "file://" `T.isPrefixOf` fileScheme
-      = fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
-    | T.pack "http://" `T.isPrefixOf` fileScheme
-      = fmap (T.pack . Network.uriPath) (Network.parseURI (T.unpack fileScheme))
+  | "file://" `T.isPrefixOf` fileScheme = textToFilePath fileScheme
+  | otherwise = Nothing
+  where
+    textToFilePath = pure . fromString <=< stringToFilePath . T.unpack
+    stringToFilePath = fixPrefix <=< pure . Network.uriPath <=< Network.parseURI
+    fixPrefix "" = Nothing
+    fixPrefix p@(p':p'')
+      | p' == FP.pathSeparator = Just (FP.normalise p) -- Posix path
+      | p' == '/' = Just (FP.normalise p'')            -- Windows classic Path
+      | otherwise = Just ("\\\\" ++ FP.normalise p)    -- Windows UNC Path
 fileSchemeToFilePath _ = Nothing
+
+-- | Converts a file path to a URI with "file:" scheme
+filePathToUri :: (IsString s) => FilePath -> Maybe s
+filePathToUri p
+  | FP.isRelative p = Nothing
+  | otherwise       = Just . fromString . as_uri . FP.normalise $ p
+  where
+    as_uri = ("file://" ++) . escapeURIString isAllowedInURI . as_posix . fix_prefix
+    fix_prefix p' = case (FP.takeDrive p') of
+      "/" -> p'
+      '\\':'\\':_ -> drop 2 p'
+      _ -> '/':p'
+    as_posix = fmap repl
+    repl '\\' = '/'
+    repl c = c
