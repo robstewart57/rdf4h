@@ -4,11 +4,13 @@
 module Main where
 
 import Control.Monad
+import Data.Maybe (fromJust)
 import qualified Data.Map as Map
 import Data.RDF
 import           Data.RDF.GraphImplTests
 import           Data.RDF.PropertyTests
 import qualified Data.Text as T
+import System.FilePath ((</>))
 import System.Directory (getCurrentDirectory)
 import Test.QuickCheck.Arbitrary
 import Test.Tasty (defaultMain,testGroup)
@@ -57,7 +59,7 @@ main
  = do
   dir <- getCurrentDirectory
   let fileSchemeUri suitesDir =
-        T.pack ("file://" ++ dir ++ "/" ++ T.unpack suitesDir)
+        fromJust . filePathToUri $ (dir </> T.unpack suitesDir)
   turtleManifest <-
     loadManifest mfPathTurtle (fileSchemeUri suiteFilesDirTurtle)
   xmlManifest <- loadManifest mfPathXml (fileSchemeUri suiteFilesDirXml)
