@@ -13,24 +13,24 @@
 module Data.RDF.Graph.AdjHashMap (AdjHashMap) where
 
 import Prelude hiding (pred)
-import Control.DeepSeq (NFData)
+import Data.List
+import Data.Binary (Binary)
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace
-import qualified Data.Map as Map
-import Data.Hashable()
-import Data.HashMap.Strict(HashMap)
+import Data.Hashable ()
+import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import Data.HashSet(HashSet)
+import Data.HashSet (HashSet)
 import qualified Data.HashSet as Set
-import Data.List
+import Control.Monad (mfilter)
+import Control.DeepSeq (NFData)
 import GHC.Generics
-import Data.Binary (Binary)
 
 -- |A map-based graph implementation.
 --
 -- This instance of 'RDF' is an adjacency map with each subject
--- mapping to a mapping from a predicate node to to the adjacent nodes
+-- mapping to a mapping from a predicate node to the adjacent nodes
 -- via that predicate.
 --
 -- Given the following triples graph::
@@ -118,13 +118,11 @@ showGraph' ((AdjHashMap ((spoMap, _), _, _))) =
 
 -- An adjacency map for a subject, mapping from a predicate node to
 -- to the adjacent nodes via that predicate.
-type AdjacencyMap = HashMap Predicate (HashSet Node)
-
+type AdjacencyMap = HashMap Predicate Adjacencies
 type Adjacencies = HashSet Node
 
 type TMap   = HashMap Node AdjacencyMap
 type TMaps  = (TMap, TMap)
-
 
 baseUrl' :: RDF AdjHashMap -> Maybe BaseUrl
 baseUrl' (AdjHashMap (_, baseURL, _)) = baseURL
@@ -133,15 +131,15 @@ prefixMappings' :: RDF AdjHashMap -> PrefixMappings
 prefixMappings' (AdjHashMap (_, _, pms)) = pms
 
 addPrefixMappings' :: RDF AdjHashMap -> PrefixMappings -> Bool -> RDF AdjHashMap
-addPrefixMappings' (AdjHashMap (ts, baseURL, pms)) pms' replace = 
+addPrefixMappings' (AdjHashMap (ts, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
   in  AdjHashMap (ts, baseURL, merge pms pms')
 
 empty' :: RDF AdjHashMap
-empty' = AdjHashMap ((HashMap.empty, HashMap.empty), Nothing, PrefixMappings Map.empty)
+empty' = AdjHashMap ((mempty, mempty), Nothing, PrefixMappings mempty)
 
 mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap
-mkRdf' ts baseURL pms = AdjHashMap (mergeTs (HashMap.empty, HashMap.empty) ts, baseURL, pms)
+mkRdf' ts baseURL pms = AdjHashMap (mergeTs (mempty, mempty) ts, baseURL, pms)
 
 addTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
 addTriple' (AdjHashMap (tmaps, baseURL, pms)) t =
@@ -149,66 +147,22 @@ addTriple' (AdjHashMap (tmaps, baseURL, pms)) t =
   in AdjHashMap (newTMaps, baseURL, pms)
 
 removeTriple' :: RDF AdjHashMap -> Triple -> RDF AdjHashMap
-removeTriple' (AdjHashMap ((spoMap, opsMap), baseURL, pms)) (Triple s p o) =
-  (AdjHashMap (new_tmaps, baseURL, pms))
+removeTriple' (AdjHashMap ((spo, ops), baseURL, pms)) (Triple s p o) =
+  AdjHashMap (new_tmaps, baseURL, pms)
   where
-    new_tmaps = (newSpoMap, newOpsMap)
-    newSpoMap =
-      case HashMap.lookup s spoMap of
-        Nothing -> spoMap
-        Just poAdjMap ->
-          case HashMap.lookup p poAdjMap of
-            Nothing -> spoMap
-            Just oHashSet ->
-              if not (Set.member o oHashSet)
-                then spoMap
-                else let newPoAdjMap =
-                           HashMap.adjust
-                             (\oHashSet' -> Set.delete o oHashSet')
-                             p
-                             poAdjMap
-                     in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) s spoMap
-    newOpsMap =
-      case HashMap.lookup o opsMap of
-        Nothing -> opsMap
-        Just poAdjMap ->
-          case HashMap.lookup p poAdjMap of
-            Nothing -> opsMap
-            Just sHashSet ->
-              if not (Set.member s sHashSet)
-                then opsMap
-                else let newPoAdjMap =
-                           HashMap.adjust
-                             (\sHashSet' -> Set.delete s sHashSet')
-                             p
-                             poAdjMap
-                     in HashMap.adjust (\_poAdjMap' -> newPoAdjMap) o opsMap      
+    new_tmaps = (removeT s p o spo, removeT o p s ops)
+    removeT s' p' o' = HashMap.alter (removePO p' o') s'
+    removePO p' o' po = mfilter (not . null) $ HashMap.alter (removeO o') p' <$> po
+    removeO o' os = mfilter (not . null) $ Set.delete o' <$> os
 
-mergeTs :: TMaps -> [Triple] -> TMaps
+mergeTs :: TMaps -> Triples -> TMaps
 mergeTs = foldl' mergeT
   where
     mergeT :: TMaps -> Triple -> TMaps
-    mergeT m t = mergeT' m (subjectOf t) (predicateOf t) (objectOf t)
-
-mergeT' :: TMaps -> Subject -> Predicate -> Object -> TMaps
-mergeT' (spo, ops) s p o = (mergeT'' spo s p o, mergeT'' ops o p s)
-
-mergeT'' :: TMap -> Subject -> Predicate -> Object -> TMap
-mergeT'' m s p o =
-  if s `HashMap.member` m then
-    (if p `HashMap.member` adjs then HashMap.insert s addPredObj m
-       else HashMap.insert s addNewPredObjMap m)
-    else HashMap.insert s newPredMap m
-  where
-    adjs = HashMap.lookupDefault HashMap.empty s m
-    newPredMap :: HashMap Predicate (HashSet Object)
-    newPredMap = HashMap.singleton p (Set.singleton o)
-    addNewPredObjMap :: HashMap Predicate (HashSet Object)
-    addNewPredObjMap = HashMap.insert p (Set.singleton o) adjs
-    addPredObj :: HashMap Predicate (HashSet Object)
-    addPredObj = HashMap.insert p (Set.insert o (get p adjs)) adjs
-    --get :: (Ord k, Hashable k) => k -> HashMap k v -> v
-    get = HashMap.lookupDefault Set.empty
+    mergeT (spo, ops) (Triple s p o) = (insertT s p o spo, insertT o p s ops)
+    insertT :: Node -> Predicate -> Node -> TMap -> TMap
+    insertT s p o = let newPO = HashMap.singleton p (Set.singleton o)
+                    in HashMap.insertWith (HashMap.unionWith mappend) s newPO
 
 -- 3 following functions support triplesOf
 triplesOf' :: RDF AdjHashMap -> Triples
@@ -220,98 +174,43 @@ uniqTriplesOf' :: RDF AdjHashMap -> Triples
 uniqTriplesOf' = nub . expandTriples
 
 tripsSubj :: Subject -> AdjacencyMap -> Triples
-tripsSubj s adjMap = concatMap (uncurry (tfsp s)) (HashMap.toList adjMap)
-  where tfsp = tripsForSubjPred
-
-tripsForSubjPred :: Subject -> Predicate -> Adjacencies -> Triples
-tripsForSubjPred s p adjs = map (Triple s p) (Set.toList adjs)
+tripsSubj s adjMap = concatMap (tfsp s) (HashMap.toList adjMap)
+  where tfsp s' (p, m) = Triple s' p <$> Set.toList m
 
 -- supports select
 select' :: RDF AdjHashMap -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' (AdjHashMap ((spoMap,_),_,_)) subjFn predFn objFn =
-  map (\(s,p,o) -> Triple s p o) $ Set.toList $ sel1 subjFn predFn objFn spoMap
+select' r Nothing Nothing Nothing = triplesOf r
+select' (AdjHashMap ((_, ops),_,_)) Nothing p o = selectSPO o p Nothing (\a b c -> Triple c b a) ops
+select' (AdjHashMap ((spo, _),_,_)) s       p o = selectSPO s p o       Triple                   spo
 
-sel1 :: NodeSelector -> NodeSelector -> NodeSelector -> TMap -> HashSet (Node, Node, Node)
-sel1 (Just subjFn) p o spoMap =
-  Set.unions $ map (sel2 p o) $ filter (\(x,_) -> subjFn x) $ HashMap.toList spoMap
-sel1 Nothing p o spoMap = Set.unions $ map (sel2 p o) $ HashMap.toList spoMap
+selectSPO :: NodeSelector -> NodeSelector -> NodeSelector -> (Node -> Node -> Node -> Triple) -> TMap -> Triples
+selectSPO Nothing  p o t = concatMap (selectPO p o t) . HashMap.toList
+selectSPO (Just s) p o t = concatMap (selectPO p o t) . filter (s . fst) . HashMap.toList
 
-sel2 :: NodeSelector -> NodeSelector -> (Node, HashMap Node (HashSet Node)) -> HashSet (Node, Node, Node)
-sel2 (Just predFn) mobjFn (s, ps) =
-  Set.map (\(p,o) -> (s,p,o)) $
-  foldl' Set.union Set.empty $
-  map (sel3 mobjFn) poMapS :: HashSet (Node, Node, Node)
-  where
-    poMapS :: [(Node, HashSet Node)]
-    poMapS = filter (\(k,_) -> predFn k) $ HashMap.toList ps
-sel2 Nothing mobjFn (s, ps) =
-  Set.map (\(p,o) -> (s,p,o)) $
-  foldl' Set.union Set.empty $
-  map (sel3 mobjFn) poMaps
-  where
-    poMaps = HashMap.toList ps
+selectPO :: NodeSelector -> NodeSelector -> (Node -> Node -> Node -> Triple) -> (Node, AdjacencyMap) -> Triples
+selectPO Nothing  o t (s, po) = concatMap (selectO o t s) . HashMap.toList $ po
+selectPO (Just p) o t (s, po) = concatMap (selectO o t s) . filter (p . fst) . HashMap.toList $ po
 
-sel3 :: NodeSelector -> (Node, HashSet Node) -> HashSet (Node, Node)
-sel3 (Just objFn) (p, os) = Set.map (\o -> (p, o)) $ Set.filter objFn os
-sel3 Nothing      (p, os) = Set.map (\o -> (p, o)) os
+selectO :: NodeSelector -> (Node -> Node -> Node -> Triple) -> Node -> (Node, Adjacencies) -> Triples
+selectO o t s (p, os) = t s p <$> Set.toList os'
+  where os' = maybe os (`Set.filter` os) o
 
 -- support query
 query' :: RDF AdjHashMap -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' (AdjHashMap (m,_ , _)) subj pred obj = map (\(s, p, o) -> Triple s p o) $ Set.toList (q1 subj pred obj m)
+query' r Nothing Nothing Nothing = triplesOf r
+query' (AdjHashMap ((_, ops), _, _)) Nothing p o = querySPO o p Nothing (\a b c -> Triple c b a)  ops
+query' (AdjHashMap ((spo, _), _, _)) s       p o = querySPO s p o       Triple                    spo
 
-q1 :: Maybe Node -> Maybe Node -> Maybe Node -> TMaps -> HashSet (Node, Node, Node)
-q1 (Just s) p o        (spoMap, _     ) = q2 p o (s, HashMap.lookupDefault HashMap.empty s spoMap)
-q1 s        p (Just o) (_     , opsMap) = Set.map (\(o',p',s') -> (s',p',o')) $ q2 p s (o, HashMap.lookupDefault HashMap.empty o opsMap)
-q1 Nothing (Just p) Nothing (spoMap,_) =
-  let (filtered::HashMap Node (HashMap Node (HashSet Node)))
-        = HashMap.filter (\poAdjMap -> HashMap.member p poAdjMap) spoMap
-      subjXS = HashMap.toList filtered :: [(Node,AdjacencyMap)]
-      ys = concatMap (\(s,poMap) ->
-                        let objs = map snd (HashMap.toList poMap :: [(Predicate,HashSet Node)])
-                        in concatMap (\objHash -> map (\o -> (s,p,o)) (Set.toList objHash)) objs
-                     ) subjXS
-  in Set.fromList ys
-{-
-      (xs::[(Subject,Predicate,Object)]) = HashMap.foldlWithKey' f [] filtered
-      f triples s poAdjMap =
-        let objs = HashMap.elems poAdjMap
-        in triples ++ concatMap (\oSet -> map (\o -> (s,p,o)) (Set.toList oSet)) objs
-  in Set.fromList xs
--}
+querySPO :: Maybe Node -> Maybe Node -> Maybe Node -> (Node -> Node -> Node -> Triple) -> TMap -> Triples
+querySPO Nothing  p o t = concatMap (uncurry $ queryPO p o t) . HashMap.toList
+querySPO (Just s) p o t = maybe mempty (queryPO p o t s) . HashMap.lookup s
 
-q1 Nothing  p o        (spoMap, _     ) =
-  let hashSets = map (q2 p o) (HashMap.toList spoMap) :: [HashSet (Node,Node,Node)]
-  in Set.unions hashSets
+queryPO :: Maybe Node -> Maybe Node -> (Node -> Node -> Node -> Triple) -> Node -> AdjacencyMap -> Triples
+queryPO Nothing  o t s po = concatMap (uncurry $ queryO o t s) . HashMap.toList $ po
+queryPO (Just p) o t s po = maybe mempty (queryO o t s p) $ HashMap.lookup p po
 
--- | takes a @Maybe Predicate@ and a @Maybe Object@, a subject and
--- predicate map tuple, and returns a (s,p,o) hash set.
-q2
-  :: Maybe Node
-  -> Maybe Node
-  -> (Node, HashMap Node (HashSet Node))
-  -> HashSet (Node, Node, Node)
-q2 (Just p) o (s, pmap) =
-  let objAdjHashMapetMaybe = HashMap.lookup p pmap :: Maybe (HashSet Node) -- lookup object hash set
-  in case objAdjHashMapetMaybe of
-       Nothing -> Set.empty
-       Just objAdjHashMapet ->
-         let poAdjHashMapet = q3 o (p,objAdjHashMapet)
-         in Set.map (\(p', o') -> (s, p', o')) poAdjHashMapet
-q2 Nothing o (s, pmap) =
-  Set.map (\(x, y) -> (s, x, y)) $ Set.unions $ map (q3 o) opmaps
-  where
-    opmaps :: [(Node, HashSet Node)]
-    opmaps = HashMap.toList pmap
-
--- | looks up an object in an object hash set. If it exists, then this
--- function returns a hashset with a set with single (p,o) tuple
--- element. If the @Maybe Object@ value is @Empty@, then create a hash
--- set of (p,o) tuples for every object in the object hash set.
-q3 :: Maybe Node -- ^ object
-   -> (Node, HashSet Node) -- ^ predicate and object hash set tuple
-   -> HashSet (Node, Node) -- ^ hash set of (p,o) tuples
-q3 (Just o) (p, os) =
-  if o `Set.member` os -- if the queried object is in the object set
-    then Set.singleton (p, o) -- return a set with a single (p,o) tuple element 
-    else Set.empty -- otherwise return an empty set
-q3 Nothing (p, os) = Set.map (\o -> (p, o)) os
+queryO :: Maybe Node -> (Node -> Node -> Node -> Triple) -> Node -> Node -> Adjacencies -> Triples
+queryO Nothing  t s p os = t s p <$> Set.toList os
+queryO (Just o) t s p os
+  | o `Set.member` os = [t s p o]
+  | otherwise         = mempty
