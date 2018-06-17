@@ -26,55 +26,55 @@ import Test.QuickCheck.Monadic (assert, monadicIO,run)
 ----------------------------------------------------
 
 graphTests
-  :: (Arbitrary (RDF rdf), Rdf rdf)
+  :: (Rdf rdf)
   => TestName
   -> RDF rdf -- ^ empty
   -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -- ^ mkRdf
   -> TestTree
-graphTests testGroupName _empty _mkRdf =
+graphTests testGroupName empty mkRdf =
   testGroup
     testGroupName
-    [ testProperty "empty" (p_empty _empty)
-    , testProperty "mkRdf_triplesOf" (p_mkRdf_triplesOf _mkRdf)
-    , testProperty "mkRdf_no_dupes" (p_mkRdf_no_dupes _mkRdf)
-    , testProperty "query_match_none" (p_query_match_none _mkRdf)
-    , testProperty "query_matched_spo" (p_query_matched_spo _empty)
+    [ testProperty "empty" (p_empty empty)
+    , testProperty "mkRdf_triplesOf" (p_mkRdf_triplesOf mkRdf)
+    , testProperty "mkRdf_no_dupes" (p_mkRdf_no_dupes mkRdf)
+    , testProperty "query_match_none" (p_query_match_none mkRdf)
       -- see comment above p_query_matched_spo_no_dupes for why this is disabled
-      -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
-    , testProperty "query_unmatched_spo" (p_query_unmatched_spo _empty)
-    , testProperty "query_match_s" (p_query_match_s _empty)
-    , testProperty "query_match_p" (p_query_match_p _empty)
-    , testProperty "query_match_o" (p_query_match_o _empty)
-    , testProperty "query_match_sp" (p_query_match_sp _empty)
-    , testProperty "query_match_so" (p_query_match_so _empty)
-    , testProperty "query_match_po" (p_query_match_po _empty)
-    , testProperty "select_match_none" (p_select_match_none _empty)
-    , testProperty "select_match_s" (p_select_match_s _empty)
-    , testProperty "select_match_p" (p_select_match_p _empty)
-    , testProperty "select_match_o" (p_select_match_o _empty)
-    , testProperty "select_match_sp" (p_select_match_sp _empty)
-    , testProperty "select_match_so" (p_select_match_so _empty)
-    , testProperty "select_match_po" (p_select_match_po _empty)
-    , testProperty "select_match_spo" (p_select_match_spo _empty)
-    , testProperty "reversed RDF handle write" (p_reverseRdfTest _mkRdf)
+      -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf mkRdf)
+    , testProperty "query_match_s" (p_query_match_s empty)
+    , testProperty "query_match_p" (p_query_match_p empty)
+    , testProperty "query_match_o" (p_query_match_o empty)
+    , testProperty "query_match_sp" (p_query_match_sp empty)
+    , testProperty "query_match_so" (p_query_match_so empty)
+    , testProperty "query_match_po" (p_query_match_po empty)
+    , testProperty "query_match_spo" (p_query_match_spo empty)
+    , testProperty "query_unmatched_spo" (p_query_unmatched_spo empty)
+    , testProperty "select_match_none" (p_select_match_none empty)
+    , testProperty "select_match_s" (p_select_match_s empty)
+    , testProperty "select_match_p" (p_select_match_p empty)
+    , testProperty "select_match_o" (p_select_match_o empty)
+    , testProperty "select_match_sp" (p_select_match_sp empty)
+    , testProperty "select_match_so" (p_select_match_so empty)
+    , testProperty "select_match_po" (p_select_match_po empty)
+    , testProperty "select_match_spo" (p_select_match_spo empty)
+    , testProperty "reversed RDF handle write" (p_reverseRdfTest mkRdf)
       -- adding and removing triples from a graph.
-    , testProperty "add_triple" (p_add_triple _mkRdf)
-    , testProperty "remove_triple" (p_remove_triple _mkRdf)
+    , testProperty "add_triple" (p_add_triple mkRdf)
+    , testProperty "remove_triple" (p_remove_triple mkRdf)
     , testProperty
         "remove_triple_from_graph"
-        (p_remove_triple_from_graph _mkRdf)
+        (p_remove_triple_from_graph mkRdf)
     , testProperty
         "remove_triple_from_singleton_graph_query_s"
-        (p_remove_triple_from_singleton_graph_query_s _empty)
+        (p_remove_triple_from_singleton_graph_query_s empty)
     , testProperty
         "remove_triple_from_singleton_graph_query_p"
-        (p_remove_triple_from_singleton_graph_query_p _empty)
+        (p_remove_triple_from_singleton_graph_query_p empty)
     , testProperty
         "remove_triple_from_singleton_graph_query_o"
-        (p_remove_triple_from_singleton_graph_query_o _empty)
+        (p_remove_triple_from_singleton_graph_query_o empty)
     , testProperty
         "p_add_then_remove_triples"
-        (p_add_then_remove_triples _empty)
+        (p_add_then_remove_triples empty)
     ]
 
 newtype SingletonGraph rdf = SingletonGraph
@@ -105,7 +105,7 @@ arbitraryBaseUrl =
   oneof $
   map
     (return . BaseUrl . T.pack)
-    ["http://example.com/a", "http://asdf.org/b", "http://asdf.org/c"]
+    ["http://example.org/", "http://example.com/a", "http://asdf.org/b", "http://asdf.org/c"]
 
 arbitraryPrefixMappings :: Gen PrefixMappings
 arbitraryPrefixMappings =
@@ -114,9 +114,10 @@ arbitraryPrefixMappings =
     , return $
       PrefixMappings $
       Map.fromAscList
-        [ (T.pack "eg1", T.pack "http://example.com/1")
-        , (T.pack "eg2", T.pack "http://example.com/2")
-        , (T.pack "eg3", T.pack "http://example.com/3")
+        [ (T.pack "ex", T.pack "ex:")
+        , (T.pack "eg1", T.pack "http://example.org/1")
+        , (T.pack "eg2", T.pack "http://example.org/2")
+        , (T.pack "eg3", T.pack "http://example.org/3")
         ]
     ]
 
@@ -128,7 +129,7 @@ arbitraryPrefixMappings =
 p_empty
   :: Rdf rdf
   => RDF rdf -> Bool
-p_empty _empty = triplesOf _empty == []
+p_empty empty = triplesOf empty == []
 
 -- triplesOf any RDF should return unique triples used to create it
 p_mkRdf_triplesOf
@@ -138,8 +139,8 @@ p_mkRdf_triplesOf
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_mkRdf_triplesOf _mkRdf ts bUrl pms =
-  uordered (triplesOf (_mkRdf ts bUrl pms)) == uordered ts
+p_mkRdf_triplesOf mkRdf ts bUrl pms =
+  uordered (triplesOf (mkRdf ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned when
 -- uniqTriplesof is used
@@ -150,10 +151,10 @@ p_mkRdf_no_dupes
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_mkRdf_no_dupes _mkRdf ts bUrl pms = null ts || (sort result == uordered ts)
+p_mkRdf_no_dupes mkRdf ts bUrl pms = null ts || (sort result == uordered ts)
   where
     tsWithDupe = head ts : ts
-    result = uniqTriplesOf $ _mkRdf tsWithDupe bUrl pms
+    result = uniqTriplesOf $ mkRdf tsWithDupe bUrl pms
 
 -- Note: in TriplesGraph and PatriciaTreeGraph `query` expands triples
 --       but `ts` here is not  necessarily expanded. What is the correct
@@ -167,16 +168,18 @@ p_query_match_none
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_query_match_none _mkRdf ts bUrl pms = uordered ts == uordered result
+p_query_match_none mkRdf ts bUrl pms = uordered ts == uordered result
   where
-    result = query (_mkRdf ts bUrl pms) Nothing Nothing Nothing
+    result = query (mkRdf ts bUrl pms) Nothing Nothing Nothing
 
 -- query with no wildcard and a triple in the RDF should yield
 -- a singleton list with just the triple.
-p_query_matched_spo
+p_query_match_spo
   :: Rdf rdf
-  => RDF rdf -> RDF rdf -> Property
-p_query_matched_spo _unused rdf =
+  => RDF rdf
+  -> RDF rdf
+  -> Property
+p_query_match_spo _unused rdf =
   classify (null ts) "trivial" $ forAll (tripleFromGen triplesOf rdf) f
   where
     ts = triplesOf rdf
@@ -217,13 +220,13 @@ p_query_unmatched_spo rdf t =
 -- should yield all triple with unequal subjects.
 p_query_match_s
   :: Rdf rdf
-  => RDF rdf -> RDF rdf -> Property
-p_query_match_s _unused = mk_query_match_fn sameSubj f
+  => RDF rdf -> Property
+p_query_match_s = mk_query_match_fn sameSubj f
   where
     f t = (Just (subjectOf t), Nothing, Nothing)
 
--- query w/ fixed predicate and wildcards for subj and obj should yield
--- a list with all triples having predicate, and RDFgraph minus result triples
+-- query with fixed predicate and wildcards for subj and obj should yield
+-- a list with all triples having predicate, and a RDF graph minus result triples
 -- should yield all triple with unequal predicates.
 p_query_match_p
   :: Rdf rdf
@@ -267,6 +270,21 @@ p_query_match_po _unused = mk_query_match_fn same f
     same t1 t2 = samePred t1 t2 && sameObj t1 t2
     f t = (Nothing, Just $ predicateOf t, Just $ objectOf t)
 
+{-
+ This function:
+
+ 1) creates a random RDF graph.
+ 2) extracts a random triple from the graph.
+ 3) queries the graph for that triple (according to the
+    (Maybe Node, Maybe Node, Maybe Node) pattern specified
+    by the mkPatternFn function.
+ 4) extracts all triples in the graph that was not returned by
+    the query above.
+ 5) checks that all triples returned by the query match the triple
+    comparison function (sameSubj, samePred, sameObj).
+ 6) checks that all triples not returned by the query do not
+    match the tripl comparison function.
+-}
 mk_query_match_fn
   :: Rdf rdf
   => (Triple -> Triple -> Bool)
@@ -543,7 +561,9 @@ datatypes :: [T.Text]
 datatypes = map (mkUri xsd . T.pack) ["string", "int", "token"]
 
 uris :: [T.Text]
-uris = map (mkUri ex) [T.pack n `T.append` T.pack (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..9]]
+uris =
+  map (mkUri ex) [T.pack n `T.append` T.pack (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..2]]
+  ++ [T.pack "ex:" `T.append` T.pack n `T.append` T.pack (show (i::Int)) | n <- ["s", "p", "o"], i <- [1..3]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
@@ -563,19 +583,24 @@ bnodes = map (BNode . \i -> T.pack ":_genid" `T.append` T.pack (show (i::Int))) 
 lnodes :: [Node]
 lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
 
-test_triples :: [Triple]
-test_triples =
-  [ triple s p o
-  | s <- unodes ++ bnodes
-  , p <- unodes
-  , o <- unodes ++ bnodes ++ lnodes
-  ]
-
+-- maximum number of triples
 maxN :: Int
-maxN = min 100 (length test_triples - 1)
+maxN = 10
+
+instance (Rdf rdf) => Arbitrary (RDF rdf) where
+  arbitrary = do
+    prefix <- arbitraryPrefixMappings
+    baseU' <- arbitraryBaseUrl
+    baseU <- oneof [return (Just baseU'), return Nothing]
+    ts <- arbitraryTs
+    return $ mkRdf ts baseU prefix
 
 instance Arbitrary Triple where
-  arbitrary = liftM3 triple arbitraryS arbitraryP arbitraryO
+  arbitrary = do
+    s <- arbitraryS
+    p <- arbitraryP
+    o <- arbitraryO
+    return (triple s p o)
 
 instance Arbitrary Node where
   arbitrary = oneof $ map return unodes
@@ -584,15 +609,6 @@ arbitraryTs :: Gen Triples
 arbitraryTs = do
   n <- sized (\_ -> choose (0, maxN))
   sequence [arbitrary | _ <- [1 .. n]]
-
--- arbitraryTriple :: Gen Triple
--- arbitraryTriple = elements test_triples
-
--- arbitraryN :: Gen Int
--- arbitraryN = choose (0, maxN - 1)
-
--- arbitraryTNum :: Gen Int
--- arbitraryTNum = choose (0, maxN - 1)
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
 arbitraryS = oneof $ map return $ unodes ++ bnodes

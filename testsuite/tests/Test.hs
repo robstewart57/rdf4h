@@ -3,16 +3,13 @@
 
 module Main where
 
-import Control.Monad
 import Data.Maybe (fromJust)
-import qualified Data.Map as Map
 import Data.RDF
 import           Data.RDF.GraphImplTests
 import           Data.RDF.PropertyTests
 import qualified Data.Text as T
 import System.FilePath ((</>))
 import System.Directory (getCurrentDirectory)
-import Test.QuickCheck.Arbitrary
 import Test.Tasty (defaultMain,testGroup)
 import W3C.Manifest
 import qualified W3C.NTripleTest as W3CNTripleTest
@@ -35,22 +32,6 @@ mfBaseURITurtle,mfBaseURIXml,mfBaseURINTriples :: BaseUrl
 mfBaseURITurtle   = BaseUrl "http://www.w3.org/2013/TurtleTests/"
 mfBaseURIXml      = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
 mfBaseURINTriples = BaseUrl "http://www.w3.org/2013/N-TriplesTests/"
-
-instance Arbitrary (RDF TList) where
-  arbitrary =
-    liftM3
-      mkRdf
-      arbitraryTs
-      (return Nothing)
-      (return $ PrefixMappings Map.empty)
-
-instance Arbitrary (RDF AdjHashMap) where
-  arbitrary =
-    liftM3
-      mkRdf
-      arbitraryTs
-      (return Nothing)
-      (return $ PrefixMappings Map.empty)
 
 main :: IO ()
 main
@@ -86,12 +67,16 @@ main
          "graph-impl-unit-tests"
          [ graphImplTests ]
        ,
+
+       -- RDF parser unit tests
        testGroup "parser-unit-tests-turtle"
        TurtleUnitTest.tests
        ,
        testGroup "parser-unit-tests-xml"
        XmlUnitTest.tests
        ,
+
+       -- RDF parser W3C tests
        testGroup
        "parser-w3c-tests-ntriples"
        [ testGroup
