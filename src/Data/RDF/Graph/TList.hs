@@ -127,10 +127,10 @@ uniqTriplesOf' :: RDF TList -> Triples
 uniqTriplesOf' = nub . expandTriples
 
 select' :: RDF TList -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-select' g s p o = filter (matchSelect s p o) $ triplesOf g
+select' g s p o = nub $ filter (matchSelect s p o) $ triplesOf g
 
 query' :: RDF TList -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Triples
-query' g s p o = filter (matchPattern s p o) $ triplesOf g
+query' g s p o = nub $ filter (matchPattern s p o) $ triplesOf g
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
 matchSelect s p o t =
