@@ -719,7 +719,9 @@ _integerStr, _decimalStr, _doubleStr :: T.Text -> T.Text
 _integerStr t =
   if T.length t == 1
   then t
-  else T.dropWhile (== '0') t
+  else if T.head t == '0'
+       then _integerStr (T.tail t)
+       else t
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
