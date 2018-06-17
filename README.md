@@ -41,7 +41,7 @@ To run all the tests (parsers and the library API):
 ```shell
 $ git submodule update --init --recursive
 $ git submodule foreach git pull origin gh-pages
-$ stack test
+$ stack test --test-arguments="--quickcheck-tests 1000"
 ```
 
 To run specific parser tests when bug fixing:
