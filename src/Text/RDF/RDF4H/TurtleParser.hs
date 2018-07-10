@@ -64,7 +64,7 @@ instance RdfParser TurtleParserCustom where
   parseString (TurtleParserCustom bUrl dUrl Attoparsec)  = parseStringAttoparsec bUrl dUrl
   parseFile   (TurtleParserCustom bUrl dUrl Parsec)      = parseFileParsec bUrl dUrl
   parseFile   (TurtleParserCustom bUrl dUrl Attoparsec)  = parseFileAttoparsec bUrl dUrl
-  parseURL    (TurtleParserCustom bUrl dUrl Parsec)      = parseURLParsec  bUrl dUrl
+  parseURL    (TurtleParserCustom bUrl dUrl Parsec)      = parseURLParsec bUrl dUrl
   parseURL    (TurtleParserCustom bUrl dUrl Attoparsec)  = parseURLAttoparsec  bUrl dUrl
 
 
@@ -77,18 +77,18 @@ type ParseState =
    [Predicate],      -- stack of current predicate nodes, if we've parsed a predicate but not finished the triple
    [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
    [Bool],           -- when in a collection, is it a subject collection or not
-   Bool,           -- when in a blank node property list, is it a subject collection or not
+   Bool,             -- when in a blank node property list, is it a subject collection or not
    Seq Triple,       -- the triples encountered while parsing; always added to on the right side
    Map String Int)
 
 -- grammar rule: [1] turtleDoc
 -- t_turtleDoc :: (CharParsing m, Monad m) => m (Seq Triple, PrefixMappings)
-t_turtleDoc :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
+t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
 t_turtleDoc =
   many t_statement *> (eof <?> "eof") *> gets (\(_, _, _, pms, _, _, _, _, _, ts,_) -> (ts, pms))
 
 -- grammar rule: [2] statement
-t_statement :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_statement :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_statement = d <|> t <|> void (some t_ws <?> "blankline-whitespace")
   where
     d = void
@@ -102,7 +102,7 @@ t_statement = d <|> t <|> void (some t_ws <?> "blankline-whitespace")
 
 -- grammar rule: [6] triples
 -- subject predicateObjectList | blankNodePropertyList predicateObjectList?
-t_triples :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_triples :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_triples =
   try (t_subject *> many t_ws *> t_predicateObjectList *> resetSubjectPredicate)
   <|> (setSubjBlankNodePropList
@@ -113,10 +113,10 @@ t_triples =
       *> setNotSubjBlankNodePropList)
 
 -- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
-t_blankNodePropertyList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_blankNodePropertyList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_blankNodePropertyList = between (char '[') (char ']') $ do
                             subjPropList <- isSubjPropList
-                            blankNode <- BNodeGen <$> nextIdCounter
+                            blankNode <- nextBlankNode
                             unless subjPropList $ addTripleForObject blankNode
                             pushSubj blankNode
                             many t_ws *> t_predicateObjectList *> void (many t_ws)
@@ -128,18 +128,18 @@ t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
 -- grammar rule: [135s] iri
 -- IRIREF | PrefixedName
-t_iri :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
+t_iri :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_iri =  try t_iriref <|> t_prefixedName
 
 -- grammar rule: [136s] PrefixedName
-t_prefixedName :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
+t_prefixedName :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_prefixedName = try t_pname_ln <|> try t_pname_ns
 
 -- grammar rule: [4] prefixID
 t_prefixID :: (CharParsing m, MonadState ParseState m) => m ()
 t_prefixID =
   do void (try (string "@prefix" <?> "@prefix-directive"))
-     pre <- (some t_ws <?> "whitespace-after-@prefix") *> option T.empty t_pn_prefix
+     pre <- (some t_ws <?> "whitespace-after-@prefix") *> option mempty t_pn_prefix
      void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
      void (many t_ws <?> "prefixID-whitespace")
@@ -181,12 +181,12 @@ t_sparql_base =
      dUrl <- currDocUrl
      updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
 
-t_verb :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 -- [9]	verb ::= predicate | 'a'
 t_verb = (try t_predicate <|> (char 'a' *> pure rdfTypeNode)) >>= pushPred
 
 -- grammar rule: [11] predicate
-t_predicate :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m Node
+t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_predicate = UNode <$> (t_iri <?> "resource")
 
 -- grammar rules: [139s] PNAME_NS
@@ -200,7 +200,7 @@ t_pname_ns =do
 
 -- grammar rules: [168s] PN_LOCAL
 -- [168s] PN_LOCAL ::= (PN_CHARS_U | ':' | [0-9] | PLX) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX))?
-t_pn_local :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
+t_pn_local :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_pn_local = do
   x <- t_pn_chars_u_str <|> string ":" <|> satisfy_str <|> t_plx
   xs <- option "" $ try $ do
@@ -232,21 +232,21 @@ t_pn_local_esc :: CharParsing m => m Char
 t_pn_local_esc = char '\\' *> oneOf "_~.-!$&'()*+,;=/?#@%"
 
 -- grammar rules: [140s] PNAME_LN
-t_pname_ln :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m T.Text
+t_pname_ln :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_pname_ln = T.append <$> t_pname_ns <*> t_pn_local
 
 -- grammar rule: [10] subject
 -- [10] subject	::= iri | BlankNode | collection
-t_subject :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
-t_subject =
-  iri <|>
-  (t_blankNode >>= pushSubj) <|>
-   (BNodeGen <$> nextIdCounter >>= \x -> pushSubj x
-    *> pushPred rdfFirstNode
-    *> pushSubjColl
-    *> t_collection)
+t_subject :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
+t_subject = iri <|> blankNode <|> collection
   where
-    iri         = unode <$> (try t_iri <?> "subject resource") >>= pushSubj
+    iri = unode <$> (try t_iri <?> "subject resource") >>= pushSubj
+    blankNode = t_blankNode >>= pushSubj
+    collection = nextBlankNode >>= \bn
+                 -> pushSubj bn
+                 *> pushPred rdfFirstNode
+                 *> pushSubjColl
+                 *> t_collection
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
@@ -284,9 +284,9 @@ t_anon :: CharParsing m => m ()
 t_anon = between (char '[') (char ']') (skipMany t_ws)
 
 -- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
-t_predicateObjectList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_predicateObjectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_predicateObjectList =
-  void (sepEndBy1
+  void (sepBy1
         (optional (try (do { t_verb
                            ; some t_ws
                            ; t_objectList
@@ -295,64 +295,57 @@ t_predicateObjectList =
 
 -- grammar rule: [8] objectlist
 -- [8] objectList ::= object (',' object)*
-t_objectList :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_objectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_objectList = -- t_object actually adds the triples
-  () <$ ((t_object <?> "object")
-     *> many (try (many t_ws *> char ',' *> many t_ws *> t_object)))
+  void ((t_object <?> "object")
+        *> many (try (many t_ws *> char ',' *> many t_ws *> t_object)))
 
 -- grammar rule: [12] object
 -- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal
-t_object :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
+t_object :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_object = do
   inColl <- isInColl
   inSubjColl <- isInSubjColl
-  onFirstItem <- onCollFirstItem
+  onFirstItem <- isOnCollFirstItem
   let processObject =
            (UNode <$> t_iri >>= addTripleForObject) <|>
            (try t_blankNode >>= addTripleForObject) <|>
            (try t_collection *> pushObjColl) <|>
            try t_blankNodePropertyList <|>
            (t_literal >>= addTripleForObject)
-  case (inColl,inSubjColl,onFirstItem) of
+  case (inColl, inSubjColl, onFirstItem) of
     (False,_,_)    -> processObject
-    (True,False,True)  -> BNodeGen <$> nextIdCounter >>= \bSubj -> addTripleForObject bSubj
+    (True,False,True)  -> nextBlankNode >>= \bSubj -> addTripleForObject bSubj
                           *> pushSubj bSubj *> pushPred rdfFirstNode *> processObject *> collFirstItemProcessed
 --    (True,True,True)  -> processObject *> collFirstItemProcessed
     (True,True,True)  -> processObject *> collFirstItemProcessed *> popColl
-    (True,_,False) -> BNodeGen <$> nextIdCounter >>= \bSubj -> pushPred rdfRestNode *>
+    (True,_,False) -> nextBlankNode >>= \bSubj -> pushPred rdfRestNode *>
                       addTripleForObject bSubj *> popPred *> popSubj *>
                       pushSubj bSubj *> processObject
 
--- collection: '(' ws* itemList? ws* ')'
--- itemList:      object (ws+ object)*
 -- grammar rule: [15] collection
--- 15]	collection ::= '(' object* ')'
-t_collection :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m ()
-t_collection =
-  between (char '(') (char ')') $ do
-    beginColl
-    try empty_list <|> non_empty_list
-    void (many t_ws)
-    void finishColl
-    -- popColl
-      where
-        non_empty_list = do
-          some (many t_ws *> t_object *> many t_ws)
-
-          _inSubjColl <- isInSubjColl
-
-          popPred
-          pushPred rdfRestNode
-          addTripleForObject rdfNilNode
-          void popSubj
-
-          -- popPred
-          -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
-          -- if inSubjColl then pure () else trace "not sub" $ void popSubj
-
-        empty_list = do
-          lookAhead (try (many t_ws *> char ')'))
-          addTripleForObject rdfNilNode
+-- [15]	collection ::= '(' object* ')'
+t_collection :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
+t_collection = between (char '(') (char ')') $ do
+  beginColl
+  try empty_list <|> non_empty_list
+  void (many t_ws)
+  void finishColl
+  -- popColl
+    where
+      non_empty_list = do
+        some (many t_ws *> t_object *> many t_ws)
+        _inSubjColl <- isInSubjColl
+        popPred
+        pushPred rdfRestNode
+        addTripleForObject rdfNilNode
+        void popSubj
+        -- popPred
+        -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
+        -- if inSubjColl then pure () else trace "not sub" $ void popSubj
+      empty_list = do
+        lookAhead (try (many t_ws *> char ')'))
+        addTripleForObject rdfNilNode
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
 rdfTypeNode   = UNode $ mkUri rdf "type"
@@ -366,7 +359,7 @@ xsdDoubleUri  = mkUri xsd "double"
 xsdDecimalUri = mkUri xsd "decimal"
 xsdBooleanUri = mkUri xsd "boolean"
 
-t_literal :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m Node
+t_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_literal =
   LNode <$> try t_rdf_literal                 <|>
   (`mkLNode` xsdDoubleUri)  <$> try t_double  <|>
@@ -379,7 +372,7 @@ t_literal =
 
 -- [128s] RDFLiteral
 -- String (LANGTAG | '^^' iri)?
-t_rdf_literal :: (MonadState ParseState m,CharParsing m, LookAheadParsing m) => m LValue
+t_rdf_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m LValue
 t_rdf_literal = do
   str' <- t_string
   let str = escapeRDFSyntax str'
@@ -613,8 +606,8 @@ isInColl :: MonadState ParseState m => m Bool
 isInColl = gets $ \(_, _, _, _, _, _, cs, _, _, _, _) -> not . null $ cs
 
 isInSubjColl :: MonadState ParseState m => m Bool
-isInSubjColl = gets $ \(_, _, _, _, _, _, _, xs, _, _, _) ->
-                   if null xs then False else (head xs)
+isInSubjColl = gets $ \(_, _, _, _, _, _, _, subjC, _, _, _) ->
+                   if null subjC then False else (head subjC)
 
 {-
 isInObjColl :: (CharParsing m, MonadState ParseState m) => m Bool
@@ -633,8 +626,8 @@ popColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genM
                 put (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts, genMap)
 
 pushObjColl :: MonadState ParseState m => m ()
-pushObjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-                        (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts,genMap)
+pushObjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
+                        (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts, genMap)
 
 isSubjPropList :: MonadState ParseState m => m Bool
 isSubjPropList = gets $ \(_, _, _, _, _, _, _, _, subjBNodeList, _,_) -> subjBNodeList
@@ -647,13 +640,13 @@ isObjPropList = get >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
 
 setSubjBlankNodePropList :: MonadState ParseState m => m ()
 setSubjBlankNodePropList =
-  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
-            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
+  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts, genMap) ->
+            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts, genMap)
 
 setNotSubjBlankNodePropList :: MonadState ParseState m => m ()
 setNotSubjBlankNodePropList =
-  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts,genMap) ->
-            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts,genMap)
+  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts, genMap) ->
+            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts, genMap)
 
 -- setObjBlankNodePropList :: (CharParsing m, Monad m) => m ()
 -- setObjBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
@@ -669,33 +662,38 @@ updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
 nextIdCounter :: MonadState ParseState m => m Int
-nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-                put (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) *> pure i
+nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
+                put (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) *> pure i
+
+nextBlankNode :: MonadState ParseState m => m Node
+nextBlankNode = BNodeGen <$> nextIdCounter
 
 updatePMs :: MonadState ParseState m => Maybe PrefixMappings -> m ()
 updatePMs val = _modifyState no no val no no no
 
 -- Register that we have begun processing a collection
 beginColl :: MonadState ParseState m => m ()
-beginColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-                      (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts,genMap)
+beginColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
+                      (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts, genMap)
 
-onCollFirstItem :: MonadState ParseState m => m Bool
-onCollFirstItem = gets $ \(_, _, _, _, _, _, cs, _, _, _,_) -> (not (null cs) && head cs)
+isOnCollFirstItem :: MonadState ParseState m => m Bool
+isOnCollFirstItem = gets $ \(_, _, _, _, _, _, cs, _, _, _,_) -> (not (null cs) && head cs)
 
 collFirstItemProcessed :: MonadState ParseState m => m ()
 collFirstItemProcessed =
-  modify $ \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts,genMap) ->
-            (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts,genMap)
+  modify $ \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts, genMap) ->
+            (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts, genMap)
 
 -- Register that a collection is finished being processed; the bool value
 -- in the monad is *not* the value that was popped from the stack, but whether
 -- we are still processing a parent collection or have finished processing
 -- all collections and are no longer in a collection at all.
 finishColl :: MonadState ParseState m => m Bool
-finishColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts,genMap) ->
-             let cs' = drop 1 cs
-             in put (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts,genMap) *> pure (not $ null cs')
+finishColl = do
+  (bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) <- get
+  let cs' = drop 1 cs
+  put (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts, genMap)
+  pure (not . null $ cs')
 
 -- Alias for Nothing for use with _modifyState calls, which can get very long with
 -- many Nothing values.
@@ -705,8 +703,8 @@ no = Nothing
 -- Update the subject and predicate values of the ParseState to Nothing.
 resetSubjectPredicate :: MonadState ParseState m => m ()
 resetSubjectPredicate =
-  modify $ \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts,genMap) ->
-            (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts,genMap)
+  modify $ \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts, genMap) ->
+            (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts, genMap)
 
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
@@ -715,7 +713,7 @@ _modifyState :: MonadState ParseState m =>
                 Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
                 m ()
 _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
-  do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _subjC, _subjBNodeList, _ts,genMap) <- get
+  do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _subjC, _subjBNodeList, _ts, genMap) <- get
      put (fromMaybe _bUrl mb_bUrl,
               _dUrl,
               maybe _n (const _n) mb_n,
@@ -729,12 +727,12 @@ _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
 
 addTripleForObject :: (CharParsing m, MonadState ParseState m) => Object -> m ()
 addTripleForObject obj =
-  do (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts,genMap) <- get
+  do (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) <- get
      when (null ss) $
        unexpected $ "No Subject with which to create triple for: " ++ show obj
      when (null ps) $
        unexpected $ "No Predicate with which to create triple for: " ++ show obj
-     put (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj,genMap)
+     put (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj, genMap)
 
 
 ---------------------------------
