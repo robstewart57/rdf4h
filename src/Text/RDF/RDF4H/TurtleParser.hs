@@ -73,11 +73,8 @@ type ParseState =
    Maybe T.Text,     -- the docUrl, which never changes and is used to resolve <> in the document.
    Int,              -- the id counter, containing the value of the next id to be used
    PrefixMappings,   -- the mappings from prefix to URI that are encountered while parsing
-   [Subject],        -- stack of current subject nodes, if we have parsed a subject but not finished the triple
-   [Predicate],      -- stack of current predicate nodes, if we've parsed a predicate but not finished the triple
-   [Bool],           -- a stack of values to indicate that we're processing a (possibly nested) collection; top True indicates just started (on first element)
-   [Bool],           -- when in a collection, is it a subject collection or not
-   Bool,             -- when in a blank node property list, is it a subject collection or not
+   Maybe Subject,    -- current subject node, if we have parsed a subject but not finished the triple
+   Maybe Predicate,  -- current predicate node, if we've parsed a predicate but not finished the triple
    Seq Triple,       -- the triples encountered while parsing; always added to on the right side
    Map String Int)
 
@@ -85,17 +82,18 @@ type ParseState =
 -- t_turtleDoc :: (CharParsing m, Monad m) => m (Seq Triple, PrefixMappings)
 t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
 t_turtleDoc =
-  many t_statement *> (eof <?> "eof") *> gets (\(_, _, _, pms, _, _, _, _, _, ts,_) -> (ts, pms))
+  many t_statement *> (eof <?> "eof") *> gets (\(_, _, _, pms, _, _, ts,_) -> (ts, pms))
 
 -- grammar rule: [2] statement
+-- [2] statement ::= directive | triples '.'
 t_statement :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_statement = d <|> t <|> void (some t_ws <?> "blankline-whitespace")
+t_statement = directive <|> triples <|> void (some t_ws <?> "blankline-whitespace")
   where
-    d = void
+    directive = void
       (try t_directive
       *> (many t_ws <?> "directive-whitespace2"))
-    t = void
-      (t_triples
+    triples = void
+      (try t_triples
       *> (many t_ws <?> "triple-whitespace1")
       *> (char '.' <?> "end-of-triple-period")
       *> (many t_ws <?> "triple-whitespace2"))
@@ -103,24 +101,23 @@ t_statement = d <|> t <|> void (some t_ws <?> "blankline-whitespace")
 -- grammar rule: [6] triples
 -- subject predicateObjectList | blankNodePropertyList predicateObjectList?
 t_triples :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_triples =
-  try (t_subject *> many t_ws *> t_predicateObjectList *> resetSubjectPredicate)
-  <|> (setSubjBlankNodePropList
-      *> t_blankNodePropertyList
-      *> many t_ws
+t_triples = try subjectWithPOL <|> blankNodePropertyListWithPOL
+  where
+    subjectWithPOL = t_subject *> many t_ws *> t_predicateObjectList *> resetSubjectPredicate
+    blankNodePropertyListWithPOL = t_blankNodePropertyList >>= \bn
+      -> many t_ws
+      *> setSubjectPredicate (Just bn) Nothing
       *> optional t_predicateObjectList
       *> resetSubjectPredicate
-      *> setNotSubjBlankNodePropList)
 
 -- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
-t_blankNodePropertyList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_blankNodePropertyList = between (char '[') (char ']') $ do
-                            subjPropList <- isSubjPropList
-                            blankNode <- nextBlankNode
-                            unless subjPropList $ addTripleForObject blankNode
-                            pushSubj blankNode
-                            many t_ws *> t_predicateObjectList *> void (many t_ws)
-                            unless subjPropList $ void popSubj
+t_blankNodePropertyList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
+t_blankNodePropertyList = withConstantSubjectPredicate $
+  between (char '[') (char ']') $ do
+    bn <- nextBlankNode
+    setSubjectPredicate (Just bn) Nothing
+    void (many t_ws *> t_predicateObjectList *> many t_ws)
+    return bn
 
 -- grammar rule: [3] directive
 t_directive :: (CharParsing m, MonadState ParseState m) => m ()
@@ -144,7 +141,7 @@ t_prefixID =
      uriFrag <- t_iriref
      void (many t_ws <?> "prefixID-whitespace")
      void (char '.' <?> "end-of-prefixID-period")
-     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- get
+     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      pure ()
 
@@ -155,7 +152,7 @@ t_sparql_prefix =
      pre <- (some t_ws <?> "whitespace-after-@prefix") *> option T.empty t_pn_prefix
      void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
      uriFrag <- t_iriref
-     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _, _, _, _) <- get
+     (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
      updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
      pure ()
 
@@ -183,7 +180,7 @@ t_sparql_base =
 
 t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 -- [9]	verb ::= predicate | 'a'
-t_verb = (try t_predicate <|> (char 'a' *> pure rdfTypeNode)) >>= pushPred
+t_verb = (try t_predicate <|> (char 'a' *> pure rdfTypeNode)) >>= setPredicate
 
 -- grammar rule: [11] predicate
 t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
@@ -193,7 +190,7 @@ t_predicate = UNode <$> (t_iri <?> "resource")
 t_pname_ns :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pname_ns =do
   pre <- option T.empty (try t_pn_prefix) <* char ':'
-  (bUrl, _, _, pms, _, _, _, _, _, _, _) <- get
+  (bUrl, _, _, pms, _, _, _, _) <- get
   case resolveQName bUrl pre pms of
     Just n  -> pure n
     Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
@@ -238,15 +235,8 @@ t_pname_ln = T.append <$> t_pname_ns <*> t_pn_local
 -- grammar rule: [10] subject
 -- [10] subject	::= iri | BlankNode | collection
 t_subject :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_subject = iri <|> blankNode <|> collection
-  where
-    iri = unode <$> (try t_iri <?> "subject resource") >>= pushSubj
-    blankNode = t_blankNode >>= pushSubj
-    collection = nextBlankNode >>= \bn
-                 -> pushSubj bn
-                 *> pushPred rdfFirstNode
-                 *> pushSubjColl
-                 *> t_collection
+t_subject = iri <|> t_blankNode <|> t_collection >>= setSubject
+  where iri = unode <$> (try t_iri <?> "subject resource")
 
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
@@ -281,71 +271,56 @@ t_blank_node_label = do
 
 -- [162s] ANON ::= '[' WS* ']'
 t_anon :: CharParsing m => m ()
-t_anon = between (char '[') (char ']') (skipMany t_ws)
+t_anon = void (between (char '[') (char ']') (many t_ws))
 
 -- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
 t_predicateObjectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_predicateObjectList =
-  void (sepBy1
-        (optional (try (do { t_verb
-                           ; some t_ws
-                           ; t_objectList
-                           ; popPred})))
-        (try (many t_ws *> char ';' *> many t_ws)))
+t_predicateObjectList = void (sepEndBy1
+  (optional (try (t_verb *> some t_ws *> t_objectList)))
+  (try (many t_ws *> char ';' *> many t_ws)))
 
 -- grammar rule: [8] objectlist
 -- [8] objectList ::= object (',' object)*
 t_objectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_objectList = -- t_object actually adds the triples
-  void ((t_object <?> "object")
-        *> many (try (many t_ws *> char ',' *> many t_ws *> t_object)))
+t_objectList = do
+  (t_object <?> "object") >>= addTripleForObject
+  many (try (many t_ws *> char ',' *> many t_ws *> t_object >>= addTripleForObject))
+  return ()
 
 -- grammar rule: [12] object
 -- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal
-t_object :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_object = do
-  inColl <- isInColl
-  inSubjColl <- isInSubjColl
-  onFirstItem <- isOnCollFirstItem
-  let processObject =
-           (UNode <$> t_iri >>= addTripleForObject) <|>
-           (try t_blankNode >>= addTripleForObject) <|>
-           (try t_collection *> pushObjColl) <|>
-           try t_blankNodePropertyList <|>
-           (t_literal >>= addTripleForObject)
-  case (inColl, inSubjColl, onFirstItem) of
-    (False,_,_)    -> processObject
-    (True,False,True)  -> nextBlankNode >>= \bSubj -> addTripleForObject bSubj
-                          *> pushSubj bSubj *> pushPred rdfFirstNode *> processObject *> collFirstItemProcessed
---    (True,True,True)  -> processObject *> collFirstItemProcessed
-    (True,True,True)  -> processObject *> collFirstItemProcessed *> popColl
-    (True,_,False) -> nextBlankNode >>= \bSubj -> pushPred rdfRestNode *>
-                      addTripleForObject bSubj *> popPred *> popSubj *>
-                      pushSubj bSubj *> processObject
+t_object :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
+t_object = (UNode <$> t_iri)
+       <|> try t_blankNode
+       <|> try t_collection
+       <|> try t_blankNodePropertyList
+       <|> t_literal
 
 -- grammar rule: [15] collection
 -- [15]	collection ::= '(' object* ')'
-t_collection :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_collection = between (char '(') (char ')') $ do
-  beginColl
-  try empty_list <|> non_empty_list
-  void (many t_ws)
-  void finishColl
-  -- popColl
-    where
-      non_empty_list = do
-        some (many t_ws *> t_object *> many t_ws)
-        _inSubjColl <- isInSubjColl
-        popPred
-        pushPred rdfRestNode
-        addTripleForObject rdfNilNode
-        void popSubj
-        -- popPred
-        -- if inSubjColl then trace "is sub" popColl else trace "not sub" $ void popSubj
-        -- if inSubjColl then pure () else trace "not sub" $ void popSubj
-      empty_list = do
-        lookAhead (try (many t_ws *> char ')'))
-        addTripleForObject rdfNilNode
+t_collection :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
+t_collection = withConstantSubjectPredicate $
+  between (char '(') (char ')') $ do
+    void (many t_ws)
+    root <- try empty_list <|> non_empty_list
+    void (many t_ws)
+    return root
+  where
+    empty_list = lookAhead (char ')') *> return rdfNilNode
+    non_empty_list = do
+      ns <- sepEndBy1 element (some t_ws)
+      addTripleForObject rdfNilNode
+      return (head ns)
+    element = do
+      o <- t_object
+      bn <- nextBlankNode
+      s <- getSubject
+      when (isJust s) (addTripleForObject bn)
+      setSubjectPredicate (Just bn) (Just rdfFirstNode)
+      addTripleForObject o
+      setPredicate rdfRestNode
+      return bn
+    getSubject = get >>= \(_, _, _, _, s, _, _, _) -> pure s
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
 rdfTypeNode   = UNode $ mkUri rdf "type"
@@ -569,101 +544,26 @@ newBaseUrl Nothing               url = BaseUrl url
 newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
 currGenIdLookup :: MonadState ParseState m => m (Map String Int)
-currGenIdLookup = gets $ \(_, _, _, _, _, _, _, _, _, _,genMap) -> genMap
+currGenIdLookup = gets $ \(_, _, _, _, _, _, _,genMap) -> genMap
 
 addGenIdLookup :: MonadState ParseState m => String -> Int -> m ()
 addGenIdLookup genId counter =
-  modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-            (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, Map.insert genId counter genMap)
+  modify $ \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
+            (bUrl, dUrl, i, pms, s, p, ts, Map.insert genId counter genMap)
 
 currBaseUrl :: MonadState ParseState m => m (Maybe BaseUrl)
-currBaseUrl = gets $ \(bUrl, _, _, _, _, _, _, _, _, _,_) -> bUrl
+currBaseUrl = gets $ \(bUrl, _, _, _, _, _, _,_) -> bUrl
 
 currDocUrl :: MonadState ParseState m => m (Maybe T.Text)
-currDocUrl = gets $ \(_, dUrl, _, _, _, _, _, _, _, _,_) -> dUrl
-
-pushSubj :: MonadState ParseState m => Subject -> m ()
-pushSubj s = modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                       (bUrl, dUrl, i, pms, s:ss, ps, cs, subjC, subjBNodeList, ts, genMap)
-
-popSubj :: (CharParsing m, MonadState ParseState m) => m Subject
-popSubj = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                put (bUrl, dUrl, i, pms, tail ss, ps, cs, subjC, subjBNodeList, ts, genMap)
-                  *> when (null ss) (fail "Cannot pop subject off empty stack.")
-                  *> pure (head ss)
-
-pushPred :: MonadState ParseState m => Predicate -> m ()
-pushPred p = modify $ \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                       (bUrl, dUrl, i, pms, ss, p:ps, cs, subjC, subjBNodeList, ts, genMap)
-
-popPred :: MonadState ParseState m => m Predicate
-popPred = get >>= \(bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) ->
-                put (bUrl, dUrl, i, pms, ss, tail ps, cs, subjC, subjBNodeList, ts, genMap)
-                  *> when (null ps) (fail "Cannot pop predicate off empty stack.")
-                  *> pure (head ps)
-
-isInColl :: MonadState ParseState m => m Bool
-isInColl = gets $ \(_, _, _, _, _, _, cs, _, _, _, _) -> not . null $ cs
-
-isInSubjColl :: MonadState ParseState m => m Bool
-isInSubjColl = gets $ \(_, _, _, _, _, _, _, subjC, _, _, _) ->
-                   if null subjC then False else (head subjC)
-
-{-
-isInObjColl :: (CharParsing m, MonadState ParseState m) => m Bool
-isInObjColl = get >>= \(_, _, _, _, _, _, _, xs, _, _) -> do
-               when (null xs) $ error "null in isInObjColl"
-               pure (not (head xs))
--}
-
-pushSubjColl :: MonadState ParseState m => m ()
-pushSubjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
-                         (bUrl, dUrl, i, pms, s, p, cs, True:subjC, subjBNodeList, ts, genMap)
-
-popColl :: (CharParsing m, MonadState ParseState m) => m ()
-popColl = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) -> do
-                when (null subjC) $ fail "null in popColl"
-                put (bUrl, dUrl, i, pms, s, p, cs, tail subjC, subjBNodeList, ts, genMap)
-
-pushObjColl :: MonadState ParseState m => m ()
-pushObjColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
-                        (bUrl, dUrl, i, pms, s, p, cs, False:subjC, subjBNodeList, ts, genMap)
-
-isSubjPropList :: MonadState ParseState m => m Bool
-isSubjPropList = gets $ \(_, _, _, _, _, _, _, _, subjBNodeList, _,_) -> subjBNodeList
-
-{-
-isObjPropList :: (CharParsing m, MonadState ParseState m) => m Bool
-isObjPropList = get >>= \(_, _, _, _, _, _, _, _, subjBNodeList, _) -> do
-                pure subjBNodeList
--}
-
-setSubjBlankNodePropList :: MonadState ParseState m => m ()
-setSubjBlankNodePropList =
-  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts, genMap) ->
-            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts, genMap)
-
-setNotSubjBlankNodePropList :: MonadState ParseState m => m ()
-setNotSubjBlankNodePropList =
-  modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts, genMap) ->
-            (bUrl, dUrl, i, pms, s, p, cs, subjC, True, ts, genMap)
-
--- setObjBlankNodePropList :: (CharParsing m, Monad m) => m ()
--- setObjBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _, ts) ->
---                  put (bUrl, dUrl, i, pms, s, p, cs, subjC, False, ts)
-
--- popBlankNodePropList :: (CharParsing m, Monad m) => m ()
--- popBlankNodePropList = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, _:subjBNodeList, ts) ->
---                  when (null subjBNodeList) $ "no subj/obj flag to pop when exiting collection"
---                  put (bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts)
+currDocUrl = gets $ \(_, dUrl, _, _, _, _, _,_) -> dUrl
 
 updateBaseUrl :: MonadState ParseState m => Maybe (Maybe BaseUrl) -> m ()
 updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
 nextIdCounter :: MonadState ParseState m => m Int
-nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
-                put (bUrl, dUrl, i+1, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) *> pure i
+nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
+                put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) *> pure i
 
 nextBlankNode :: MonadState ParseState m => m Node
 nextBlankNode = BNodeGen <$> nextIdCounter
@@ -671,68 +571,65 @@ nextBlankNode = BNodeGen <$> nextIdCounter
 updatePMs :: MonadState ParseState m => Maybe PrefixMappings -> m ()
 updatePMs val = _modifyState no no val no no no
 
--- Register that we have begun processing a collection
-beginColl :: MonadState ParseState m => m ()
-beginColl = modify $ \(bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) ->
-                      (bUrl, dUrl, i, pms, s, p, True:cs, subjC, subjBNodeList, ts, genMap)
-
-isOnCollFirstItem :: MonadState ParseState m => m Bool
-isOnCollFirstItem = gets $ \(_, _, _, _, _, _, cs, _, _, _,_) -> (not (null cs) && head cs)
-
-collFirstItemProcessed :: MonadState ParseState m => m ()
-collFirstItemProcessed =
-  modify $ \(bUrl, dUrl, i, pms, s, p, _:cs, subjC, subjBNodeList, ts, genMap) ->
-            (bUrl, dUrl, i, pms, s, p, False:cs, subjC, subjBNodeList, ts, genMap)
-
--- Register that a collection is finished being processed; the bool value
--- in the monad is *not* the value that was popped from the stack, but whether
--- we are still processing a parent collection or have finished processing
--- all collections and are no longer in a collection at all.
-finishColl :: MonadState ParseState m => m Bool
-finishColl = do
-  (bUrl, dUrl, i, pms, s, p, cs, subjC, subjBNodeList, ts, genMap) <- get
-  let cs' = drop 1 cs
-  put (bUrl, dUrl, i, pms, s, p, cs', subjC, subjBNodeList, ts, genMap)
-  pure (not . null $ cs')
-
 -- Alias for Nothing for use with _modifyState calls, which can get very long with
 -- many Nothing values.
 no :: Maybe a
 no = Nothing
 
+withConstantSubjectPredicate :: MonadState ParseState m => m a -> m a
+withConstantSubjectPredicate a = do
+  (_, _, _, _, s, p, _, _) <- get
+  a' <- a
+  (bUrl, dUrl, n, pms, _, _, ts, genMap) <- get
+  put (bUrl, dUrl, n, pms, s, p, ts, genMap)
+  return a'
+
+-- Update the subject and predicate values of the ParseState
+setSubjectPredicate :: MonadState ParseState m => Maybe Subject -> Maybe Predicate -> m ()
+setSubjectPredicate s p =
+  modify $ \(bUrl, dUrl, n, pms, _, _, ts, genMap) ->
+            (bUrl, dUrl, n, pms, s, p, ts, genMap)
+
+setSubject :: MonadState ParseState m => Subject -> m ()
+setSubject s =
+  modify $ \(bUrl, dUrl, n, pms, _, p, ts, genMap) ->
+            (bUrl, dUrl, n, pms, Just s, p, ts, genMap)
+
+setPredicate :: MonadState ParseState m => Predicate -> m ()
+setPredicate p =
+  modify $ \(bUrl, dUrl, n, pms, s, _, ts, genMap) ->
+            (bUrl, dUrl, n, pms, s, Just p, ts, genMap)
+
 -- Update the subject and predicate values of the ParseState to Nothing.
 resetSubjectPredicate :: MonadState ParseState m => m ()
-resetSubjectPredicate =
-  modify $ \(bUrl, dUrl, n, pms, _, _, cs, subjC, subjBNodeList, ts, genMap) ->
-            (bUrl, dUrl, n, pms, [], [], cs, subjC, subjBNodeList, ts, genMap)
+resetSubjectPredicate = setSubjectPredicate Nothing Nothing
 
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
 _modifyState :: MonadState ParseState m =>
                 Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
-                Maybe Subject -> Maybe Predicate -> Maybe (Seq Triple) ->
+                Maybe (Maybe Subject) -> Maybe (Maybe Predicate) -> Maybe (Seq Triple) ->
                 m ()
 _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps =
-  do (_bUrl, _dUrl, _n, _pms, _s, _p, _cs, _subjC, _subjBNodeList, _ts, genMap) <- get
+  do (_bUrl, _dUrl, _n, _pms, _s, _p, _ts, genMap) <- get
      put (fromMaybe _bUrl mb_bUrl,
-              _dUrl,
-              maybe _n (const _n) mb_n,
-              fromMaybe _pms mb_pms,
-              maybe _s (: _s) mb_subj,
-              maybe _p (: _p) mb_pred,
-              _cs,
-              _subjC,
-              _subjBNodeList,
-              fromMaybe _ts mb_trps,genMap)
+          _dUrl,
+          maybe _n (const _n) mb_n,
+          fromMaybe _pms mb_pms,
+          maybe _s (const _s) mb_subj,
+          maybe _p (const _p) mb_pred,
+          fromMaybe _ts mb_trps, genMap)
 
 addTripleForObject :: (CharParsing m, MonadState ParseState m) => Object -> m ()
-addTripleForObject obj =
-  do (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts, genMap) <- get
-     when (null ss) $
-       unexpected $ "No Subject with which to create triple for: " ++ show obj
-     when (null ps) $
-       unexpected $ "No Predicate with which to create triple for: " ++ show obj
-     put (bUrl, dUrl, i, pms, ss, ps, cs, subjC, subjBNodeList, ts |> Triple (head ss) (head ps) obj, genMap)
+addTripleForObject obj = do
+  (bUrl, dUrl, i, pms, s, p, ts, genMap) <- get
+  t <- getTriple s p
+  put (bUrl, dUrl, i, pms, s, p, ts |> t, genMap)
+  where
+    getTriple Nothing   _         = unexpected $ "No Subject with which to create triple for: " ++ show obj
+    getTriple _         Nothing   = unexpected $ "No Predicate with which to create triple for: " ++ show obj
+    getTriple (Just s') (Just p') = pure $ Triple s' p' obj
+
 
 
 ---------------------------------
@@ -808,7 +705,7 @@ parseURLAttoparsec bUrl docUrl = _parseURL (parseStringAttoparsec bUrl docUrl)
 ---------------------------------
 
 initialState :: Maybe BaseUrl -> Maybe T.Text -> ParseState
-initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings Map.empty, [], [], [], [], False, Seq.empty,Map.empty)
+initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings Map.empty, Nothing, Nothing, Seq.empty,Map.empty)
 
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
