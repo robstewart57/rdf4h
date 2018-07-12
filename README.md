@@ -47,9 +47,9 @@ $ stack test --test-arguments="--quickcheck-tests 1000"
 To run specific parser tests when bug fixing:
 
 ```shell
-$ stack test --test-arguments="--pattern parser-w3c-tests-ntriples"
-$ stack test --test-arguments="--pattern parser-w3c-tests-turtle"
-$ stack test --test-arguments="--pattern parser-w3c-tests-xml"
+$ stack test --test-arguments="--pattern /parser-w3c-tests-ntriples/"
+$ stack test --test-arguments="--pattern /parser-w3c-tests-turtle/"
+$ stack test --test-arguments="--pattern /parser-w3c-tests-xml/"
 ```
 
 ### Running benchmarks
