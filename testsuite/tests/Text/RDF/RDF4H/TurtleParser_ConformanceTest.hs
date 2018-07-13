@@ -49,8 +49,8 @@ fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 tests :: [TestTree]
 tests = ts1 ++ ts2 ++ ts3
    where
-        ts1 = map (checkGoodConformanceTest) [0..30]
-        ts2 = map (checkBadConformanceTest) [0..14]
+        ts1 = map (checkGoodConformanceTest) [0..29]
+        ts2 = map (checkBadConformanceTest) [0..15]
         ts3 = map (uncurry checkGoodOtherTest) otherTestFiles
 
 checkGoodConformanceTest :: Int -> TestTree

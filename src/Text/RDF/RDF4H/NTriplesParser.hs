@@ -93,7 +93,7 @@ nt_literal = do
                 <|> (plainLL s <$> nt_langtag)
 
 -- [9] STRING_LITERAL_QUOTE
-nt_string_literal_quote :: CharParsing m => m T.Text
+nt_string_literal_quote :: (CharParsing m, Monad m) => m T.Text
 nt_string_literal_quote =
     between (char '"') (char '"') $
       T.concat <$> many ((T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD']) <|>
@@ -108,28 +108,23 @@ nt_langtag = do
   pure (T.pack (ss ++ rest))
 
 -- [8] IRIREF
-nt_iriref :: CharParsing m => m T.Text
+nt_iriref :: (CharParsing m, Monad m) => m T.Text
 nt_iriref =
   between (char '<') (char '>') $
               T.concat <$> many ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ "<>\"{}|^`\\") <|> nt_uchar )
 
 -- [153s] ECHAR
-nt_echar :: CharParsing m => m T.Text
-nt_echar = try $ T.singleton <$> (char '\\' *> satisfy isEchar)
-
-isEchar :: Char -> Bool
-isEchar = (`elem` ['t','b','n','r','f','"','\'','\\'])
+nt_echar :: (CharParsing m, Monad m) => m T.Text
+nt_echar = T.singleton <$> echar -- [FIXME]
 
 -- [10] UCHAR
-nt_uchar :: CharParsing m => m T.Text
-nt_uchar =
-    try (T.pack <$> ((++) <$> string "\\u" <*> count 4 hexDigit)) <|>
-    try (T.pack <$> ((++) <$> string "\\U" <*> count 8 hexDigit))
+nt_uchar :: (CharParsing m, Monad m) => m T.Text
+nt_uchar = T.singleton <$> uchar -- [FIXME]
 
 -- nt_empty is a line that isn't a comment or a triple. They appear in the
 -- parsed output as Nothing, whereas a real triple appears as (Just triple).
 nt_empty :: CharParsing m => m (Maybe Triple)
-nt_empty     = skipMany nt_space *> pure Nothing
+nt_empty = skipMany nt_space *> pure Nothing
 
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.

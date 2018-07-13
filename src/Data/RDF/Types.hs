@@ -19,7 +19,9 @@ module Data.RDF.Types (
   isUNode,isLNode,isBNode,
 
   -- * Miscellaneous
-  resolveQName, absolutizeUrl, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,fileSchemeToFilePath,filePathToUri,
+  resolveQName, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,
+  fileSchemeToFilePath,filePathToUri,
+  echar, uchar,
 
   -- * RDF data family
   RDF,
@@ -47,11 +49,13 @@ import qualified Data.Text as T
 import System.IO
 import Text.Printf
 import Data.Binary
+import Data.Char (chr, ord)
 import Data.String (IsString(..))
 import Data.Map(Map)
 import Data.Maybe (fromJust)
-import Control.Applicative
-import Control.Monad ((<=<))
+import           Control.Applicative
+import qualified Control.Applicative as A
+import Control.Monad ((<=<), guard)
 import GHC.Generics (Generic)
 import Data.Hashable(Hashable)
 import qualified Data.List as List
@@ -181,17 +185,47 @@ isRdfURI :: T.Text -> Either ParseError T.Text
 isRdfURI t = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
 
 -- [18]	IRIREF from Turtle spec
-isRdfURIParser :: CharParsing m => m T.Text
-isRdfURIParser = T.concat <$> many (T.singleton <$> noneOf (['\x00'..'\x20'] ++ " <>\"{}|^`\\") <|> nt_uchar)
+isRdfURIParser :: (CharParsing m, Monad m) => m T.Text
+isRdfURIParser = T.pack <$> many (noneOf (['\x00'..'\x20'] ++ "<>\"{}|^`\\") <|> uchar)
 
 -- [10] UCHAR
-nt_uchar :: CharParsing m => m T.Text
-nt_uchar =
-    try (T.pack . uEscapedToXEscaped <$> (string "\\u" *> count 4 hexDigit)) <|>
-    try (T.pack . uEscapedToXEscaped <$> (string "\\U" *> count 8 hexDigit))
+uchar :: (CharParsing m, Monad m) => m Char
+uchar = try shortUnicode <|> try longUnicode
+  where shortUnicode = string "\\u" *> unescapeUnicode 4
+        longUnicode  = string "\\U" *> unescapeUnicode 8
 
-uEscapedToXEscaped :: String -> String
-uEscapedToXEscaped ss = read ("\"\\x" ++ ss ++ "\"")
+echar :: (CharParsing m, Monad m) => m Char
+echar = try $ do
+  c2 <- char '\\' *> anyChar
+  case c2 of
+    't'  -> pure '\t'
+    'b'  -> pure '\b'
+    'n'  -> pure '\n'
+    'r'  -> pure '\r'
+    'f'  -> pure '\f'
+    '"'  -> pure '\"'
+    '\'' -> pure '\''
+    '\\' -> pure '\\'
+    _    -> A.empty
+
+
+unescapeUnicode :: (CharParsing m, Monad m) => Int -> m Char
+unescapeUnicode n = do
+  c <- go n 0
+  guard (c <= 0x10FFFF)
+  return $ chr c
+  where
+    {-# INLINE go #-}
+    go 0 t = pure t
+    go k t = do
+      h <- anyChar >>= getHex
+      let t' = t * 16 + h
+      seq t' <$> go (k - 1) t'
+    {-# INLINE getHex #-}
+    getHex c | '0' <= c && c <= '9' = pure (ord c - ord '0')
+             | 'A' <= c && c <= 'F' = pure (ord c - ord 'A' + 10)
+             | 'a' <= c && c <= 'f' = pure (ord c - ord 'a' + 10)
+             | otherwise            = A.empty
 
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
@@ -207,32 +241,22 @@ uriValidateString t = case isRdfURIString of
                 Right uri -> Just uri
   where
     isRdfURIString = parse (isRdfURIParserS  <* eof) ("Invalid URI: " ++ t) t
-    isRdfURIParserS = many (validUriChar <|> nt_ucharS)
-    nt_ucharS =
-        try (head . uEscapedToXEscaped <$> (string "\\u" *> count 4 hexDigit)) <|>
-        try (head . uEscapedToXEscaped <$> (string "\\U" *> count 8 hexDigit))
+    isRdfURIParserS = many (validUriChar <|> uchar)
     -- [18]	IRIREF from Turtle spec
     validUriChar = try $ satisfy $ \c ->
       not (c >= '\x00' && c <= '\x20')
-      && c `notElem` [' ','<','>','"','{','}','|','^','`','\\']
+      && c `notElem` ['<','>','"','{','}','|','^','`','\\']
 
--- | Escapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
+-- | Unescapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
 --   to the RDF specification.
 escapeRDFSyntax :: T.Text -> T.Text
 escapeRDFSyntax t = T.pack uri
-    where
-      Right uri = parse unicodeEscParser "" (T.unpack t)
-      unicodeEscParser :: (CharParsing m, Monad m) => m String
-      unicodeEscParser =
-                concat <$> many (
-                    try (do { str <- ("\\x"++) <$> (string "\\U" *> count 8 hexDigit)
-                            ; pure (read ("\"" ++ str ++ "\"") :: String)})
-                   <|>
-                    try (do { str <- ("\\x"++) <$> (string "\\u" *> count 4 hexDigit)
-                            ; pure (read ("\"" ++ str ++ "\"") :: String)})
-                   <|> (pure <$> anyChar)
-                   )
+  where Right uri = parse (many unicodeEscParser) "" t
 
+-- | Parse @\Uxxxxxxxx@ and @\uxxxx@ character sequence according
+--   to the RDF specification.
+unicodeEscParser :: (CharParsing m, Monad m) => m Char
+unicodeEscParser = uchar <|> anyChar
 
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
@@ -624,71 +648,15 @@ instance Show PrefixMapping where
 -----------------
 -- Miscellaneous helper functions used throughout the project
 
--- | Resolve a prefix using the given prefix mappings and base URL. If the prefix is
---   empty, then the base URL will be used if there is a base URL and
---   if the map does not contain an entry for the empty prefix.
-resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> Maybe T.Text
-resolveQName mbaseUrl prefix (PrefixMappings pms') =
-  case (mbaseUrl, T.null prefix) of
-    (Just (BaseUrl base), True)  ->  Just $ Map.findWithDefault base T.empty pms'
-    (_,                   _   )  ->  Map.lookup prefix pms'
-
-{- alternative implementation from Text.RDF.RDF4H.ParserUtils
---
--- Resolve a prefix using the given prefix mappings and base URL. If the prefix is
--- empty, then the base URL will be used if there is a base URL and if the map
--- does not contain an entry for the empty prefix.
-resolveQName :: Maybe BaseUrl -> T.Text -> PrefixMappings -> T.Text
-resolveQName mbaseUrl prefix (PrefixMappings pms') =
-  case (mbaseUrl, T.null prefix) of
-    (Just (BaseUrl base), True)  ->  Map.findWithDefault base T.empty pms'
-    (Nothing,             True)  ->  err1
-    (_,                   _   )  ->  Map.findWithDefault err2 prefix pms'
-  where
-    err1 = error  "Cannot resolve empty QName prefix to a Base URL."
-    err2 = error ("Cannot resolve QName prefix: " ++ T.unpack prefix)
--}
-
--- | Resolve a URL fragment found on the right side of a prefix mapping
---   by converting it to an absolute URL if possible.
-absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
-absolutizeUrl mbUrl mdUrl urlFrag =
-  if isAbsoluteUri urlFrag then urlFrag else
-    (case (mbUrl, mdUrl) of
-         (Nothing, Nothing) -> urlFrag
-         (Just (BaseUrl bUrl), Nothing) -> bUrl `T.append` urlFrag
-         (Nothing, Just dUrl) -> if isHash urlFrag then
-                                     dUrl `T.append` urlFrag else urlFrag
-         (Just (BaseUrl bUrl), Just dUrl) -> (if isHash urlFrag then dUrl
-                                                  else bUrl)
-                                                 `T.append` urlFrag)
-  where
-    isHash bs' = bs' == "#"
-
-{- alternative implementation from Text.RDF.RDF4H.ParserUtils
---
--- Resolve a URL fragment found on the right side of a prefix mapping by converting it to an absolute URL if possible.
-absolutizeUrl :: Maybe BaseUrl -> Maybe T.Text -> T.Text -> T.Text
-absolutizeUrl mbUrl mdUrl urlFrag =
-  if isAbsoluteUri urlFrag then urlFrag else
-    (case (mbUrl, mdUrl) of
-         (Nothing, Nothing) -> urlFrag
-         (Just (BaseUrl bUrl), Nothing) -> bUrl `T.append` urlFrag
-         (Nothing, Just dUrl) -> if isHash urlFrag then
-                                     dUrl `T.append` urlFrag else urlFrag
-         (Just (BaseUrl bUrl), Just dUrl) -> (if isHash urlFrag then dUrl
-                                                  else bUrl)
-                                                 `T.append` urlFrag)
-  where
-    isHash bs' = T.length bs' == 1 && T.head bs' == '#'
--}
+-- | Resolve a prefix using the given prefix mappings.
+resolveQName :: T.Text -> PrefixMappings -> Maybe T.Text
+resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
 
 {-# INLINE mkAbsoluteUrl #-}
 -- | Make an absolute URL by returning as is if already an absolute URL and otherwise
 --   appending the URL to the given base URL.
 mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
-mkAbsoluteUrl base url =
-    if isAbsoluteUri url then url else base `T.append` url
+mkAbsoluteUrl base url = if isAbsoluteUri url then url else base `T.append` url
 
 -----------------
 -- Internal canonicalize functions, don't export

@@ -1,1 +1,5 @@
-<http://example.org/node> <http://example.org/prop> <scheme:\u0001\u0002\u0003\u0004\u0005\u0006\u0007\u0008\t\n\u000B\u000C\r\u000E\u000F\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001A\u001B\u001C\u001D\u001E\u001F !"#$%&'()*+,-./0123456789:/<=\u003E?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\u007F> .
+<http://www.w3.org/2001/sw/DataAccess/df1/tests/a1> <http://www.w3.org/2001/sw/DataAccess/df1/tests/b1> <http://www.w3.org/2001/sw/DataAccess/df1/tests/c1> .
+<http://example.org/ns/a2> <http://example.org/ns/b2> <http://example.org/ns/c2> .
+<http://example.org/ns/foo/a3> <http://example.org/ns/foo/b3> <http://example.org/ns/foo/c3> .
+<http://example.org/ns/foo/bar#a4> <http://example.org/ns/foo/bar#b4> <http://example.org/ns/foo/bar#c4> .
+<http://example.org/ns2#a5> <http://example.org/ns2#b5> <http://example.org/ns2#c5> .

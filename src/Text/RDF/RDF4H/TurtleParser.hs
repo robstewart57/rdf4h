@@ -10,6 +10,7 @@ module Text.RDF.RDF4H.TurtleParser
   , TurtleParserCustom(TurtleParserCustom)
   ) where
 
+import Prelude hiding (readFile)
 import Data.Attoparsec.ByteString (parse,IResult(..))
 import Data.Char (isLetter,isAlphaNum,toLower,toUpper,isDigit,isHexDigit)
 import qualified Data.Map as Map
@@ -26,6 +27,7 @@ import qualified Data.Text.IO as TIO
 import Data.Sequence (Seq, (|>))
 import qualified Data.Foldable as F
 import Control.Monad
+import System.IO (IOMode(..), withFile, hSetNewlineMode, noNewlineTranslation, hSetEncoding, utf8)
 
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -65,14 +67,14 @@ instance RdfParser TurtleParserCustom where
   parseURL    (TurtleParserCustom bUrl dUrl Attoparsec)  = parseURLAttoparsec  bUrl dUrl
 
 type ParseState =
-  (Maybe BaseUrl,    -- the current BaseUrl, may be Nothing initially, but not after it is once set
-   Maybe T.Text,     -- the docUrl, which never changes and is used to resolve <> in the document.
-   Int,              -- the id counter, containing the value of the next id to be used
-   PrefixMappings,   -- the mappings from prefix to URI that are encountered while parsing
-   Maybe Subject,    -- current subject node, if we have parsed a subject but not finished the triple
-   Maybe Predicate,  -- current predicate node, if we have parsed a predicate but not finished the triple
-   Seq Triple,       -- the triples encountered while parsing; always added to on the right side
-   Map String Int)   -- map blank node names to generated id.
+  ( Maybe BaseUrl    -- the current BaseUrl, may be Nothing initially, but not after it is once set
+  , Maybe T.Text     -- the docUrl, which never changes and is used to resolve <> in the document.
+  , Int              -- the id counter, containing the value of the next id to be used
+  , PrefixMappings   -- the mappings from prefix to URI that are encountered while parsing
+  , Maybe Subject    -- current subject node, if we have parsed a subject but not finished the triple
+  , Maybe Predicate  -- current predicate node, if we have parsed a predicate but not finished the triple
+  , Seq Triple       -- the triples encountered while parsing; always added to on the right side
+  , Map String Int ) -- map blank node names to generated id.
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
@@ -125,7 +127,7 @@ t_iri =  try t_iriref <|> t_prefixedName
 
 -- grammar rule: [136s] PrefixedName
 t_prefixedName :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
-t_prefixedName = try t_pname_ln <|> try t_pname_ns
+t_prefixedName = try t_pname_ln <|> t_pname_ns
 
 -- grammar rule: [4] prefixID
 t_prefixID :: (CharParsing m, MonadState ParseState m) => m ()
@@ -137,7 +139,8 @@ t_prefixID = do
   void (many t_ws <?> "prefixID-whitespace")
   void (char '.' <?> "end-of-prefixID-period")
   (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
-  updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
+  iri <- absolutizeUrl bUrl dUrl uriFrag
+  updatePMs $ Just (PrefixMappings $ Map.insert pre iri pms)
   pure ()
 
 -- grammar rule: [6s] sparqlPrefix
@@ -148,7 +151,8 @@ t_sparql_prefix = do
   void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
   uriFrag <- t_iriref
   (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
-  updatePMs $ Just (PrefixMappings $ Map.insert pre (absolutizeUrl bUrl dUrl uriFrag) pms)
+  iri <- absolutizeUrl bUrl dUrl uriFrag
+  updatePMs $ Just (PrefixMappings $ Map.insert pre iri pms)
   pure ()
 
 -- grammar rule: [5] base
@@ -156,26 +160,28 @@ t_base :: (CharParsing m, MonadState ParseState m) => m ()
 t_base = do
   void (try (string "@base" <?> "@base-directive"))
   void (some t_ws <?> "whitespace-after-@base")
-  urlFrag <- t_iriref
+  iriFrag <- t_iriref
   void (many t_ws <?> "base-whitespace")
   void (char '.') <?> "end-of-base-period"
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
+  iri <- absolutizeUrl bUrl dUrl iriFrag
+  updateBaseUrl (Just $ Just $ newBaseUrl bUrl iri)
 
 -- grammar rule: [5s] sparqlBase
 t_sparql_base :: (CharParsing m, MonadState ParseState m) => m ()
 t_sparql_base = do
   void (try (caseInsensitiveString "BASE" <?> "@sparql-base-directive"))
   void (some t_ws <?> "whitespace-after-BASE")
-  urlFrag <- t_iriref
+  iriFrag <- t_iriref
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  updateBaseUrl (Just $ Just $ newBaseUrl bUrl (absolutizeUrl bUrl dUrl urlFrag))
+  iri <- absolutizeUrl bUrl dUrl iriFrag
+  updateBaseUrl (Just $ Just $ newBaseUrl bUrl iri)
 
 t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 -- [9]	verb ::= predicate | 'a'
-t_verb = (try t_predicate <|> (char 'a' *> pure rdfTypeNode)) >>= setPredicate
+t_verb = try t_predicate <|> (char 'a' *> pure rdfTypeNode) >>= setPredicate
 
 -- grammar rule: [11] predicate
 t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
@@ -184,9 +190,9 @@ t_predicate = UNode <$> (t_iri <?> "resource")
 -- grammar rules: [139s] PNAME_NS
 t_pname_ns :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pname_ns = do
-  pre <- option T.empty (try t_pn_prefix) <* char ':'
-  (bUrl, _, _, pms, _, _, _, _) <- get
-  case resolveQName bUrl pre pms of
+  pre <- option mempty (try t_pn_prefix) <* char ':'
+  (_, _, _, pms, _, _, _, _) <- get
+  case resolveQName pre pms of
     Just n  -> pure n
     Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
 
@@ -202,6 +208,7 @@ t_pn_local = do
     concat <$> many recsve
   pure (T.pack (x ++ xs))
   where
+    -- [FIXME] remove "pure"
     satisfy_str      = pure <$> satisfy isDigit
     t_pn_chars_str   = pure <$> t_pn_chars
     t_pn_chars_u_str = pure <$> t_pn_chars_u
@@ -222,6 +229,7 @@ t_pn_local_esc :: CharParsing m => m Char
 t_pn_local_esc = char '\\' *> oneOf "_~.-!$&'()*+,;=/?#@%"
 
 -- grammar rules: [140s] PNAME_LN
+-- [140s] PNAME_LN ::= PNAME_NS PN_LOCAL
 t_pname_ln :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_pname_ln = T.append <$> t_pname_ns <*> t_pn_local
 
@@ -267,9 +275,9 @@ t_anon = void (between (char '[') (char ']') (many t_ws))
 
 -- [7] predicateObjectList ::= verb objectList (';' (verb objectList)?)*
 t_predicateObjectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_predicateObjectList = void (sepEndBy1
-  (optional (try (t_verb *> some t_ws *> t_objectList)))
-  (try (many t_ws *> char ';' *> many t_ws)))
+t_predicateObjectList = void $ sepEndBy1 (try verbObjectList) (try separator)
+  where verbObjectList = t_verb *> some t_ws *> t_objectList
+        separator = some (many t_ws *> char ';' *> many t_ws)
 
 -- grammar rule: [8] objectlist
 -- [8] objectList ::= object (',' object)*
@@ -282,7 +290,7 @@ t_objectList = do
 -- grammar rule: [12] object
 -- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal
 t_object :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
-t_object = (UNode <$> t_iri)
+t_object = try (UNode <$> t_iri)
        <|> try t_blankNode
        <|> try t_collection
        <|> try t_blankNodePropertyList
@@ -341,26 +349,26 @@ t_literal =
 -- String (LANGTAG | '^^' iri)?
 t_rdf_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m LValue
 t_rdf_literal = do
-  str' <- t_string
-  let str = escapeRDFSyntax str'
-  option (plainL str) $
-    try (t_langtag >>= \lang -> pure (plainLL str lang)) <|>
-    (count 2 (char '^') *> t_iri >>= \iri -> pure (typedL str iri))
+  str <- t_string
+  option (plainL str) (langTag str <|> typeIRI str)
+  where
+    langTag str = plainLL str <$> try t_langtag
+    typeIRI str = typedL str <$> try (count 2 (char '^') *> t_iri)
 
 -- [17] String
 -- STRING_LITERAL_QUOTE | STRING_LITERAL_SINGLE_QUOTE | STRING_LITERAL_LONG_SINGLE_QUOTE | STRING_LITERAL_LONG_QUOTE
 t_string :: (CharParsing m, Monad m) => m T.Text
-t_string = try t_string_literal_long_quote
+t_string = try t_string_literal_long_double_quote
        <|> try t_string_literal_long_single_quote
-       <|> try t_string_literal_quote
+       <|> try t_string_literal_double_quote
        <|> t_string_literal_single_quote
 
 -- [22]	STRING_LITERAL_QUOTE
 -- '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
-t_string_literal_quote :: (CharParsing m, Monad m) => m T.Text
-t_string_literal_quote = between (char '"') (char '"') $
-  T.concat <$> many
-    ( T.singleton <$> noneOf ['\x22','\x5C','\xA','\xD'] <|>
+t_string_literal_double_quote :: (CharParsing m, Monad m) => m T.Text
+t_string_literal_double_quote = between (char '"') (char '"') $
+  T.pack <$> many
+    ( noneOf ['\x22','\x5C','\xA','\xD'] <|>
       t_echar <|>
       t_uchar )
 
@@ -368,8 +376,8 @@ t_string_literal_quote = between (char '"') (char '"') $
 -- "'" ([^#x27#x5C#xA#xD] | ECHAR | UCHAR)* "'"
 t_string_literal_single_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_single_quote = between (char '\'') (char '\'') $
-  T.concat <$> many
-    ( T.singleton <$> noneOf ['\x27','\x5C','\xA','\xD'] <|>
+  T.pack <$> many
+    ( noneOf ['\x27','\x5C','\xA','\xD'] <|>
       t_echar <|>
       t_uchar )
 
@@ -379,17 +387,17 @@ t_string_literal_long_single_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_long_single_quote = between (string "'''") (string "'''") $ do
   ss <- many $ try $ do
     s1 <- T.pack <$> option "" (try (string "''") <|> string "'")
-    s2 <- T.singleton <$> noneOf ['\'','\\'] <|> t_echar <|> t_uchar
+    s2 <- T.singleton <$> (noneOf ['\'','\\'] <|> t_echar <|> t_uchar)
     pure (s1 `T.append` s2)
   pure (T.concat ss)
 
 -- [25] STRING_LITERAL_LONG_QUOTE
 -- '"""' (('"' | '""')? ([^"\] | ECHAR | UCHAR))* '"""'
-t_string_literal_long_quote :: (CharParsing m, Monad m) => m T.Text
-t_string_literal_long_quote = between (string "\"\"\"") (string "\"\"\"") $ do
+t_string_literal_long_double_quote :: (CharParsing m, Monad m) => m T.Text
+t_string_literal_long_double_quote = between (string "\"\"\"") (string "\"\"\"") $ do
   ss <- many $ try $ do
     s1 <- T.pack <$> option "" (try (string "\"\"") <|> string "\"")
-    s2 <- (T.singleton <$> noneOf ['"','\\']) <|> t_echar <|> t_uchar
+    s2 <- T.singleton <$> (noneOf ['"','\\'] <|> t_echar <|> t_uchar)
     pure (s1 `T.append` s2)
   pure (T.concat ss)
 
@@ -403,27 +411,13 @@ t_langtag = do
 
 -- [159s]	ECHAR
 -- '\' [tbnrf"'\]
-t_echar :: (CharParsing m, Monad m) => m T.Text
-t_echar = try $ do
-  c2 <- char '\\' *> oneOf ['t','b','n','r','f','"','\'','\\']
-  case c2 of
-    't'  -> pure $ T.singleton '\t'
-    'b'  -> pure $ T.singleton '\b'
-    'n'  -> pure $ T.singleton '\n'
-    'r'  -> pure $ T.singleton '\r'
-    'f'  -> pure $ T.singleton '\f'
-    '"'  -> pure $ T.singleton '\"'
-    '\'' -> pure $ T.singleton '\''
-    '\\' -> pure $ T.singleton '\\'
-    _    -> fail "nt_echar: impossible error."
+t_echar :: (CharParsing m, Monad m) => m Char
+t_echar = echar
 
 -- [26]	UCHAR
 -- '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
-t_uchar :: (CharParsing m, Monad m) => m T.Text
-t_uchar = try shortUnicode <|> longUnicode
-  where
-    shortUnicode = string "\\u" *> count 4 hexDigit >>= \cs -> pure $ T.pack ('\\':'u':cs)
-    longUnicode = string "\\U" *> count 8 hexDigit >>= \cs -> pure $ T.pack ('\\':'U':cs)
+t_uchar :: (CharParsing m, Monad m) => m Char
+t_uchar = uchar
 
 -- [19] INTEGER ::= [+-]? [0-9]+
 t_integer :: (CharParsing m, Monad m) => m T.Text
@@ -487,13 +481,19 @@ t_pn_prefix = do
 -- [18] IRIREF
 t_iriref :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_iriref = between (char '<') (char '>') $ do
-  iri <- T.concat <$> many
-    ( T.singleton <$> noneOf (['\x00'..'\x20'] ++ ['<','>','"','{','}','|','^','`','\\']) <|>
-      t_uchar )
+  iri' <- T.pack <$> many validUriChar
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  let iri' = escapeRDFSyntax iri
-  validateURI (absolutizeUrl bUrl dUrl iri')
+  absolutizeUrl bUrl dUrl iri'
+  where
+    validUriChar = try (satisfy isValidUriChar) <|> validUnicodeEscaped
+    validUnicodeEscaped = do
+      c <- t_uchar
+      guard (isValidUriChar c)
+      return c
+    isValidUriChar c =
+      not (c >= '\x00' && c <= '\x20')
+      && c `notElem` ("<>\"{}|^`\\" :: String)
 
 t_pn_chars :: CharParsing m => m Char
 t_pn_chars = t_pn_chars_u <|> char '-' <|> char '\x00B7' <|> satisfy f
@@ -648,11 +648,18 @@ parseURLParsec bUrl docUrl = _parseURL (parseStringParsec bUrl docUrl)
 -- as 'parseURL', except that the last @String@ argument corresponds to a filesystem location rather
 -- than a location URI.
 --
+-- Note: it does not relies on OS specificities (encoding, newline convention).
+--
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFileParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFileParsec bUrl docUrl fpath =
-  TIO.readFile fpath >>= \bs' -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc (initialState bUrl docUrl)) () (maybe "" T.unpack docUrl) bs')
+  readFile fpath >>= \c -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc (initialState bUrl docUrl)) () (maybe "" T.unpack docUrl) c)
 
+readFile :: String -> IO T.Text
+readFile fpath = withFile fpath ReadMode $ \h -> do
+  hSetNewlineMode h noNewlineTranslation
+  hSetEncoding h utf8
+  TIO.hGetContents h
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as
@@ -674,7 +681,7 @@ parseStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtl
         Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
 
 parseFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
-parseFileAttoparsec bUrl docUrl path = parseStringAttoparsec bUrl docUrl <$> TIO.readFile path
+parseFileAttoparsec bUrl docUrl path = parseStringAttoparsec bUrl docUrl <$> readFile path
 
 parseURLAttoparsec :: (Rdf a) =>
                  Maybe BaseUrl       -- ^ The optional base URI of the document.
@@ -696,17 +703,6 @@ handleResult bUrl result = case result of
   (Left err)         -> Left (ParseFailure $ "Parse failure: \n" ++ show err)
   (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
 
-validateUNode :: CharParsing m => T.Text -> m Node
-validateUNode t = case unodeValidate t of
-  Nothing        -> unexpected ("Invalid URI in Turtle parser URI validation: " ++ show t)
-  Just u@UNode{} -> pure u
-  Just node      -> unexpected ("Unexpected node in Turtle parser URI validation: " ++ show node)
-
-validateURI :: (CharParsing m, Monad m) => T.Text -> m T.Text
-validateURI t = do
-  UNode uri <- validateUNode t
-  pure uri
-
 
 --------------
 -- auxiliary parsing functions
@@ -718,3 +714,22 @@ caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 -- Match the string 's', accepting either lowercase or uppercase form of each character
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
 caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
+
+
+-- | Resolve a URL fragment found on the right side of a prefix mapping
+--   by converting it to an absolute URL if possible.
+-- [FIXME] This function should implement the simple algorithm in section 5.2 of RFC3986 (https://www.ietf.org/rfc/rfc3986.txt)
+absolutizeUrl :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
+absolutizeUrl mbUrl mdUrl iriFrag = maybe err pure iri
+  where
+    iri = if isAbsoluteUri iriFrag
+      then (Just iriFrag)
+      else (case (mbUrl, mdUrl) of
+        (Nothing, Nothing) -> Nothing
+        (Just (BaseUrl bUrl), Nothing) -> Just $ bUrl `T.append` iriFrag
+        (Nothing, Just dUrl) -> Just $
+          if isHash iriFrag then dUrl `T.append` iriFrag else iriFrag
+        (Just (BaseUrl bUrl), Just dUrl) -> Just $
+          (if isHash iriFrag then dUrl else bUrl) `T.append` iriFrag)
+    isHash = (== "#")
+    err = unexpected $ "Cannot resolve IRI: " ++ show (mbUrl, mdUrl, iriFrag)
