@@ -22,7 +22,7 @@ import qualified Data.Text as T (Text, pack, unlines)
 import Text.RDF.RDF4H.XmlParser
 import Text.RDF.RDF4H.NTriplesParser
 import Text.Printf
- 
+
 tests :: [TestTree]
 tests =
  [ testCase "simpleStriping1" test_simpleStriping1
@@ -52,7 +52,7 @@ otherTestFiles = [ ("data/xml", "example07")
                  , ("data/xml", "example18")
                  , ("data/xml", "example19")
                  , ("data/xml", "example20")
-                 
+
                  -- https://github.com/robstewart57/rdf4h/issues/48
                  , ("data/xml", "example22")
                  ]
@@ -125,7 +125,7 @@ test_simpleStriping2 = testParse
     \</rdf:RDF>"
     ( mkRdf [ Triple (unode "http://www.w3.org/TR/rdf-syntax-grammar")
                      (unode "dc:title")
-                     (mkTextNode "RDF/XML Syntax Specification (Revised)") 
+                     (mkTextNode "RDF/XML Syntax Specification (Revised)")
             , Triple (unode "http://example.org/buecher/baum")
                      (unode "dc:title")
                      (mkTextNode "Der Baum")
@@ -352,7 +352,7 @@ assertEquivalent testname r1 r2 = do
   gr1 <- r1
   gr2 <- r2
   case equivalent gr1 gr2 of
-    Nothing    -> TU.assert True
+    Nothing    -> return ()
     (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.

@@ -174,7 +174,7 @@ assertEquivalent testname r1 r2 = do
   gr1 <- r1
   gr2 <- r2
   case equivalent gr1 gr2 of
-    Nothing    -> TU.assert True
+    Nothing    -> return ()
     (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
 
 mkDocUrl :: String -> String -> Int -> Maybe T.Text
