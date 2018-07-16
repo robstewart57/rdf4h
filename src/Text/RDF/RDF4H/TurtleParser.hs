@@ -11,7 +11,7 @@ module Text.RDF.RDF4H.TurtleParser
   ) where
 
 import Prelude hiding (readFile)
-import Data.Attoparsec.ByteString (parse,IResult(..))
+import Data.Attoparsec.Text (parse,IResult(..))
 import Data.Char (isLetter,isAlphaNum,toLower,toUpper,isDigit,isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -22,7 +22,6 @@ import Text.RDF.RDF4H.ParserUtils
 import Text.Parsec (runParser, ParseError)
 -- import Text.Parsec.Text (GenParser)
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import Data.Sequence (Seq, (|>))
 import qualified Data.Foldable as F
@@ -672,12 +671,12 @@ parseStringParsec bUrl docUrl ttlStr = handleResult bUrl (runParser (evalStateT 
 -- attoparsec based parsers
 
 parseStringAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> Either ParseFailure (RDF a)
-parseStringAttoparsec bUrl docUrl bs = handleResult' $ parse (evalStateT t_turtleDoc (initialState bUrl docUrl)) (T.encodeUtf8 bs)
+parseStringAttoparsec bUrl docUrl t = handleResult' $ parse (evalStateT t_turtleDoc (initialState bUrl docUrl)) t
   where
     handleResult' res = case res of
         Fail _ _ err -> -- error err
           Left $ ParseFailure $ "Parse failure: \n" ++ show err
-        Partial f -> handleResult' (f (T.encodeUtf8 T.empty))
+        Partial f -> handleResult' (f mempty)
         Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
 
 parseFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
