@@ -1,5 +1,6 @@
 *~
 .*~
+*.log
 dist/
 dist-newstyle/
 cabal-dev
