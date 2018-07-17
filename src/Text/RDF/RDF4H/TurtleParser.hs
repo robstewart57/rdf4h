@@ -284,8 +284,7 @@ t_predicateObjectList = void $ sepEndBy1 (try verbObjectList) (try separator)
 t_objectList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
 t_objectList = do
   (t_object <?> "object") >>= addTripleForObject
-  many (try (many t_ws *> char ',' *> many t_ws *> t_object >>= addTripleForObject))
-  return ()
+  void $ many (try (many t_ws *> char ',' *> many t_ws *> t_object >>= addTripleForObject))
 
 -- grammar rule: [12] object
 -- [12]	object ::= iri | BlankNode | collection | blankNodePropertyList | literal

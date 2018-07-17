@@ -5,8 +5,8 @@
 
 module Data.RDF.PropertyTests (graphTests,arbitraryTs) where
 
-import Data.RDF
-import Data.RDF.Namespace
+import Data.RDF hiding (empty)
+import Data.RDF.Namespace hiding (rdf)
 import qualified Data.Text as T
 import Test.QuickCheck
 import Data.List
@@ -29,17 +29,17 @@ graphTests
   :: (Rdf rdf)
   => TestName
   -> RDF rdf -- ^ empty
-  -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -- ^ mkRdf
+  -> (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf) -- ^ _mkRdf
   -> TestTree
-graphTests testGroupName empty mkRdf =
+graphTests testGroupName empty _mkRdf =
   testGroup
     testGroupName
     [ testProperty "empty" (p_empty empty)
-    , testProperty "mkRdf_triplesOf" (p_mkRdf_triplesOf mkRdf)
-    , testProperty "mkRdf_no_dupes" (p_mkRdf_no_dupes mkRdf)
-    , testProperty "query_match_none" (p_query_match_none mkRdf)
+    , testProperty "mkRdf_triplesOf" (p_mkRdf_triplesOf _mkRdf)
+    , testProperty "mkRdf_no_dupes" (p_mkRdf_no_dupes _mkRdf)
+    , testProperty "query_match_none" (p_query_match_none _mkRdf)
       -- see comment above p_query_matched_spo_no_dupes for why this is disabled
-      -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf mkRdf)
+      -- , testProperty "query_matched_spo_no_dupes" (p_query_matched_spo_no_dupes _triplesOf _mkRdf)
     , testProperty "query_match_s" (p_query_match_s empty)
     , testProperty "query_match_p" (p_query_match_p empty)
     , testProperty "query_match_o" (p_query_match_o empty)
@@ -56,13 +56,13 @@ graphTests testGroupName empty mkRdf =
     , testProperty "select_match_so" (p_select_match_so empty)
     , testProperty "select_match_po" (p_select_match_po empty)
     , testProperty "select_match_spo" (p_select_match_spo empty)
-    , testProperty "reversed RDF handle write" (p_reverseRdfTest mkRdf)
+    , testProperty "reversed RDF handle write" (p_reverseRdfTest _mkRdf)
       -- adding and removing triples from a graph.
-    , testProperty "add_triple" (p_add_triple mkRdf)
-    , testProperty "remove_triple" (p_remove_triple mkRdf)
+    , testProperty "add_triple" (p_add_triple _mkRdf)
+    , testProperty "remove_triple" (p_remove_triple _mkRdf)
     , testProperty
         "remove_triple_from_graph"
-        (p_remove_triple_from_graph mkRdf)
+        (p_remove_triple_from_graph _mkRdf)
     , testProperty
         "remove_triple_from_singleton_graph_query_s"
         (p_remove_triple_from_singleton_graph_query_s empty)
@@ -139,8 +139,8 @@ p_mkRdf_triplesOf
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_mkRdf_triplesOf mkRdf ts bUrl pms =
-  uordered (triplesOf (mkRdf ts bUrl pms)) == uordered ts
+p_mkRdf_triplesOf _mkRdf ts bUrl pms =
+  uordered (triplesOf (_mkRdf ts bUrl pms)) == uordered ts
 
 -- duplicate input triples should not be returned when
 -- uniqTriplesof is used
@@ -151,10 +151,10 @@ p_mkRdf_no_dupes
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_mkRdf_no_dupes mkRdf ts bUrl pms = null ts || (sort result == uordered ts)
+p_mkRdf_no_dupes _mkRdf ts bUrl pms = null ts || (sort result == uordered ts)
   where
     tsWithDupe = head ts : ts
-    result = uniqTriplesOf $ mkRdf tsWithDupe bUrl pms
+    result = uniqTriplesOf $ _mkRdf tsWithDupe bUrl pms
 
 -- Note: in TriplesGraph and PatriciaTreeGraph `query` expands triples
 --       but `ts` here is not  necessarily expanded. What is the correct
@@ -168,9 +168,9 @@ p_query_match_none
   -> Maybe BaseUrl
   -> PrefixMappings
   -> Bool
-p_query_match_none mkRdf ts bUrl pms = uordered ts == uordered result
+p_query_match_none _mkRdf ts bUrl pms = uordered ts == uordered result
   where
-    result = query (mkRdf ts bUrl pms) Nothing Nothing Nothing
+    result = query (_mkRdf ts bUrl pms) Nothing Nothing Nothing
 
 -- query with no wildcard and a triple in the RDF should yield
 -- a singleton list with just the triple.
@@ -480,9 +480,9 @@ p_add_then_remove_triples
 p_add_then_remove_triples _empty genTriples =
   let emptyGraph = _empty
       populatedGraph =
-        foldr (\triple gr -> addTriple gr triple) emptyGraph genTriples
+        foldr (\t gr -> addTriple gr t) emptyGraph genTriples
       emptiedGraph =
-        foldr (\triple gr -> removeTriple gr triple) populatedGraph genTriples
+        foldr (\t gr -> removeTriple gr t) populatedGraph genTriples
   in triplesOf emptiedGraph == []
 
 equivNode :: (Node -> Node -> Bool)
@@ -630,7 +630,7 @@ p_reverseRdfTest _mkRdf =
     fileContents <-
       Test.QuickCheck.Monadic.run $ do
         (pathFile, hFile) <- openTempFile "." "tmp."
-        hWriteRdf NTriplesSerializer hFile rdfGraph
+        hWriteRdf NTriplesSerializer hFile rdf
         hClose hFile
         contents <- readFile pathFile
         removeFile pathFile
@@ -639,7 +639,7 @@ p_reverseRdfTest _mkRdf =
           "<file:///this/is/not/a/palindrome> <file:///this/is/not/a/palindrome> \"literal string\" .\n"
     assert $ expected == fileContents
   where
-    rdfGraph = _mkRdf ts (Just $ BaseUrl "file://") (ns_mappings [])
+    rdf = _mkRdf ts (Just $ BaseUrl "file://") (ns_mappings [])
     ts :: [Triple]
     ts =
       [ Triple
