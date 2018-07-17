@@ -12,13 +12,14 @@ module Text.RDF.RDF4H.TurtleParser
 
 import Prelude hiding (readFile)
 import Data.Attoparsec.Text (parse,IResult(..))
-import Data.Char (isLetter,isAlphaNum,toLower,toUpper,isDigit,isHexDigit)
+import Data.Char (toLower, toUpper, isDigit, isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import Data.RDF.Types
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
+import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
 -- import Text.Parsec.Text (GenParser)
 import qualified Data.Text as T
@@ -258,15 +259,15 @@ t_blank_node_label :: (CharParsing m, MonadState ParseState m) => m String
 t_blank_node_label = do
   void (string "_:")
   firstChar <- t_pn_chars_u <|> satisfy isDigit
-  try $ do
-    ss <- option "" $ do
-            xs <- many (t_pn_chars <|> char '.')
-            if null xs
-            then pure xs
-            else if last xs == '.'
-                 then unexpected "'.' at the end of a blank node label"
-                 else pure xs
-    pure (firstChar : ss)
+  try $ (firstChar:) <$> otherChars
+  where
+    otherChars = option "" $ do
+      xs <- many (t_pn_chars <|> char '.')
+      if null xs
+      then pure xs
+      else if last xs == '.'
+           then unexpected "'.' at the end of a blank node label"
+           else pure xs
 
 -- [162s] ANON ::= '[' WS* ']'
 t_anon :: CharParsing m => m ()
@@ -365,20 +366,12 @@ t_string = try t_string_literal_long_double_quote
 -- [22]	STRING_LITERAL_QUOTE
 -- '"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
 t_string_literal_double_quote :: (CharParsing m, Monad m) => m T.Text
-t_string_literal_double_quote = between (char '"') (char '"') $
-  T.pack <$> many
-    ( noneOf ['\x22','\x5C','\xA','\xD'] <|>
-      t_echar <|>
-      t_uchar )
+t_string_literal_double_quote = nt_string_literal_quote
 
 -- [23] STRING_LITERAL_SINGLE_QUOTE
 -- "'" ([^#x27#x5C#xA#xD] | ECHAR | UCHAR)* "'"
 t_string_literal_single_quote :: (CharParsing m, Monad m) => m T.Text
-t_string_literal_single_quote = between (char '\'') (char '\'') $
-  T.pack <$> many
-    ( noneOf ['\x27','\x5C','\xA','\xD'] <|>
-      t_echar <|>
-      t_uchar )
+t_string_literal_single_quote = string_literal_quote '\''
 
 -- [24] STRING_LITERAL_LONG_SINGLE_QUOTE
 -- "'''" (("'" | "''")? ([^'\] | ECHAR | UCHAR))* "'''"
@@ -401,22 +394,16 @@ t_string_literal_long_double_quote = between (string "\"\"\"") (string "\"\"\"")
   pure (T.concat ss)
 
 -- [144s] LANGTAG
--- '@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
 t_langtag :: (CharParsing m, Monad m) => m T.Text
-t_langtag = do
-  ss   <- char '@' *> some (satisfy isLetter)
-  rest <- concat <$> many (char '-' *> some (satisfy isAlphaNum) >>= \lang_str -> pure ('-':lang_str))
-  pure (T.pack (ss ++ rest))
+t_langtag = nt_langtag
 
 -- [159s]	ECHAR
--- '\' [tbnrf"'\]
 t_echar :: (CharParsing m, Monad m) => m Char
-t_echar = echar
+t_echar = nt_echar
 
 -- [26]	UCHAR
--- '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
 t_uchar :: (CharParsing m, Monad m) => m Char
-t_uchar = uchar
+t_uchar = nt_uchar
 
 -- [19] INTEGER ::= [+-]? [0-9]+
 t_integer :: (CharParsing m, Monad m) => m T.Text
@@ -453,65 +440,53 @@ t_decimal = try $ do
   dig2 <- some (satisfy isDigit)
   pure (T.pack sign `T.append`  T.pack dig1 `T.append` T.pack "." `T.append` T.pack dig2)
 
+-- [154s] EXPONENT ::= [eE] [+-]? [0-9]+
 t_exponent :: (CharParsing m, Monad m) => m T.Text
 t_exponent = do e <- oneOf "eE"
                 s <- option "" (pure <$> oneOf "-+")
                 ds <- some digit
                 pure $! (e `T.cons` ( T.pack s `T.append` T.pack ds))
 
+-- [133s] BooleanLiteral ::= 'true' | 'false'
 t_boolean :: CharParsing m => m T.Text
 t_boolean = T.pack <$> try (string "true" <|> string "false")
 
 t_comment :: CharParsing m => m ()
 t_comment = void (char '#' *> many (noneOf "\n\r"))
+--[TODO] t_comment = nt_comment
 
 -- [161s] WS ::= #x20 | #x9 | #xD | #xA
 t_ws :: CharParsing m => m ()
 t_ws = (void (try (oneOf "\t\n\r "))) <|> try t_comment
    <?> "whitespace-or-comment"
 
--- grammar rule: [167s] PN_PREFIX
+-- [167s] PN_PREFIX ::= PN_CHARS_BASE ((PN_CHARS | '.')* PN_CHARS)?
 t_pn_prefix :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pn_prefix = do
   i <- try t_pn_chars_base
   r <- option "" (many (try t_pn_chars <|> char '.')) -- TODO: ensure t_pn_chars is last char
   pure (T.pack (i:r))
 
--- [18] IRIREF
+-- [18] IRIREF ::= '<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
 t_iriref :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_iriref = between (char '<') (char '>') $ do
-  iri' <- T.pack <$> many validUriChar
+  iri' <- iriFragment
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
   absolutizeUrl bUrl dUrl iri'
-  where
-    validUriChar = try (satisfy isValidUriChar) <|> validUnicodeEscaped
-    validUnicodeEscaped = do
-      c <- t_uchar
-      guard (isValidUriChar c)
-      return c
-    isValidUriChar c =
-      not (c >= '\x00' && c <= '\x20')
-      && c `notElem` ("<>\"{}|^`\\" :: String)
 
+-- [163s] PN_CHARS_BASE
+t_pn_chars_base :: CharParsing m => m Char
+t_pn_chars_base = nt_pn_chars_base
+
+-- [164s] PN_CHARS_U ::= PN_CHARS_BASE | '_'
+t_pn_chars_u :: CharParsing m => m Char
+t_pn_chars_u = t_pn_chars_base <|> char '_'
+
+-- [166s] PN_CHARS ::= PN_CHARS_U | '-' | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040]
 t_pn_chars :: CharParsing m => m Char
 t_pn_chars = t_pn_chars_u <|> char '-' <|> char '\x00B7' <|> satisfy f
   where f = flip in_range [('0', '9'), ('\x0300', '\x036F'), ('\x203F', '\x2040')]
-
--- grammar rule: [163s] PN_CHARS_BASE
-t_pn_chars_base :: CharParsing m => m Char
-t_pn_chars_base = try $ satisfy $ flip in_range blocks
-  where blocks = [('A', 'Z'), ('a', 'z'), ('\x00C0', '\x00D6'),
-                  ('\x00D8', '\x00F6'), ('\x00F8', '\x02FF'),
-                  ('\x0370', '\x037D'), ('\x037F', '\x1FFF'),
-                  ('\x200C', '\x200D'), ('\x2070', '\x218F'),
-                  ('\x2C00', '\x2FEF'), ('\x3001', '\xD7FF'),
-                  ('\xF900', '\xFDCF'), ('\xFDF0', '\xFFFD'),
-                  ('\x10000', '\xEFFFF')]
-
--- grammar rule: [164s] PN_CHARS_U
-t_pn_chars_u :: CharParsing m => m Char
-t_pn_chars_u = t_pn_chars_base <|> char '_'
 
 -- grammar rules: [171s] HEX
 t_hex :: CharParsing m => m Char

@@ -12,16 +12,16 @@ module Data.RDF.Types (
   Triple(Triple), Triples, View(view),
 
   -- * Constructor functions
-  plainL,plainLL,typedL,
-  unode,bnode,lnode,triple,unodeValidate,uriValidate,uriValidateString,
+  plainL, plainLL, typedL,
+  unode, bnode, lnode, triple, unodeValidate, uriValidate, uriValidateString,
 
   -- * Node query function
-  isUNode,isLNode,isBNode,
+  isUNode, isLNode, isBNode,
 
   -- * Miscellaneous
-  resolveQName, isAbsoluteUri, mkAbsoluteUrl,escapeRDFSyntax,
-  fileSchemeToFilePath,filePathToUri,
-  echar, uchar,
+  resolveQName, isAbsoluteUri, mkAbsoluteUrl, escapeRDFSyntax, unescapeUnicode,
+  fileSchemeToFilePath, filePathToUri,
+  iriFragment, uchar,
 
   -- * RDF data family
   RDF,
@@ -51,20 +51,20 @@ import Text.Printf
 import Data.Binary
 import Data.Char (chr, ord)
 import Data.String (IsString(..))
-import Data.Map(Map)
+import Data.Map (Map)
 import Data.Maybe (fromJust)
 import           Control.Applicative
 import qualified Control.Applicative as A
 import Control.Monad ((<=<), guard)
 import GHC.Generics (Generic)
-import Data.Hashable(Hashable)
+import Data.Hashable (Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.FilePath as FP
 import qualified Network.URI as Network (uriPath,parseURI)
 import           Network.URI
 import Control.DeepSeq (NFData,rnf)
-import Text.Parsec(ParseError,parse)
+import Text.Parsec (ParseError, parse)
 import Codec.Binary.UTF8.String
 
 import Text.Parser.Char
@@ -176,41 +176,47 @@ unode = UNode
 --  1. unescape unicode RDF literals
 --  2. checks validity of this unescaped URI using 'isURI' from 'Network.URI'
 --  3. if the unescaped URI is valid then 'Node' constructed with 'UNode'
+-- [FIXME] IRI validation (not URI)
 unodeValidate :: T.Text -> Maybe Node
-unodeValidate t = case isRdfURI t of
-                    Left _err -> Nothing
-                    Right uri -> Just (UNode uri)
+unodeValidate t = UNode <$> uriValidate t
+
+-- |Validate a Text URI and return it in a @Just Text@ if it is
+--  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
+uriValidate :: T.Text -> Maybe T.Text
+uriValidate t = case isRdfURI t of
+                  Left _err -> Nothing
+                  Right uri -> Just uri
+
+-- |Same as 'uriValidate', but on 'String' rather than 'T.Text'
+uriValidateString :: String -> Maybe String
+uriValidateString = liftA T.unpack . uriValidate . fromString
 
 isRdfURI :: T.Text -> Either ParseError T.Text
-isRdfURI t = parse (isRdfURIParser  <* eof) ("Invalid URI: " ++ T.unpack t) t
+isRdfURI t = parse (iriFragment  <* eof) ("Invalid URI: " ++ T.unpack t) t
 
--- [18]	IRIREF from Turtle spec
-isRdfURIParser :: (CharParsing m, Monad m) => m T.Text
-isRdfURIParser = T.pack <$> many (noneOf (['\x00'..'\x20'] ++ "<>\"{}|^`\\") <|> uchar)
+-- IRIREF from NTriples spec (without <> enclosing)
+-- [8] IRIREF ::= '<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
+iriFragment :: (CharParsing m, Monad m) => m T.Text
+iriFragment = T.pack <$> many validUriChar
+  where
+    validUriChar = try (satisfy isValidUriChar) <|> validUnicodeEscaped
+    validUnicodeEscaped = do
+      c <- uchar
+      guard (isValidUriChar c)
+      return c
+    isValidUriChar c =
+      not (c >= '\x00' && c <= '\x20')
+      && c `notElem` ("<>\"{}|^`\\" :: String)
 
--- [10] UCHAR
+-- UCHAR from NTriples spec
+-- [10] UCHAR ::= '\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
 uchar :: (CharParsing m, Monad m) => m Char
 uchar = try shortUnicode <|> try longUnicode
-  where shortUnicode = string "\\u" *> unescapeUnicode 4
-        longUnicode  = string "\\U" *> unescapeUnicode 8
+  where shortUnicode = string "\\u" *> unescapeUnicodeParser 4
+        longUnicode  = string "\\U" *> unescapeUnicodeParser 8
 
-echar :: (CharParsing m, Monad m) => m Char
-echar = try $ do
-  c2 <- char '\\' *> anyChar
-  case c2 of
-    't'  -> pure '\t'
-    'b'  -> pure '\b'
-    'n'  -> pure '\n'
-    'r'  -> pure '\r'
-    'f'  -> pure '\f'
-    '"'  -> pure '\"'
-    '\'' -> pure '\''
-    '\\' -> pure '\\'
-    _    -> A.empty
-
-
-unescapeUnicode :: (CharParsing m, Monad m) => Int -> m Char
-unescapeUnicode n = do
+unescapeUnicodeParser :: (CharParsing m, Monad m) => Int -> m Char
+unescapeUnicodeParser n = do
   c <- go n 0
   guard (c <= 0x10FFFF)
   return $ chr c
@@ -227,36 +233,13 @@ unescapeUnicode n = do
              | 'a' <= c && c <= 'f' = pure (ord c - ord 'a' + 10)
              | otherwise            = A.empty
 
--- |Validate a Text URI and return it in a @Just Text@ if it is
---  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
-uriValidate :: T.Text -> Maybe T.Text
-uriValidate t = case isRdfURI t of
-                  Left _err -> Nothing
-                  Right uri -> Just uri
-
--- |Same as 'uriValidate', but on 'String' rather than 'T.Text'
-uriValidateString :: String -> Maybe String
-uriValidateString t = case isRdfURIString of
-                Left _err -> Nothing
-                Right uri -> Just uri
-  where
-    isRdfURIString = parse (isRdfURIParserS  <* eof) ("Invalid URI: " ++ t) t
-    isRdfURIParserS = many (validUriChar <|> uchar)
-    -- [18]	IRIREF from Turtle spec
-    validUriChar = try $ satisfy $ \c ->
-      not (c >= '\x00' && c <= '\x20')
-      && c `notElem` ['<','>','"','{','}','|','^','`','\\']
-
 -- | Unescapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
 --   to the RDF specification.
-escapeRDFSyntax :: T.Text -> T.Text
-escapeRDFSyntax t = T.pack uri
-  where Right uri = parse (many unicodeEscParser) "" t
-
--- | Parse @\Uxxxxxxxx@ and @\uxxxx@ character sequence according
---   to the RDF specification.
-unicodeEscParser :: (CharParsing m, Monad m) => m Char
-unicodeEscParser = uchar <|> anyChar
+unescapeUnicode, escapeRDFSyntax :: T.Text -> Either ParseError T.Text
+unescapeUnicode t = T.pack <$> parse (many unicodeEsc) "" t
+  where unicodeEsc = uchar <|> anyChar
+{-# DEPRECATED escapeRDFSyntax "Use unescapeUnicode instead" #-}
+escapeRDFSyntax = unescapeUnicode
 
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
