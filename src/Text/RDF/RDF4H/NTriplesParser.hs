@@ -10,20 +10,23 @@ module Text.RDF.RDF4H.NTriplesParser
   ) where
 
 import Prelude hiding (init, pred)
-import Data.RDF.Types hiding (empty)
-import Text.RDF.RDF4H.ParserUtils
-import Data.Attoparsec.ByteString (parse, IResult(..))
+import Data.Semigroup ((<>))
 import Data.Char (isDigit, isLetter, isAlphaNum)
-import qualified Data.Text.Encoding as T
-import Text.Parsec (runParser, ParseError)
-import Text.Parser.LookAhead
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-import           Control.Applicative
+import Control.Applicative
 import Control.Monad (void, guard)
 
+import Data.RDF.Types hiding (empty)
+import Text.RDF.RDF4H.ParserUtils
+
+import Data.Attoparsec.ByteString (parse, IResult(..))
+import Text.Parsec (runParser, ParseError)
+import Text.Parser.LookAhead
 import Text.Parser.Char
 import Text.Parser.Combinators
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
+
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
 -- NTriples format. It requires no configuration options. To use this parser,
@@ -109,7 +112,7 @@ nt_langtag = do
 nt_iriref :: (CharParsing m, Monad m) => m T.Text
 nt_iriref = between (char '<') (char '>') $ do
   iri <- iriFragment
-  guard (isAbsoluteUri iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " <> show iri
+  guard (isAbsoluteUri iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " ++ show iri
   return iri
 
 -- [153s] ECHAR
@@ -223,7 +226,7 @@ handleParsec _mkRdf result
 --  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
 --  | otherwise          =
   = case result of
-        Left err -> Left  $ ParseFailure $ "Parse failure: \n" ++ show err
+        Left err -> Left  $ ParseFailure $ "Parse failure: \n" <> show err
         Right ts -> Right $ _mkRdf ts Nothing (PrefixMappings mempty)
 
 ---------------------------------
