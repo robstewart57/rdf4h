@@ -13,8 +13,7 @@ import qualified Test.Tasty.HUnit as TU
 --  unit test cases         --
 ----------------------------------------------------
 
-graphImplTests
-  :: TestTree
+graphImplTests :: TestTree
 graphImplTests =
   testGroup "graph-unit-tests"
   [

@@ -7,6 +7,7 @@ import Data.Maybe (fromJust)
 import Data.RDF
 import           Data.RDF.GraphImplTests
 import           Data.RDF.PropertyTests
+import           Data.RDF.IRITests
 import qualified Data.Text as T
 import System.FilePath ((</>))
 import System.Directory (getCurrentDirectory)
@@ -34,10 +35,9 @@ mfBaseURIXml      = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
 mfBaseURINTriples = BaseUrl "http://www.w3.org/2013/N-TriplesTests/"
 
 main :: IO ()
-main
--- obtain manifest files for W3C tests before running tests
--- justification for separation: http://stackoverflow.com/a/33046723
- = do
+main = do
+  -- obtain manifest files for W3C tests before running tests
+  -- justification for separation: http://stackoverflow.com/a/33046723
   dir <- getCurrentDirectory
   let fileSchemeUri suitesDir =
         fromJust . filePathToUri $ (dir </> T.unpack suitesDir)
@@ -66,6 +66,10 @@ main
          testGroup
          "graph-impl-unit-tests"
          [ graphImplTests ]
+       ,
+         testGroup
+         "iri"
+         [ iriTests ]
        ,
 
        -- RDF parser unit tests

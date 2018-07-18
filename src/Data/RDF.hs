@@ -8,6 +8,7 @@ module Data.RDF (
   RdfParser(..),
 
   -- * RDF types and query functions
+  module Data.RDF.IRI,
   module Data.RDF.Types,
   module Data.RDF.Query,
 
@@ -23,8 +24,7 @@ module Data.RDF (
   module Text.RDF.RDF4H.TurtleSerializer,
   module Text.RDF.RDF4H.TurtleParser,
   module Text.RDF.RDF4H.XmlParser,
-)
-where
+) where
 
 import Data.RDF.Namespace
 import Data.RDF.Graph.TList
@@ -36,5 +36,6 @@ import Text.RDF.RDF4H.TurtleSerializer
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.XmlParser
+import Data.RDF.IRI
 import Data.RDF.Types
 import Data.RDF.Query

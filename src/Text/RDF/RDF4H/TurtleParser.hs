@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
 import Data.RDF.Types
+import Data.RDF.IRI
 import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.RDF.RDF4H.NTriplesParser
@@ -120,42 +121,41 @@ t_blankNodePropertyList = withConstantSubjectPredicate $
 t_directive :: (CharParsing m, MonadState ParseState m) => m ()
 t_directive = t_prefixID <|> t_base <|> t_sparql_prefix <|> t_sparql_base
 
--- grammar rule: [135s] iri
--- IRIREF | PrefixedName
+-- grammar rule: [135s] iri ::= IRIREF | PrefixedName
 t_iri :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_iri =  try t_iriref <|> t_prefixedName
 
--- grammar rule: [136s] PrefixedName
+-- grammar rule: [136s] PrefixedName ::= PNAME_LN | PNAME_NS
 t_prefixedName :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_prefixedName = try t_pname_ln <|> t_pname_ns
 
--- grammar rule: [4] prefixID
+-- grammar rule: [4] prefixID ::= '@prefix' PNAME_NS IRIREF '.'
 t_prefixID :: (CharParsing m, MonadState ParseState m) => m ()
 t_prefixID = do
   void (try (string "@prefix" <?> "@prefix-directive"))
-  pre <- (some t_ws <?> "whitespace-after-@prefix") *> option mempty t_pn_prefix
-  void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
-  uriFrag <- t_iriref
+  void (some t_ws <?> "whitespace-after-@prefix")
+  pre <- option mempty (try t_pn_prefix) <* char ':'
+  void (some t_ws <?> "whitespace-after-@prefix-colon")
+  iriFrag <- t_iriref
   void (many t_ws <?> "prefixID-whitespace")
   void (char '.' <?> "end-of-prefixID-period")
   (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
-  iri <- absolutizeUrl bUrl dUrl uriFrag
+  iri <- tryIriResolution bUrl dUrl iriFrag
   updatePMs $ Just (PrefixMappings $ Map.insert pre iri pms)
-  pure ()
 
--- grammar rule: [6s] sparqlPrefix
+-- grammar rule: [6s] sparqlPrefix ::= "PREFIX" PNAME_NS IRIREF
 t_sparql_prefix :: (CharParsing m, MonadState ParseState m) => m ()
 t_sparql_prefix = do
   void (try (caseInsensitiveString "PREFIX" <?> "@prefix-directive"))
-  pre <- (some t_ws <?> "whitespace-after-@prefix") *> option T.empty t_pn_prefix
-  void (char ':' *> (some t_ws <?> "whitespace-after-@prefix-colon"))
-  uriFrag <- t_iriref
+  void (some t_ws <?> "whitespace-after-PREFIX")
+  pre <- option mempty (try t_pn_prefix) <* char ':'
+  void (some t_ws <?> "whitespace-after-PREFIX-colon")
+  iriFrag <- t_iriref
   (bUrl, dUrl, _, PrefixMappings pms, _, _, _, _) <- get
-  iri <- absolutizeUrl bUrl dUrl uriFrag
+  iri <- tryIriResolution bUrl dUrl iriFrag
   updatePMs $ Just (PrefixMappings $ Map.insert pre iri pms)
-  pure ()
 
--- grammar rule: [5] base
+-- grammar rule: [5] base ::= '@base' IRIREF '.'
 t_base :: (CharParsing m, MonadState ParseState m) => m ()
 t_base = do
   void (try (string "@base" <?> "@base-directive"))
@@ -165,10 +165,10 @@ t_base = do
   void (char '.') <?> "end-of-base-period"
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  iri <- absolutizeUrl bUrl dUrl iriFrag
-  updateBaseUrl (Just $ Just $ newBaseUrl bUrl iri)
+  newBaseIri <- BaseUrl <$> tryIriResolution bUrl dUrl iriFrag
+  updateBaseUrl (Just $ Just newBaseIri)
 
--- grammar rule: [5s] sparqlBase
+-- grammar rule: [5s] sparqlBase ::= "BASE" IRIREF
 t_sparql_base :: (CharParsing m, MonadState ParseState m) => m ()
 t_sparql_base = do
   void (try (caseInsensitiveString "BASE" <?> "@sparql-base-directive"))
@@ -176,18 +176,17 @@ t_sparql_base = do
   iriFrag <- t_iriref
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  iri <- absolutizeUrl bUrl dUrl iriFrag
-  updateBaseUrl (Just $ Just $ newBaseUrl bUrl iri)
+  newBaseIri <- BaseUrl <$> tryIriResolution bUrl dUrl iriFrag
+  updateBaseUrl (Just $ Just newBaseIri)
 
 t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
--- [9]	verb ::= predicate | 'a'
 t_verb = try t_predicate <|> (char 'a' *> pure rdfTypeNode) >>= setPredicate
 
--- grammar rule: [11] predicate
+-- grammar rule: [11] predicate ::= iri
 t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_predicate = UNode <$> (t_iri <?> "resource")
 
--- grammar rules: [139s] PNAME_NS
+-- grammar rules: [139s] PNAME_NS ::= PN_PREFIX? ':'
 t_pname_ns :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_pname_ns = do
   pre <- option mempty (try t_pn_prefix) <* char ':'
@@ -208,7 +207,6 @@ t_pn_local = do
     concat <$> many recsve
   pure (T.pack (x ++ xs))
   where
-    -- [FIXME] remove "pure"
     satisfy_str      = pure <$> satisfy isDigit
     t_pn_chars_str   = pure <$> t_pn_chars
     t_pn_chars_u_str = pure <$> t_pn_chars_u
@@ -228,8 +226,7 @@ t_percent = sequence [char '%', t_hex, t_hex]
 t_pn_local_esc :: CharParsing m => m Char
 t_pn_local_esc = char '\\' *> oneOf "_~.-!$&'()*+,;=/?#@%"
 
--- grammar rules: [140s] PNAME_LN
--- [140s] PNAME_LN ::= PNAME_NS PN_LOCAL
+-- grammar rules: [140s] PNAME_LN ::= PNAME_NS PN_LOCAL
 t_pname_ln :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_pname_ln = T.append <$> t_pname_ns <*> t_pn_local
 
@@ -469,10 +466,10 @@ t_pn_prefix = do
 -- [18] IRIREF ::= '<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
 t_iriref :: (CharParsing m, MonadState ParseState m) => m T.Text
 t_iriref = between (char '<') (char '>') $ do
-  iri' <- iriFragment
+  iriFrag <- iriFragment
   bUrl <- currBaseUrl
   dUrl <- currDocUrl
-  absolutizeUrl bUrl dUrl iri'
+  tryIriResolution bUrl dUrl iriFrag
 
 -- [163s] PN_CHARS_BASE
 t_pn_chars_base :: CharParsing m => m Char
@@ -494,10 +491,6 @@ t_hex = satisfy isHexDigit <?> "hexadecimal digit"
 {-# INLINE in_range #-}
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
-
-newBaseUrl :: Maybe BaseUrl -> T.Text -> BaseUrl
-newBaseUrl Nothing               url = BaseUrl url
-newBaseUrl (Just (BaseUrl bUrl)) url = BaseUrl $! mkAbsoluteUrl bUrl url
 
 currGenIdLookup :: MonadState ParseState m => m (Map String Int)
 currGenIdLookup = gets $ \(_, _, _, _, _, _, _,genMap) -> genMap
@@ -688,21 +681,10 @@ caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
 caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
 
-
--- | Resolve a URL fragment found on the right side of a prefix mapping
---   by converting it to an absolute URL if possible.
--- [FIXME] This function should implement the simple algorithm in section 5.2 of RFC3986 (https://www.ietf.org/rfc/rfc3986.txt)
-absolutizeUrl :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
-absolutizeUrl mbUrl mdUrl iriFrag = maybe err pure iri
+tryIriResolution :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
+tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
   where
-    iri = if isAbsoluteUri iriFrag
-      then (Just iriFrag)
-      else (case (mbUrl, mdUrl) of
-        (Nothing, Nothing) -> Nothing
-        (Just (BaseUrl bUrl), Nothing) -> Just $ bUrl `T.append` iriFrag
-        (Nothing, Just dUrl) -> Just $
-          if isHash iriFrag then dUrl `T.append` iriFrag else iriFrag
-        (Just (BaseUrl bUrl), Just dUrl) -> Just $
-          (if isHash iriFrag then dUrl else bUrl) `T.append` iriFrag)
-    isHash = (== "#")
-    err = unexpected $ "Cannot resolve IRI: " ++ show (mbUrl, mdUrl, iriFrag)
+    tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
+    tryIriResolution' _ (Just dIri)           = either err pure (resolveIRI dIri iriFrag)
+    tryIriResolution' _ _                     = either err pure (resolveIRI mempty iriFrag)
+    err m = unexpected $ "Cannot resolve IRI: " ++ m ++ " " ++ show (mbUrl, mdUrl, iriFrag)

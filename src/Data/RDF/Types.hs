@@ -50,9 +50,10 @@ import System.IO
 import Text.Printf
 import Data.Binary
 import Data.Char (chr, ord)
+import Data.Either (isRight)
 import Data.String (IsString(..))
 import Data.Map (Map)
-import Data.Maybe (fromJust)
+import Data.RDF.IRI
 import           Control.Applicative
 import qualified Control.Applicative as A
 import Control.Monad ((<=<), guard)
@@ -65,7 +66,6 @@ import qualified Network.URI as Network (uriPath,parseURI)
 import           Network.URI
 import Control.DeepSeq (NFData,rnf)
 import Text.Parsec (ParseError, parse)
-import Codec.Binary.UTF8.String
 
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -302,13 +302,7 @@ isLNode _         = False
 {-# INLINE isAbsoluteUri #-}
 -- | returns @True@ if URI is absolute.
 isAbsoluteUri :: T.Text -> Bool
-isAbsoluteUri = not
-                . uriIsRelative
-                . fromJust
-                . parseURIReference
-                . escapeURIString isUnescapedInURI
-                . encodeString
-                . T.unpack
+isAbsoluteUri = isRight . parseIRI
 
 -- |A type class for ADTs that expose views to clients.
 class View a b where
@@ -470,7 +464,7 @@ class RdfSerializer s where
 
 -- |The base URL of an RDF.
 newtype BaseUrl = BaseUrl T.Text
-  deriving (Eq, Ord, Show, NFData, Generic)
+  deriving (Eq, Ord, Show, NFData, Semigroup, Generic)
 
 instance Binary BaseUrl
 
@@ -636,10 +630,11 @@ resolveQName :: T.Text -> PrefixMappings -> Maybe T.Text
 resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
 
 {-# INLINE mkAbsoluteUrl #-}
+{-# DEPRECATED mkAbsoluteUrl "Use resolveIRI instead, because mkAbsoluteUrl is a partial function" #-}
 -- | Make an absolute URL by returning as is if already an absolute URL and otherwise
 --   appending the URL to the given base URL.
 mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
-mkAbsoluteUrl base url = if isAbsoluteUri url then url else base `T.append` url
+mkAbsoluteUrl base iri = either error id (resolveIRI base iri)
 
 -----------------
 -- Internal canonicalize functions, don't export
