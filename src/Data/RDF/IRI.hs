@@ -21,7 +21,7 @@ module Data.RDF.IRI
 import Data.Semigroup (Semigroup(..))
 import Data.Maybe (fromMaybe, isJust)
 import Data.Functor
-import Data.List (elem, intersperse)
+import Data.List (intersperse)
 import Control.Applicative
 import Control.Monad (guard)
 import Control.Arrow ((***), (&&&), (>>>))

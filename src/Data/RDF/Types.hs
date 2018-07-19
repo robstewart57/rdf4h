@@ -52,6 +52,7 @@ import Data.Binary
 import Data.Char (chr, ord)
 import Data.Either (isRight)
 import Data.String (IsString(..))
+import Data.Semigroup (Semigroup(..))
 import Data.Map (Map)
 import Data.RDF.IRI
 import           Control.Applicative
