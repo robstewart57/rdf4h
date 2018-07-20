@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Data.RDF.Types (
@@ -45,6 +45,7 @@ module Data.RDF.Types (
 ) where
 
 import Prelude hiding (pred)
+import           Data.Text (Text)
 import qualified Data.Text as T
 import System.IO
 import Text.Printf
@@ -81,15 +82,15 @@ data LValue =
   -- control over the format of the literal text that we store.
 
   -- |A plain (untyped) literal value in an unspecified language.
-  PlainL !T.Text
+  PlainL !Text
 
   -- |A plain (untyped) literal value with a language specifier.
-  | PlainLL !T.Text !T.Text
+  | PlainLL !Text !Text
 
   -- |A typed literal value consisting of the literal value and
   -- the URI of the datatype of the value, respectively.
-  | TypedL !T.Text  !T.Text
-    deriving (Generic,Show)
+  | TypedL !Text  !Text
+  deriving (Generic,Show)
 
 instance Binary LValue
 
@@ -100,19 +101,19 @@ instance NFData LValue where
 
 -- |Return a PlainL LValue for the given string value.
 {-# INLINE plainL #-}
-plainL :: T.Text -> LValue
+plainL :: Text -> LValue
 plainL =  PlainL
 
 -- |Return a PlainLL LValue for the given string value and language,
 -- respectively.
 {-# INLINE plainLL #-}
-plainLL :: T.Text -> T.Text -> LValue
+plainLL :: Text -> Text -> LValue
 plainLL = PlainLL
 
 -- |Return a TypedL LValue for the given string value and datatype URI,
 -- respectively.
 {-# INLINE typedL #-}
-typedL :: T.Text -> T.Text -> LValue
+typedL :: Text -> Text -> LValue
 typedL val dtype = TypedL (canonicalize dtype val) dtype
 
 -------------------
@@ -125,12 +126,12 @@ data Node =
   -- |An RDF URI reference. URIs conform to the RFC3986 standard. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-URIref> for more
   -- information.
-  UNode !T.Text
+  UNode !Text
 
   -- |An RDF blank node. See
   -- <http://www.w3.org/TR/rdf-concepts/#section-blank-nodes> for more
   -- information.
-  | BNode !T.Text
+  | BNode !Text
 
   -- |An RDF blank node with an auto-generated identifier, as used in
   -- Turtle.
@@ -140,7 +141,7 @@ data Node =
   -- <http://www.w3.org/TR/rdf-concepts/#section-Graph-Literal> for more
   -- information.
   | LNode !LValue
-    deriving (Generic,Show)
+  deriving (Generic,Show)
 
 instance Binary Node
 
@@ -161,7 +162,7 @@ type Object = Node
 
 -- |Return a URIRef node for the given URI.
 {-# INLINE unode #-}
-unode :: T.Text -> Node
+unode :: Text -> Node
 unode = UNode
 
 -- For background on 'unodeValidate', see:
@@ -177,27 +178,24 @@ unode = UNode
 --  1. unescape unicode RDF literals
 --  2. checks validity of this unescaped URI using 'isURI' from 'Network.URI'
 --  3. if the unescaped URI is valid then 'Node' constructed with 'UNode'
--- [FIXME] IRI validation (not URI)
-unodeValidate :: T.Text -> Maybe Node
+unodeValidate :: Text -> Maybe Node
 unodeValidate t = UNode <$> uriValidate t
 
 -- |Validate a Text URI and return it in a @Just Text@ if it is
 --  valid, otherwise @Nothing@ is returned. See 'unodeValidate'.
-uriValidate :: T.Text -> Maybe T.Text
-uriValidate t = case isRdfURI t of
-                  Left _err -> Nothing
-                  Right uri -> Just uri
+uriValidate :: Text -> Maybe Text
+uriValidate = either (const Nothing) Just . isRdfURI
 
--- |Same as 'uriValidate', but on 'String' rather than 'T.Text'
+-- |Same as 'uriValidate', but on 'String' rather than 'Text'
 uriValidateString :: String -> Maybe String
 uriValidateString = liftA T.unpack . uriValidate . fromString
 
-isRdfURI :: T.Text -> Either ParseError T.Text
+isRdfURI :: Text -> Either ParseError Text
 isRdfURI t = parse (iriFragment  <* eof) ("Invalid URI: " ++ T.unpack t) t
 
 -- IRIREF from NTriples spec (without <> enclosing)
 -- [8] IRIREF ::= '<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
-iriFragment :: (CharParsing m, Monad m) => m T.Text
+iriFragment :: (CharParsing m, Monad m) => m Text
 iriFragment = T.pack <$> many validUriChar
   where
     validUriChar = try (satisfy isValidUriChar) <|> validUnicodeEscaped
@@ -236,7 +234,7 @@ unescapeUnicodeParser n = do
 
 -- | Unescapes @\Uxxxxxxxx@ and @\uxxxx@ character sequences according
 --   to the RDF specification.
-unescapeUnicode, escapeRDFSyntax :: T.Text -> Either ParseError T.Text
+unescapeUnicode, escapeRDFSyntax :: Text -> Either ParseError Text
 unescapeUnicode t = T.pack <$> parse (many unicodeEsc) "" t
   where unicodeEsc = uchar <|> anyChar
 {-# DEPRECATED escapeRDFSyntax "Use unescapeUnicode instead" #-}
@@ -244,7 +242,7 @@ escapeRDFSyntax = unescapeUnicode
 
 -- |Return a blank node using the given string identifier.
 {-# INLINE bnode #-}
-bnode :: T.Text ->  Node
+bnode :: Text ->  Node
 bnode = BNode
 
 -- |Return a literal node using the given LValue.
@@ -261,7 +259,7 @@ lnode = LNode
 -- See <http://www.w3.org/TR/rdf-concepts/#section-triples> for
 -- more information.
 data Triple = Triple !Node !Node !Node
-            deriving (Generic,Show)
+  deriving (Generic,Show)
 
 instance Binary Triple
 
@@ -275,11 +273,11 @@ type Triples = [Triple]
 -- are of the correct type and creates the new 'Triple' if so or calls 'error'.
 -- /subj/ must be a 'UNode' or 'BNode', and /pred/ must be a 'UNode'.
 triple :: Subject -> Predicate -> Object -> Triple
-triple subj pred obj
-  | isLNode subj     =  error $ "subject must be UNode or BNode: "     ++ show subj
-  | isLNode pred     =  error $ "predicate must be UNode, not LNode: " ++ show pred
-  | isBNode pred     =  error $ "predicate must be UNode, not BNode: " ++ show pred
-  | otherwise        =  Triple subj pred obj
+triple s p o
+  | isLNode s = error $ "subject must be UNode or BNode: "     ++ show s
+  | isLNode p = error $ "predicate must be UNode, not LNode: " ++ show p
+  | isBNode p = error $ "predicate must be UNode, not BNode: " ++ show p
+  | otherwise =  Triple s p o
 
 -- |Answer if given node is a URI Ref node.
 {-# INLINE isUNode #-}
@@ -302,7 +300,7 @@ isLNode _         = False
 
 {-# INLINE isAbsoluteUri #-}
 -- | returns @True@ if URI is absolute.
-isAbsoluteUri :: T.Text -> Bool
+isAbsoluteUri :: Text -> Bool
 isAbsoluteUri = isRight . parseIRI
 
 -- |A type class for ADTs that expose views to clients.
@@ -335,7 +333,7 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   addPrefixMappings :: RDF rdfImpl -> PrefixMappings -> Bool -> RDF rdfImpl
 
   -- |Return an empty RDF.
-  empty  :: RDF rdfImpl
+  empty :: RDF rdfImpl
 
   -- |Return a RDF containing all the given triples. Handling of duplicates
   -- in the input depend on the particular RDF implementation.
@@ -378,7 +376,7 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   --
   -- Note: this function may be very slow; see the documentation for the
   -- particular RDF implementation for more information.
-  select    :: RDF rdfImpl -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+  select :: RDF rdfImpl -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 
   -- |Return the triples in the RDF that match the given pattern, where
   -- the pattern (3 Maybe Node parameters) is interpreted as a triple pattern.
@@ -391,10 +389,10 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   -- For example, @ query rdf (Just n1) Nothing (Just n2) @ would return all
   -- and only the triples that have @n1@ as subject and @n2@ as object,
   -- regardless of the predicate of the triple.
-  query         :: RDF rdfImpl -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+  query :: RDF rdfImpl -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
 
   -- |pretty prints the RDF graph
-  showGraph     :: RDF rdfImpl -> String
+  showGraph :: RDF rdfImpl -> String
 
 instance (Rdf a) => Show (RDF a) where
   show = showGraph
@@ -406,34 +404,34 @@ class RdfParser p where
 
   -- |Parse RDF from the given text, yielding a failure with error message or
   -- the resultant RDF.
-  parseString :: (Rdf a) => p -> T.Text -> Either ParseFailure (RDF a)
+  parseString :: (Rdf a) => p -> Text -> Either ParseFailure (RDF a)
 
   -- |Parse RDF from the local file with the given path, yielding a failure with error
   -- message or the resultant RDF in the IO monad.
-  parseFile   :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
+  parseFile :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
 
   -- |Parse RDF from the remote file with the given HTTP URL (https is not supported),
   -- yielding a failure with error message or the resultant graph in the IO monad.
-  parseURL    :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
+  parseURL :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
 
 -- |An RdfSerializer is a serializer of RDF to some particular output format, such as
 -- NTriples or Turtle.
 class RdfSerializer s where
   -- |Write the RDF to a file handle using whatever configuration is specified by
   -- the first argument.
-  hWriteRdf     :: (Rdf a) => s -> Handle -> RDF a -> IO ()
+  hWriteRdf :: (Rdf a) => s -> Handle -> RDF a -> IO ()
 
   -- |Write the RDF to stdout; equivalent to @'hWriteRdf' stdout@.
-  writeRdf      :: (Rdf a) => s -> RDF a -> IO ()
+  writeRdf :: (Rdf a) => s -> RDF a -> IO ()
 
   -- |Write to the file handle whatever header information is required based on
   -- the output format. For example, if serializing to Turtle, this method would
   -- write the necessary \@prefix declarations and possibly a \@baseUrl declaration,
   -- whereas for NTriples, there is no header section at all, so this would be a no-op.
-  hWriteH     :: (Rdf a) => s -> Handle -> RDF a -> IO ()
+  hWriteH :: (Rdf a) => s -> Handle -> RDF a -> IO ()
 
   -- |Write header information to stdout; equivalent to @'hWriteRdf' stdout@.
-  writeH      :: (Rdf a) => s -> RDF a -> IO ()
+  writeH :: (Rdf a) => s -> RDF a -> IO ()
 
   -- |Write some triples to a file handle using whatever configuration is specified
   -- by the first argument.
@@ -443,28 +441,28 @@ class RdfSerializer s where
   -- use 'hWriteG' instead of this method unless you're sure this is safe to use, since
   -- otherwise the resultant document will be missing the header information and
   -- will not be valid.
-  hWriteTs    :: s -> Handle  -> Triples -> IO ()
+  hWriteTs :: s -> Handle  -> Triples -> IO ()
 
   -- |Write some triples to stdout; equivalent to @'hWriteTs' stdout@.
-  writeTs     :: s -> Triples -> IO ()
+  writeTs :: s -> Triples -> IO ()
 
   -- |Write a single triple to the file handle using whatever configuration is
   -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
-  hWriteT     :: s -> Handle  -> Triple  -> IO ()
+  hWriteT :: s -> Handle  -> Triple  -> IO ()
 
   -- |Write a single triple to stdout; equivalent to @'hWriteT' stdout@.
-  writeT      :: s -> Triple  -> IO ()
+  writeT :: s -> Triple  -> IO ()
 
   -- |Write a single node to the file handle using whatever configuration is
   -- specified by the first argument. The same WARNING applies as to 'hWriteTs'.
-  hWriteN     :: s -> Handle  -> Node    -> IO ()
+  hWriteN :: s -> Handle  -> Node    -> IO ()
 
   -- |Write a single node to sdout; equivalent to @'hWriteN' stdout@.
-  writeN      :: s -> Node    -> IO ()
+  writeN :: s -> Node    -> IO ()
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl T.Text
+newtype BaseUrl = BaseUrl Text
   deriving (Eq, Ord, Show, NFData, Semigroup, Generic)
 
 instance Binary BaseUrl
@@ -488,8 +486,8 @@ newtype ParseFailure = ParseFailure String
 -- |A node is equal to another node if they are both the same type
 -- of node and if the field values are equal.
 instance Eq Node where
-  (UNode bs1)    ==  (UNode bs2)     =   bs1 ==  bs2
-  (BNode bs1)    ==  (BNode bs2)     =   bs1 ==  bs2
+  (UNode bs1)    ==  (UNode bs2)     =  bs1 == bs2
+  (BNode bs1)    ==  (BNode bs2)     =  bs1 == bs2
   (BNodeGen i1)  ==  (BNodeGen i2)   =  i1 == i2
   (LNode l1)     ==  (LNode l2)      =  l1 == l2
   _              ==  _               =  False
@@ -503,33 +501,16 @@ instance Eq Node where
 -- of '(BNodeGen 44)' and '(BNodeGen 3)' is that of the values, or
 -- 'compare 44 3', GT.
 instance Ord Node where
-  compare = compareNode
-
-compareNode :: Node -> Node -> Ordering
-compareNode (UNode bs1)                      (UNode bs2)                      = compare bs1 bs2
-compareNode (UNode _)                        _                                = LT
-compareNode (BNode bs1)                      (BNode bs2)                      = compare bs1 bs2
-compareNode (BNode _)                        (UNode _)                        = GT
-compareNode (BNode _)                        _                                = LT
-compareNode (BNodeGen i1)                    (BNodeGen i2)                    = compare i1 i2
-compareNode (BNodeGen _)                     (LNode _)                        = LT
-compareNode (BNodeGen _)                     _                                = GT
-compareNode (LNode (PlainL bs1))             (LNode (PlainL bs2))             = compare bs1 bs2
-compareNode (LNode (PlainL _))               (LNode _)                        = LT
-compareNode (LNode (PlainLL bs1 bs1'))       (LNode (PlainLL bs2 bs2'))       =
-  case compare bs1' bs2' of
-    EQ -> compare bs1 bs2
-    LT -> LT
-    GT -> GT
-compareNode (LNode (PlainLL _ _))            (LNode (PlainL _))               = GT
-compareNode (LNode (PlainLL _ _))            (LNode _)                        = LT
-compareNode (LNode (TypedL bsType1 bs1))         (LNode (TypedL bsType2 bs2))         =
-  case compare bs1 bs2 of
-    EQ -> compare bsType1 bsType2
-    LT -> LT
-    GT -> GT
-compareNode (LNode (TypedL _ _))             (LNode _)                        = GT
-compareNode (LNode _)                        _                                = GT
+  compare (UNode bs1)       (UNode bs2)   = compare bs1 bs2
+  compare (UNode _)         _             = LT
+  compare _                 (UNode _)     = GT
+  compare (BNode bs1)       (BNode bs2)   = compare bs1 bs2
+  compare (BNode _)         _             = LT
+  compare _                 (BNode _)     = GT
+  compare (BNodeGen i1)     (BNodeGen i2) = compare i1 i2
+  compare (BNodeGen _)      _             = LT
+  compare _                 (BNodeGen _)  = GT
+  compare (LNode lv1)       (LNode lv2)   = compare lv1 lv2
 
 instance Hashable Node
 
@@ -541,22 +522,16 @@ instance Eq Triple where
 -- |The ordering of triples is based on that of the subject, predicate, and object
 -- of the triple, in that order.
 instance Ord Triple where
+  {-# INLINE compare #-}
   (Triple s1 p1 o1) `compare` (Triple s2 p2 o2) =
-    case compareNode s1 s2 of
-      EQ -> case compareNode p1 p2 of
-              EQ -> compareNode o1 o2
-              LT -> LT
-              GT -> GT
-      GT -> GT
-      LT -> LT
+    compare s1 s2 `mappend` compare p1 p2 `mappend` compare o1 o2
 
--- |Two 'LValue' values are equal iff they are of the same type and all fields are
--- equal.
+-- |Two 'LValue' values are equal iff they are of the same type and all fields are equal.
 instance Eq LValue where
-  (PlainL bs1)        ==  (PlainL bs2)        =  bs1 == bs2
-  (PlainLL bs1 bs1')  ==  (PlainLL bs2 bs2')  =  T.toLower bs1' == T.toLower bs2'    &&  bs1 == bs2
-  (TypedL bsType1 bs1)    ==  (TypedL bsType2 bs2)    =  bsType1 == bsType2 &&  bs1 == bs2
-  _                   ==  _                   =  False
+  (PlainL v1)      ==  (PlainL v2)      =  v1 == v2
+  (PlainLL v1 lt1) ==  (PlainLL v2 lt2) =  T.toLower lt1 == T.toLower lt2 && v1 == v2
+  (TypedL v1 dt1)  ==  (TypedL v2 dt2)  =  v1 == v2 && dt1 == dt2
+  _                ==  _                =  False
 
 -- |Ordering of 'LValue' values is as follows: (PlainL _) < (PlainLL _ _)
 -- < (TypedL _ _), and values of the same type are ordered by field values,
@@ -564,25 +539,14 @@ instance Eq LValue where
 -- literal value second, and '(TypedL literalValue datatypeUri)' being ordered
 -- by datatype first and literal value second.
 instance Ord LValue where
-  compare = compareLValue
-
-{-# INLINE compareLValue #-}
-compareLValue :: LValue -> LValue -> Ordering
-compareLValue (PlainL bs1)       (PlainL bs2)       = compare bs1 bs2
-compareLValue (PlainL _)         _                  = LT
-compareLValue _                  (PlainL _)         = GT
-compareLValue (PlainLL bs1 bs1') (PlainLL bs2 bs2') =
-  case compare bs1' bs2' of
-    EQ -> compare bs1 bs2
-    GT -> GT
-    LT -> LT
-compareLValue (PlainLL _ _)       _                 = LT
-compareLValue _                   (PlainLL _ _)     = GT
-compareLValue (TypedL l1 t1) (TypedL l2 t2) =
-  case compare t1 t2 of
-    EQ -> compare l1 l2
-    GT -> GT
-    LT -> LT
+  {-# INLINE compare #-}
+  compare (PlainL v1)      (PlainL v2)      = compare v1 v2
+  compare (PlainL _)       _                = LT
+  compare _                (PlainL _)       = GT
+  compare (PlainLL v1 lt1) (PlainLL v2 lt2) = compare lt1 lt2 `mappend` compare v1 v2
+  compare (PlainLL _ _)   _                 = LT
+  compare _               (PlainLL _ _)     = GT
+  compare (TypedL v1 dt1) (TypedL v2 dt2)   = compare dt1 dt2 `mappend` compare v1 v2
 
 instance Hashable LValue
 
@@ -591,8 +555,8 @@ instance Hashable LValue
 
 -- |Represents a namespace as either a prefix and uri, respectively,
 --  or just a uri.
-data Namespace = PrefixedNS  T.Text T.Text -- prefix and ns uri
-               | PlainNS     T.Text            -- ns uri alone
+data Namespace = PrefixedNS Text Text -- prefix and ns uri
+               | PlainNS    Text        -- ns uri alone
 
 instance Eq Namespace where
   (PrefixedNS _ u1) == (PrefixedNS _ u2)  = u1 == u2
@@ -605,7 +569,7 @@ instance Show Namespace where
   show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (T.unpack prefix) (T.unpack uri)
 
 -- |An alias for a map from prefix to namespace URI.
-newtype PrefixMappings   = PrefixMappings (Map T.Text T.Text)
+newtype PrefixMappings   = PrefixMappings (Map Text Text)
   deriving (Eq, Ord,NFData, Generic)
 
 instance Binary PrefixMappings
@@ -618,7 +582,7 @@ instance Show PrefixMappings where
           mappingsStr = List.intercalate ", " (map showPM (Map.toList pmap))
 
 -- |A mapping of a prefix to the URI for that prefix.
-newtype PrefixMapping = PrefixMapping (T.Text, T.Text)
+newtype PrefixMapping = PrefixMapping (Text, Text)
   deriving (Eq, Ord)
 instance Show PrefixMapping where
   show (PrefixMapping (prefix, uri)) = printf "PrefixMapping (%s, %s)" (show prefix) (show uri)
@@ -627,42 +591,39 @@ instance Show PrefixMapping where
 -- Miscellaneous helper functions used throughout the project
 
 -- | Resolve a prefix using the given prefix mappings.
-resolveQName :: T.Text -> PrefixMappings -> Maybe T.Text
+resolveQName :: Text -> PrefixMappings -> Maybe Text
 resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
 
 {-# INLINE mkAbsoluteUrl #-}
 {-# DEPRECATED mkAbsoluteUrl "Use resolveIRI instead, because mkAbsoluteUrl is a partial function" #-}
 -- | Make an absolute URL by returning as is if already an absolute URL and otherwise
 --   appending the URL to the given base URL.
-mkAbsoluteUrl :: T.Text -> T.Text -> T.Text
+mkAbsoluteUrl :: Text -> Text -> Text
 mkAbsoluteUrl base iri = either error id (resolveIRI base iri)
 
 -----------------
 -- Internal canonicalize functions, don't export
 
--- |Canonicalize the given 'T.Text' value using the 'T.Text'
+-- |Canonicalize the given 'Text' value using the 'Text'
 -- as the datatype URI.
 {-# NOINLINE canonicalize #-}
-canonicalize :: T.Text -> T.Text -> T.Text
+canonicalize :: Text -> Text -> Text
 canonicalize typeTxt litValue =
-  case Map.lookup typeTxt canonicalizerTable of
-    Nothing   ->  litValue
-    Just fn   ->  fn litValue
+  maybe litValue ($ litValue) (Map.lookup typeTxt canonicalizerTable)
 
--- A table of mappings from a 'T.Text' URI
--- to a function that canonicalizes a T.Text
+-- A table of mappings from a 'Text' URI
+-- to a function that canonicalizes a Text
 -- assumed to be of that type.
 {-# NOINLINE canonicalizerTable #-}
-canonicalizerTable :: Map T.Text (T.Text -> T.Text)
+canonicalizerTable :: Map Text (Text -> Text)
 canonicalizerTable =
-  Map.fromList [(integerUri, _integerStr), (doubleUri, _doubleStr),
-                (decimalUri, _decimalStr)]
+  [(integerUri, _integerStr), (doubleUri, _doubleStr), (decimalUri, _decimalStr)]
   where
-    integerUri =  "http://www.w3.org/2001/XMLSchema#integer"
-    decimalUri =  "http://www.w3.org/2001/XMLSchema#decimal"
-    doubleUri  =  "http://www.w3.org/2001/XMLSchema#double"
+    integerUri = "http://www.w3.org/2001/XMLSchema#integer"
+    decimalUri = "http://www.w3.org/2001/XMLSchema#decimal"
+    doubleUri  = "http://www.w3.org/2001/XMLSchema#double"
 
-_integerStr, _decimalStr, _doubleStr :: T.Text -> T.Text
+_integerStr, _decimalStr, _doubleStr :: Text -> Text
 _integerStr t =
   if T.length t == 1
   then t
