@@ -5,6 +5,7 @@
 
 module Data.RDF.PropertyTests (graphTests,arbitraryTs) where
 
+import qualified Data.Text.IO as T
 import Data.RDF hiding (empty)
 import Data.RDF.Namespace hiding (rdf)
 import qualified Data.Text as T
@@ -13,6 +14,7 @@ import Data.List
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
+import Control.Exception (bracket)
 import GHC.Generics ()
 import System.Directory (removeFile)
 import System.IO
@@ -627,23 +629,24 @@ p_reverseRdfTest
   => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) -> Property
 p_reverseRdfTest _mkRdf =
   monadicIO $ do
-    fileContents <-
-      Test.QuickCheck.Monadic.run $ do
-        (pathFile, hFile) <- openTempFile "." "tmp."
-        hWriteRdf NTriplesSerializer hFile rdf
-        hClose hFile
-        contents <- readFile pathFile
-        removeFile pathFile
-        return contents
-    let expected =
-          "<file:///this/is/not/a/palindrome> <file:///this/is/not/a/palindrome> \"literal string\" .\n"
+    fileContents <- Test.QuickCheck.Monadic.run $ bracket
+      (openTempFile "." "tmp")
+      (\(path, h) -> hClose h >> removeFile path)
+      (\(_, h) -> do
+        hSetEncoding h utf8
+        hWriteRdf NTriplesSerializer h rdf
+        hSeek h AbsoluteSeek 0
+        T.hGetContents h)
     assert $ expected == fileContents
   where
-    rdf = _mkRdf ts (Just $ BaseUrl "file://") (ns_mappings [])
+    rdf = _mkRdf ts (Just $ BaseUrl "file://") (ns_mappings mempty)
     ts :: [Triple]
     ts =
       [ Triple
           (unode "file:///this/is/not/a/palindrome")
           (unode "file:///this/is/not/a/palindrome")
-          (LNode . PlainL . T.pack $ "literal string")
+          (LNode . PlainL $ "literal string")
       ]
+    expected = "<file:///this/is/not/a/palindrome> \
+               \<file:///this/is/not/a/palindrome> \
+               \\"literal string\" .\n"
