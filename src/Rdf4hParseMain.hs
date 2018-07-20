@@ -6,12 +6,6 @@
 module Main where
 
 import Data.RDF
--- import Data.RDF.Types
--- import Data.RDF.Graph.TList
--- import Text.RDF.RDF4H.NTriplesParser
--- import Text.RDF.RDF4H.NTriplesSerializer
--- import Text.RDF.RDF4H.TurtleParser
--- import Text.RDF.RDF4H.TurtleSerializer
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -25,8 +19,8 @@ import Control.Monad
 
 import Data.List
 import qualified Data.Map as Map
-import Data.Char(isLetter)
-import Text.Printf(hPrintf)
+import Data.Char (isLetter)
+import Text.Printf (hPrintf)
 
 -- TODO: cleanup and refactor main and elsewhere in this module
 
@@ -70,7 +64,7 @@ main =
                                  write outputFormat docUri emptyPms res
          ("turtle", False) -> (if inputUri /= "-" then
                                  parseFile (TurtleParser mInputUri docUri) inputUri else
-                                 liftM (parseString (TurtleParser mInputUri docUri)) TIO.getContents)
+                                 parseString (TurtleParser mInputUri docUri) <$> TIO.getContents)
                                 >>=
                                 \ (res :: Either ParseFailure (RDF TList)) ->
                                   write outputFormat docUri emptyPms res
@@ -79,7 +73,7 @@ main =
                                    write outputFormat Nothing emptyPms res
          ("ntriples", False) -> (if inputUri /= "-" then
                                    parseFile NTriplesParser inputUri else
-                                   liftM (parseString NTriplesParser) TIO.getContents)
+                                   parseString NTriplesParser <$> TIO.getContents)
                                   >>=
                                   \ (res :: Either ParseFailure (RDF TList)) ->
                                     write outputFormat Nothing emptyPms res
@@ -90,21 +84,21 @@ main =
                             write outputFormat docUri emptyPms res
          ("xml", False) -> (if inputUri /= "-" then
                                    parseFile (XmlParser mInputUri docUri) inputUri else
-                                   liftM (parseString (XmlParser mInputUri docUri)) TIO.getContents)
+                                   parseString (XmlParser mInputUri docUri) <$> TIO.getContents)
                                   >>=
                                   \ (res :: Either ParseFailure (RDF TList)) ->
                                     write outputFormat docUri emptyPms res
          (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
 
 write :: (Rdf a) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure (RDF a) -> IO ()
-write format docUri pms res =
-  case res of
-    (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
-    (Right rdf)               -> doWriteRdf rdf
-  where doWriteRdf rdf = case format of 
-                           "turtle"   -> writeRdf (TurtleSerializer docUri pms) rdf
-                           "ntriples" -> writeRdf NTriplesSerializer rdf
-                           unknown    -> error $ "Unknown output format: " ++ unknown
+write format docUri pms res = case res of
+  (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
+  (Right rdf)               -> doWriteRdf rdf
+  where
+    doWriteRdf rdf = case format of
+      "turtle"   -> writeRdf (TurtleSerializer docUri pms) rdf
+      "ntriples" -> writeRdf NTriplesSerializer rdf
+      unknown    -> error $ "Unknown output format: " ++ unknown
 
 -- Get the input base URI from the argument list or flags, using the
 -- first string arg as the default if not found in string args (as
@@ -196,4 +190,3 @@ compilerOpts argv =
    case getOpt Permute options argv of
       (o,n,[]  ) -> return (o,n)
       (_,_,errs) -> ioError (userError ("\n\n" ++ concat errs ++ usageInfo header options))
-

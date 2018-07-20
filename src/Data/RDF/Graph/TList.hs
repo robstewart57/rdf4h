@@ -19,13 +19,12 @@
 -- to do so.
 module Data.RDF.Graph.TList (TList) where
 
-import Prelude hiding (pred)
+import Prelude
 import Control.DeepSeq (NFData)
 import Data.Binary
-import qualified Data.Map as Map
 import Data.RDF.Namespace
 import Data.RDF.Query
-import Data.RDF.Types (RDF,Rdf(..),Triple,Node,Subject,Predicate,Object,NodeSelector,Triples,BaseUrl)
+import Data.RDF.Types (RDF,Rdf(..),Triple(..),Subject,Predicate,Object,NodeSelector,Triples,BaseUrl)
 import Data.List (nub)
 import GHC.Generics
 
@@ -48,27 +47,16 @@ import GHC.Generics
 --  * 'select'   : O(n)
 --
 --  * 'query'    : O(n)
--- newtype TList = TList (Triples, Maybe BaseUrl, PrefixMappings)
---                        deriving (Generic,NFData)
 
 data TList deriving (Generic)
-
--- data TList = TListC (Triples, Maybe BaseUrl, PrefixMappings)
---                        deriving (Generic,NFData)
 
 instance Binary TList
 instance NFData TList
 
--- instance Show TList where
---   show ((TListC (a,b,c,d))) = ""
-
 data instance RDF TList = TListC (Triples, Maybe BaseUrl, PrefixMappings)
                        deriving (Generic,NFData)
 
--- data instance RDF TList
-
 instance Rdf TList where
-  -- data RDF TList = RDF TList
   baseUrl           = baseUrl'
   prefixMappings    = prefixMappings'
   addPrefixMappings = addPrefixMappings'
@@ -82,11 +70,7 @@ instance Rdf TList where
   query             = query'
   showGraph         = showGraph'
 
--- instance Show TList where
---  show ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
-
 showGraph' :: RDF TList -> [Char]
--- showGraph' ((TListC (ts, _, _))) = concatMap (\t -> show t ++ "\n") ts
 showGraph' gr = concatMap (\t -> show t ++ "\n") (expandTriples gr)
 
 prefixMappings' :: RDF TList -> PrefixMappings
@@ -96,12 +80,12 @@ addPrefixMappings' :: RDF TList -> PrefixMappings -> Bool -> RDF TList
 addPrefixMappings' (TListC(ts, baseURL, pms)) pms' replace =
   let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
   in  TListC(ts, baseURL, merge pms pms')
-  
+
 baseUrl' :: RDF TList -> Maybe BaseUrl
 baseUrl' (TListC(_, baseURL, _)) = baseURL
 
 empty' :: RDF TList
-empty' = TListC([], Nothing, PrefixMappings Map.empty)
+empty' = TListC(mempty, mempty, PrefixMappings mempty)
 
 -- We no longer remove duplicates here, as it is very time consuming and is often not
 -- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes
@@ -113,12 +97,9 @@ mkRdf' ts baseURL pms = TListC (ts, baseURL, pms)
 addTriple' :: RDF TList -> Triple -> RDF TList
 addTriple' (TListC (ts, bURL, preMapping)) t = TListC (t:ts,bURL,preMapping)
 
--- | yes, broken for now. use property tests to fix.
 removeTriple' :: RDF TList -> Triple -> RDF TList
-removeTriple' (TListC (ts, bURL, preMapping)) t =
-  TListC (newTs,bURL,preMapping)
-  where
-    newTs = filter (/= t) ts
+removeTriple' (TListC (ts, bURL, preMapping)) t = TListC (newTs,bURL,preMapping)
+  where newTs = filter (/= t) ts
 
 triplesOf' :: RDF TList -> Triples
 triplesOf' ((TListC(ts, _, _))) = ts
@@ -133,19 +114,9 @@ query' :: RDF TList -> Maybe Subject -> Maybe Predicate -> Maybe Object -> Tripl
 query' g s p o = nub $ filter (matchPattern s p o) $ triplesOf g
 
 matchSelect :: NodeSelector -> NodeSelector -> NodeSelector -> Triple -> Bool
-matchSelect s p o t =
-  match s (subjectOf t) && match p (predicateOf t) && match o (objectOf t)
-  where
-    match Nothing   _ = True
-    match (Just fn) n = fn n
+matchSelect s p o (Triple s' p' o') = match s s' && match p p' && match o o'
+  where match fn n = maybe True ($ n) fn
 
 matchPattern :: Maybe Subject -> Maybe Predicate -> Maybe Object -> Triple -> Bool
-matchPattern subj pred obj t = smatch t && pmatch t && omatch t
-  where
-    smatch trp = matchNode subj (subjectOf trp)
-    pmatch trp = matchNode pred (predicateOf trp)
-    omatch trp = matchNode obj (objectOf trp)
-
-matchNode :: Maybe Node -> Node -> Bool
-matchNode Nothing   _  = True
-matchNode (Just n1) n2 = n1 == n2
+matchPattern s p o (Triple s' p' o') = match s s' && match p p' && match o o'
+  where match n1 n2 = maybe True (==n2) n1
