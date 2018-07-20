@@ -70,12 +70,12 @@ instance RdfParser TurtleParserCustom where
 type ParseState =
   ( Maybe BaseUrl    -- the current BaseUrl, may be Nothing initially, but not after it is once set
   , Maybe T.Text     -- the docUrl, which never changes and is used to resolve <> in the document.
-  , Int              -- the id counter, containing the value of the next id to be used
+  , Integer          -- the id counter, containing the value of the next id to be used
   , PrefixMappings   -- the mappings from prefix to URI that are encountered while parsing
   , Maybe Subject    -- current subject node, if we have parsed a subject but not finished the triple
   , Maybe Predicate  -- current predicate node, if we have parsed a predicate but not finished the triple
   , Seq Triple       -- the triples encountered while parsing; always added to on the right side
-  , Map String Int ) -- map blank node names to generated id.
+  , Map String Integer ) -- map blank node names to generated id.
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
@@ -244,11 +244,11 @@ t_blankNode = do
   case Map.lookup genID mp of
     Nothing -> do
       i <- nextIdCounter
-      let node = BNodeGen i
+      let node = BNodeGen (fromIntegral i)
       addGenIdLookup genID i
       pure node
     Just i ->
-      pure $ BNodeGen i
+      pure $ BNodeGen (fromIntegral i)
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
@@ -492,10 +492,10 @@ t_hex = satisfy isHexDigit <?> "hexadecimal digit"
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
-currGenIdLookup :: MonadState ParseState m => m (Map String Int)
+currGenIdLookup :: MonadState ParseState m => m (Map String Integer)
 currGenIdLookup = gets $ \(_, _, _, _, _, _, _,genMap) -> genMap
 
-addGenIdLookup :: MonadState ParseState m => String -> Int -> m ()
+addGenIdLookup :: MonadState ParseState m => String -> Integer -> m ()
 addGenIdLookup genId counter =
   modify $ \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
             (bUrl, dUrl, i, pms, s, p, ts, Map.insert genId counter genMap)
@@ -510,12 +510,12 @@ updateBaseUrl :: MonadState ParseState m => Maybe (Maybe BaseUrl) -> m ()
 updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
-nextIdCounter :: MonadState ParseState m => m Int
+nextIdCounter :: MonadState ParseState m => m Integer
 nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
                 put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) *> pure i
 
 nextBlankNode :: MonadState ParseState m => m Node
-nextBlankNode = BNodeGen <$> nextIdCounter
+nextBlankNode = BNodeGen . fromIntegral <$> nextIdCounter
 
 updatePMs :: MonadState ParseState m => Maybe PrefixMappings -> m ()
 updatePMs val = _modifyState no no val no no no
@@ -556,7 +556,7 @@ resetSubjectPredicate = setSubjectPredicate Nothing Nothing
 -- Modifies the current parser state by updating any state values among the parameters
 -- that have non-Nothing values.
 _modifyState :: MonadState ParseState m =>
-                Maybe (Maybe BaseUrl) -> Maybe (Int -> Int) -> Maybe PrefixMappings ->
+                Maybe (Maybe BaseUrl) -> Maybe (Integer -> Integer) -> Maybe PrefixMappings ->
                 Maybe (Maybe Subject) -> Maybe (Maybe Predicate) -> Maybe (Seq Triple) ->
                 m ()
 _modifyState mb_bUrl mb_n mb_pms mb_subj mb_pred mb_trps = do
