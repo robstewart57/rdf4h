@@ -8,9 +8,9 @@ description:
   for triples  containing a particular subject, predicate, or object, or
   selecting triples that satisfy an arbitrary predicate function.
 
-author:          Calvin Smith, Rob Stewart, Slava Kravchenko
-copyright:       (c) Calvin Smith, Rob Stewart, Slava Kravchenko
-maintainer:      Rob Stewart <robstewart@gmail.com>
+author:          Rob Stewart, Wismill, Slava Kravchenko, Calvin Smith
+copyright:       (c) Rob Stewart, Wismill, Slava Kravchenko, Calvin Smith
+maintainer:      Rob Stewart <robstewart57@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
 license:         BSD3
