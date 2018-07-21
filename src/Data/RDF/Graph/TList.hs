@@ -85,7 +85,7 @@ baseUrl' :: RDF TList -> Maybe BaseUrl
 baseUrl' (TListC(_, baseURL, _)) = baseURL
 
 empty' :: RDF TList
-empty' = TListC(mempty, mempty, PrefixMappings mempty)
+empty' = TListC(mempty, Nothing, PrefixMappings mempty)
 
 -- We no longer remove duplicates here, as it is very time consuming and is often not
 -- necessary (raptor does not seem to remove dupes either). Instead, we remove dupes

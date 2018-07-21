@@ -15,23 +15,22 @@ assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
   TU.assertBool ("not isomorphic: " ++ show gr1 ++ " compared with " ++ show gr2) (isSame gr1 gr2) -- (isGraphIsomorphic gr1 gr2)
-
-      where
-        noBlankNodes g = (all noBlanks . expandTriples) g
-        noBlanks (Triple s p o) = not (blankNode s)
-                               && not (blankNode p)
-                               && not (blankNode o)
-        blankNode (BNode _)    = True
-        blankNode (BNodeGen _) = True
-        blankNode _            = False
-        isSame g1 g2 =
-            if (noBlankNodes g1) && (noBlankNodes g2)
-            -- can compare URIs and literals as well as structure
-            then isIsomorphic g1 g2
-            -- cannot compare blank nodes with generated blank nodes,
-            -- so instead just compare the RDF graph structure of the
-            -- mf:action parsed RDF with the expected mf:result structure.
-            else isGraphIsomorphic g1 g2
+  where
+    noBlankNodes g = (all noBlanks . expandTriples) g
+    noBlanks (Triple s p o) = not (blankNode s)
+                           && not (blankNode p)
+                           && not (blankNode o)
+    blankNode (BNode _)    = True
+    blankNode (BNodeGen _) = True
+    blankNode _            = False
+    isSame g1 g2 =
+      if (noBlankNodes g1) && (noBlankNodes g2)
+      -- can compare URIs and literals as well as structure
+      then isIsomorphic g1 g2
+      -- cannot compare blank nodes with generated blank nodes,
+      -- so instead just compare the RDF graph structure of the
+      -- mf:action parsed RDF with the expected mf:result structure.
+      else isGraphIsomorphic g1 g2
 
 assertIsParsed :: IO (Either ParseFailure (RDF TList)) -> TU.Assertion
 assertIsParsed r1 = do

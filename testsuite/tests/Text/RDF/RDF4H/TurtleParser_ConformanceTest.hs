@@ -16,6 +16,7 @@ import Data.String (fromString)
 import Data.Text (Text)
 import Text.Printf
 import Text.RDF.RDF4H.TurtleParser
+import Control.Applicative ((<|>))
 
 -- tests :: TestTree
 -- tests = testGroup "TurtleParser" allCTests
@@ -32,6 +33,7 @@ otherTestFiles = [ ("data/ttl", "example1")
                  , ("data/ttl", "example9")
                  , ("data/ttl", "example10")
                  , ("data/ttl", "example11")
+                 , ("data/ttl", "example12")
                  , ("data/ttl", "fawlty1") ]
 
 
@@ -80,27 +82,21 @@ checkBadConformanceTest i =
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
 equivalent :: Rdf a => Either ParseFailure (RDF a) -> Either ParseFailure (RDF a) -> Maybe String
-equivalent (Left _) _                = Nothing
-equivalent _        (Left _)         = Nothing
-equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
+equivalent (Left e)    _           = Just $ "Parse failure of the expected graph: " ++ show e
+equivalent _           (Left e)    = Just $ "Parse failure of the input graph: " ++ show e
+equivalent (Right gr1) (Right gr2) = checkSize <|> (test $! zip gr1ts gr2ts)
   where
     gr1ts = uordered $ triplesOf gr1
     gr2ts = uordered $ triplesOf gr2
+    length1 = length gr1ts
+    length2 = length gr2ts
+    checkSize = if (length1 == length2) then Nothing else (Just $ "Size different. Expected: " ++ (show length1) ++ ", got: " ++ (show length2))
     test []           = Nothing
-    test ((t1,t2):ts) =
-      case compareTriple t1 t2 of
-        Nothing -> test ts
-        err     -> err
-    compareTriple t1 t2 =
+    test ((t1,t2):ts) = maybe (test ts) pure (compareTriple t1 t2)
+    compareTriple t1@(Triple s1 p1 o1) t2@(Triple s2 p2 o2) =
       if equalNodes s1 s2 && equalNodes p1 p2 && equalNodes o1 o2
         then Nothing
         else Just ("Expected:\n  " ++ show t1 ++ "\nFound:\n  " ++ show t2 ++ "\n")
-      where
-        (s1, p1, o1) = f t1
-        (s2, p2, o2) = f t2
-        f t = (subjectOf t, predicateOf t, objectOf t)
-    -- equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == T.pack ("_:genid" ++ show i)
-    -- equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" ++ show i)
 
     -- I'm not sure it's right to compare blank nodes with generated
     -- blank nodes. This is because parsing an already generated blank
@@ -115,34 +111,23 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
     --
     -- which just so happens to be what Apache Jena just created when
     -- [] was parsed.
-    equalNodes (BNode _) (BNodeGen _) = True
-    equalNodes (BNodeGen _) (BNode _) = True
+    equalNodes (BNode _)    (BNodeGen _) = True
+    equalNodes (BNodeGen _) (BNode _)    = True
     equalNodes (BNodeGen _) (BNodeGen _) = True
-    equalNodes (BNode _) (BNode _) = True
-    equalNodes n1          n2           = n1 == n2
+    equalNodes (BNode _)    (BNode _)    = True
+    equalNodes n1           n2           = n1 == n2
 
 -- Returns a graph for a good ttl test that is intended to pass, and normalizes
 -- triples into a format so that they can be compared with the expected output triples.
 loadInputGraph :: String -> Int -> IO (Either ParseFailure (RDF TList))
-loadInputGraph name n = handleLoad <$> parseFile parserConfig path
+loadInputGraph name n = parseFile parserConfig path
   where path = fpath name n "ttl"
         parserConfig = TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)
 
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure (RDF TList))
-loadInputGraph1 dir fname = handleLoad <$> parseFile parserConfig path
+loadInputGraph1 dir fname = parseFile parserConfig path
   where path = printf "%s/%s.ttl" dir fname :: String
         parserConfig = TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)
-
-handleLoad :: Either ParseFailure (RDF TList) -> Either ParseFailure (RDF TList)
-handleLoad = fmap normaliseTriples
-  where normaliseTriples g = mkRdf (fmap normalize (triplesOf g)) (baseUrl g) (prefixMappings g)
-
-normalize :: Triple -> Triple
-normalize (Triple s p o) = triple (normalizeN s) (normalizeN p) (normalizeN o)
-
-normalizeN :: Node -> Node
-normalizeN (BNodeGen i) = BNode (fromString $ "_:genid" ++ show i)
-normalizeN n            = n
 
 loadExpectedGraph :: String -> Int -> IO (Either ParseFailure (RDF TList))
 loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")

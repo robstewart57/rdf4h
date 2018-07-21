@@ -5,11 +5,13 @@ module Text.RDF.RDF4H.NTriplesParser
   ( NTriplesParser(NTriplesParser)
   , NTriplesParserCustom(NTriplesParserCustom)
   , ParseFailure
-  , nt_echar, nt_uchar, nt_langtag, string_literal_quote, nt_string_literal_quote
+  , nt_echar, nt_uchar, nt_langtag
+  , string_literal_quote, nt_string_literal_quote
   , nt_pn_chars_base, nt_comment
+  , readFile
   ) where
 
-import Prelude hiding (init, pred)
+import Prelude hiding (readFile)
 import Data.Semigroup ((<>))
 import Data.Char (isDigit, isLetter, isAlphaNum)
 import Control.Applicative
@@ -26,7 +28,8 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.IO as T
+import System.IO (IOMode(..), withFile, hSetNewlineMode, noNewlineTranslation, hSetEncoding, utf8)
 
 
 -- |NTriplesParser is an 'RdfParser' implementation for parsing RDF in the
@@ -46,11 +49,11 @@ instance RdfParser NTriplesParser where
 
 -- |'NTriplesParser' is an instance of 'RdfParser'.
 instance RdfParser NTriplesParserCustom where
-  parseString (NTriplesParserCustom Parsec) = parseStringParsec
+  parseString (NTriplesParserCustom Parsec)     = parseStringParsec
   parseString (NTriplesParserCustom Attoparsec) = parseStringAttoparsec
-  parseFile   (NTriplesParserCustom Parsec) = parseFileParsec
+  parseFile   (NTriplesParserCustom Parsec)     = parseFileParsec
   parseFile   (NTriplesParserCustom Attoparsec) = parseFileAttoparsec
-  parseURL    (NTriplesParserCustom Parsec) = parseURLParsec
+  parseURL    (NTriplesParserCustom Parsec)     = parseURLParsec
   parseURL    (NTriplesParserCustom Attoparsec) = parseURLAttoparsec
 
 -- We define or redefine all here using same names as the spec, but with an
@@ -76,11 +79,10 @@ nt_ntripleDoc = many sep *> sepEndBy (try nt_triple) (many sep) <* eof
 -- a space or tab character between resources or the object and the '.'.
 -- Grammar [2] triple ::= subject predicate object '.'
 nt_triple :: (CharParsing m, LookAheadParsing m, Monad m) => m Triple
-nt_triple = do
-  subj <- nt_subject   <* optional (skipSome nt_space)
-  pred <- nt_predicate <* optional (skipSome nt_space)
-  obj  <- nt_object    <* optional (skipSome nt_space) <* char '.' <* many nt_space
-  pure $ Triple subj pred obj
+nt_triple = Triple
+  <$> (nt_subject   <* optional (skipSome nt_space))
+  <*> (nt_predicate <* optional (skipSome nt_space))
+  <*> (nt_object    <* optional (skipSome nt_space) <* char '.' <* many nt_space)
 
 -- Grammar [6] literal ::= STRING_LITERAL_QUOTE ('^^' IRIREF | LANGTAG)?
 nt_literal :: (CharParsing m, Monad m) => m LValue
@@ -137,7 +139,7 @@ nt_uchar = uchar
 -- A subject is either a URI reference for a resource or a node id for a
 -- blank node.
 nt_subject :: (CharParsing m, LookAheadParsing m, Monad m) => m Node
-nt_subject = unode <$> nt_iriref
+nt_subject = unode <$> try nt_iriref
          <|> bnode <$> nt_blank_node_label
 
 -- A predicate may only be a URI reference to a resource.
@@ -147,8 +149,8 @@ nt_predicate = unode <$> nt_iriref
 -- An object may be either a resource (represented by a URI reference),
 -- a blank node (represented by a node id), or an object literal.
 nt_object :: (CharParsing m, LookAheadParsing m, Monad m) => m Node
-nt_object = unode <$> nt_iriref
-        <|> bnode <$> nt_blank_node_label
+nt_object = unode <$> try nt_iriref
+        <|> bnode <$> try nt_blank_node_label
         <|> LNode <$> nt_literal
 
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
@@ -214,20 +216,22 @@ parseStringParsec bs = handleParsec mkRdf (runParser nt_ntripleDoc () "" bs)
 parseFileParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseFileParsec path =
   handleParsec mkRdf . runParser nt_ntripleDoc () path
-  <$> TIO.readFile path
+  <$> readFile path
+
+readFile :: FilePath -> IO T.Text
+readFile fpath = withFile fpath ReadMode $ \h -> do
+  hSetNewlineMode h noNewlineTranslation
+  hSetEncoding h utf8
+  T.hGetContents h
 
 parseURLParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURLParsec = _parseURL parseStringParsec
 
-handleParsec :: {-forall rdf. (RDF rdf) => -} (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
-                                        Either ParseError [Triple] ->
-                                        Either ParseFailure (RDF a)
-handleParsec _mkRdf result
---  | T.length rem /= 0 = (Left $ ParseFailure $ "Invalid Document. Unparseable end of document: " ++ T.unpack rem)
---  | otherwise          =
-  = case result of
-        Left err -> Left  $ ParseFailure $ "Parse failure: \n" <> show err
-        Right ts -> Right $ _mkRdf ts Nothing (PrefixMappings mempty)
+handleParsec :: (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
+                 Either ParseError [Triple] -> Either ParseFailure (RDF a)
+handleParsec _mkRdf result = case result of
+  Left err -> Left  $ ParseFailure $ "Parse failure: \n" <> show err
+  Right ts -> Right $ _mkRdf ts Nothing (PrefixMappings mempty)
 
 ---------------------------------
 
@@ -235,7 +239,7 @@ handleParsec _mkRdf result
 -- attoparsec based parsers
 
 parseFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseFileAttoparsec path = handleAttoparsec <$> TIO.readFile path
+parseFileAttoparsec path = handleAttoparsec <$> readFile path
 
 parseURLAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURLAttoparsec = _parseURL handleAttoparsec

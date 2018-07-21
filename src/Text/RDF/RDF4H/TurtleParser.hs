@@ -22,14 +22,10 @@ import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
--- import Text.Parsec.Text (GenParser)
 import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
 import Data.Sequence (Seq, (|>))
 import qualified Data.Foldable as F
 import Control.Monad
-import System.IO (IOMode(..), withFile, hSetNewlineMode, noNewlineTranslation, hSetEncoding, utf8)
-
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
@@ -239,16 +235,15 @@ t_subject = iri <|> t_blankNode <|> t_collection >>= setSubject
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
 t_blankNode = do
-  genID <- try t_blank_node_label <|> (t_anon *> pure "")
+  genID <- try t_blank_node_label <|> (t_anon *> pure mempty)
   mp <- currGenIdLookup
-  case Map.lookup genID mp of
-    Nothing -> do
+  maybe (newBN genID) getExistingBN (Map.lookup genID mp)
+  where
+    newBN genID = do
       i <- nextIdCounter
-      let node = BNodeGen (fromIntegral i)
-      addGenIdLookup genID i
-      pure node
-    Just i ->
-      pure $ BNodeGen (fromIntegral i)
+      when (genID /= mempty) (addGenIdLookup genID i)
+      return $ BNodeGen (fromIntegral i)
+    getExistingBN = return . BNodeGen . fromIntegral
 
 -- TODO replicate the recursion technique from [168s] for ((..)* something)?
 -- [141s] BLANK_NODE_LABEL ::= '_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
@@ -620,12 +615,6 @@ parseURLParsec bUrl docUrl = _parseURL (parseStringParsec bUrl docUrl)
 parseFileParsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFileParsec bUrl docUrl fpath =
   readFile fpath >>= \c -> pure $ handleResult bUrl (runParser (evalStateT t_turtleDoc (initialState bUrl docUrl)) () (maybe "" T.unpack docUrl) c)
-
-readFile :: String -> IO T.Text
-readFile fpath = withFile fpath ReadMode $ \h -> do
-  hSetNewlineMode h noNewlineTranslation
-  hSetEncoding h utf8
-  TIO.hGetContents h
 
 -- |Parse the given string as a Turtle document. The arguments and return type have the same semantics
 -- as <parseURL>, except that the last @String@ argument corresponds to the Turtle document itself as

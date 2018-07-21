@@ -167,4 +167,4 @@ absolutizeTriple base (Triple s p o) = triple (absolutizeNode base s) (absolutiz
 -- |Prepends BaseUrl to UNodes with relative URIs.
 absolutizeNode :: Maybe BaseUrl -> Node -> Node
 absolutizeNode (Just (BaseUrl b)) (UNode u) = unode $ mkAbsoluteUrl b u
-absolutizeNode _ n                          = n
+absolutizeNode _                  n         = n

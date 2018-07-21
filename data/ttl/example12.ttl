@@ -1,0 +1,19 @@
+@prefix : <http://example.org/foo#> .
+:subject
+  :predicate1 [
+    :predicate :a
+  ] ;
+  :predicate2 [
+    :predicate :b
+  ] ;
+  :predicate3 _:bnäÄ ;
+  :predicate4 [
+    :predicate :c
+  ] ;
+  :predicate5 [
+    :predicate :d
+  ] ;
+  :predicate6 [
+    :predicate :e
+  ]
+  .
