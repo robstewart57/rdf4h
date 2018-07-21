@@ -10,7 +10,8 @@ module W3C.Manifest (
 import Data.RDF.Graph.TList
 import Data.RDF.Query
 import Data.RDF.Types
-import Data.RDF.Namespace
+import Data.RDF.Namespace (mkUri, rdfs)
+import qualified Data.RDF.Namespace as NS
 import Safe
 import Text.RDF.RDF4H.TurtleParser
 
@@ -105,7 +106,7 @@ data TestEntry =
 rdfType,rdfsComment,rdfsLabel,rdftApproval,rdfsApproval,mfName,mfManifest,mfAction,
   mfResult,mfEntries,mfEntailmentRegime,mfRecognizedDatatypes,mfUnrecognizedDatatypes :: Node
 
-rdfType = unode $ mkUri rdf "type"
+rdfType = unode $ mkUri NS.rdf "type"
 rdfsComment = unode $ mkUri rdfs "comment"
 rdfsLabel = unode $ mkUri rdfs "label"
 -- rdftTestTurtleEval = unode "http://www.w3.org/ns/rdftest#TestTurtleEval"

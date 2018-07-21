@@ -26,6 +26,7 @@ extra-source-files: examples/ParseURLs.hs
 
 library
   exposed-modules: Data.RDF
+                 , Data.RDF.IRI
                  , Data.RDF.Namespace
                  , Data.RDF.Types
                  , Data.RDF.Query
@@ -60,10 +61,12 @@ library
                  , network >= 2.6
   if impl(ghc < 7.6)
     build-depends: ghc-prim
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
 
   other-modules:   Text.RDF.RDF4H.Interact
   hs-source-dirs:  src
-  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
+  ghc-options:     -Wall -funbox-strict-fields
 
 executable rdf4h
   main-is:         src/Rdf4hParseMain.hs
@@ -77,20 +80,21 @@ executable rdf4h
   if impl(ghc < 7.6)
     build-depends: ghc-prim
 
-  ghc-options:     -Wall -fno-warn-unused-do-bind -funbox-strict-fields
+  ghc-options:   -Wall -funbox-strict-fields
 
 test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
   other-modules: Data.RDF.PropertyTests
                  Data.RDF.GraphImplTests
+                 Data.RDF.IRITests
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
                  W3C.NTripleTest
                  W3C.RdfXmlTest
                  W3C.W3CAssertions
-  ghc-options:   -Wall -fno-warn-unused-do-bind -fno-warn-orphans -fno-warn-name-shadowing -funbox-strict-fields
+  ghc-options:   -Wall -fno-warn-orphans -funbox-strict-fields
   build-depends: base >= 4.8.0.0 && < 6
                , rdf4h
                , tasty

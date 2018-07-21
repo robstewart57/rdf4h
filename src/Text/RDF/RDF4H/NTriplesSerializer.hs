@@ -1,11 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- |A serializer for RDF as N-Triples
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
-module Text.RDF.RDF4H.NTriplesSerializer(
-  NTriplesSerializer(NTriplesSerializer)
-) where
+module Text.RDF.RDF4H.NTriplesSerializer
+  ( NTriplesSerializer(NTriplesSerializer)
+  ) where
 
-import Control.Monad (void)
 import Data.RDF.Types
 import Data.RDF.Query (expandTriples)
 import qualified Data.Text as T
@@ -39,49 +40,31 @@ _writeTriple h (Triple s p o) =
   _writeNode h o >> hPutStrLn h " ."
 
 _writeNode :: Handle -> Node -> IO ()
-_writeNode h node =
-  case node of
-    (UNode bs)  -> hPutChar h '<' >>
-                     T.hPutStr h bs >>
-                     hPutChar h '>'
-    (BNode gId) -> T.hPutStr h gId
-    (BNodeGen i)-> putStr "_:genid" >> hPutStr h (show i)
-    (LNode n)   -> _writeLValue h n
+_writeNode h node = case node of
+  (UNode s)  -> hPutChar h '<' >> T.hPutStr h s >> hPutChar h '>'
+  (BNode gId) -> T.hPutStr h "_:" >> T.hPutStr h gId
+  (BNodeGen i)-> T.hPutStr h "_:genid" >> hPutStr h (show i)
+  (LNode n)   -> _writeLValue h n
 
 _writeLValue :: Handle -> LValue -> IO ()
-_writeLValue h lv =
-  case lv of
-    (PlainL lit)       -> _writeLiteralString h lit
-    (PlainLL lit lang) -> _writeLiteralString h lit >>
-                            hPutStr h "@" >>
-                            T.hPutStr h lang
-    (TypedL lit dtype) -> _writeLiteralString h lit >>
-                            hPutStr h "^^<" >>
-                            T.hPutStr h dtype >>
-                            hPutStr h ">"
+_writeLValue h lv = case lv of
+  (PlainL lit)       -> _writeLiteralString h lit
+  (PlainLL lit lang) -> _writeLiteralString h lit >>
+                          hPutChar h '@' >>
+                          T.hPutStr h lang
+  (TypedL lit dtype) -> _writeLiteralString h lit >>
+                          hPutStr h "^^<" >>
+                          T.hPutStr h dtype >>
+                          hPutChar h '>'
 
--- TODO: this is REALLY slow.
 _writeLiteralString:: Handle -> T.Text -> IO ()
-_writeLiteralString h bs =
-  do hPutChar h '"'
-     T.foldl' writeChar (return ()) bs
-     hPutChar h '"'
-  where
-    -- the seq is necessary in writeChar to ensure all chars
-    -- are written. without it, only the last is written.
-    writeChar :: IO () -> Char -> IO ()
-    writeChar b c = b >>= \b' -> b' `seq`
-      case c of
-        '\n' ->  void (hPutChar h '\\' >> hPutChar h 'n')
-        '\t' ->  void (hPutChar h '\\' >> hPutChar h 't')
-        '\r' ->  void (hPutChar h '\\' >> hPutChar h 'r')
-        '"'  ->  void (hPutChar h '\\' >> hPutChar h '"')
-        '\\' ->  void (hPutChar h '\\' >> hPutChar h '\\')
-        _    ->  void (hPutChar h c)
-
-_bs1, _bs2 :: T.Text
-_bs1 = T.pack "\nthis \ris a \\U00015678long\t\nliteral\\uABCD\n"
-_bs2 = T.pack "\nan \\U00015678 escape\n"
-
-_w :: IO ()
-_w = _writeLiteralString stdout _bs1
+_writeLiteralString h ls = do
+  hPutChar h '"'
+  T.hPutStr h $ T.concatMap escapeChar ls
+  hPutChar h '"'
+  where escapeChar '\n' = "\\n"
+        escapeChar '\t' = "\\t"
+        escapeChar '\r' = "\\r"
+        escapeChar '"'  = "\\\""
+        escapeChar '\\' = "\\\\"
+        escapeChar c    = T.singleton c

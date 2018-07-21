@@ -3,6 +3,7 @@
 
 module Main where
 
+import Prelude hiding (readFile)
 import Criterion
 import Criterion.Types
 import Criterion.Main
@@ -40,30 +41,22 @@ queryGr (maybeS,maybeP,maybeO,rdf) = query rdf maybeS maybeP maybeO
 selectGr :: Rdf a => (NodeSelector,NodeSelector,NodeSelector,RDF a) -> [Triple]
 selectGr (selectorS,selectorP,selectorO,rdf) = select rdf selectorS selectorP selectorO
 
+xmlFile :: FilePath
+xmlFile = "bills.099.actions.rdf"
+
 main :: IO ()
-main =
-  defaultMainWith
+main = defaultMainWith
     (defaultConfig {resamples = 100})
     [ env
-        (do rdfContent <- T.pack <$> readFile "bills.099.actions.rdf"
-            fawltyContentTurtle <- T.pack <$> readFile "data/ttl/fawlty1.ttl"
-            fawltyContentNTriples <- T.pack <$> readFile "data/nt/all-fawlty-towers.nt"
-            let (Right rdf1) =
-                  parseString (XmlParser Nothing Nothing) rdfContent
-            let (Right rdf2) =
-                  parseString (XmlParser Nothing Nothing) rdfContent
+        (do fawltyContentTurtle <- readFile "data/ttl/fawlty1.ttl"
+            fawltyContentNTriples <- readFile "data/nt/all-fawlty-towers.nt"
+            rdf1' <- parseFile (XmlParser Nothing Nothing) xmlFile
+            rdf2' <- parseFile (XmlParser Nothing Nothing) xmlFile
+            let rdf1 = either (error . show) id rdf1' :: RDF TList
+                rdf2 = either (error . show) id rdf2' :: RDF AdjHashMap
                 triples = triplesOf rdf1
-            -- let (Right rdf3) =
-            --       parseString (XmlParser Nothing Nothing) rdfContent
-            -- let (Right rdf4) =
-            --       parseString (XmlParser Nothing Nothing) rdfContent
-            return
-              ( rdf1 :: RDF TList
-              , rdf2 :: RDF AdjHashMap
-              , triples :: Triples
-              , fawltyContentNTriples :: T.Text
-              , fawltyContentTurtle :: T.Text
-              )) $ \ ~(triplesList, adjMap, triples, fawltyContentNTriples, fawltyContentTurtle) ->
+            return (rdf1, rdf2, triples, fawltyContentNTriples, fawltyContentTurtle)) $
+            \ ~(triplesList, adjMap, triples, fawltyContentNTriples, fawltyContentTurtle) ->
         bgroup
           "rdf4h"
            [ bgroup
@@ -71,30 +64,22 @@ main =
               [ bench "ntriples-parsec" $
                 nf (\t ->
                       let res = parseString (NTriplesParserCustom Parsec) t :: Either ParseFailure (RDF TList)
-                      in case res of
-                        Left e -> error (show e)
-                        Right rdfG -> rdfG
+                      in either (error . show) id res
                    ) fawltyContentNTriples
               , bench "ntriples-attoparsec" $
                 nf (\t ->
                       let res = parseString (NTriplesParserCustom Attoparsec) t :: Either ParseFailure (RDF TList)
-                      in case res of
-                        Left e -> error (show e)
-                        Right rdfG -> rdfG
+                      in either (error . show) id res
                    ) fawltyContentNTriples
               , bench "turtle-parsec" $
                 nf (\t ->
                       let res = parseString (TurtleParserCustom Nothing Nothing Parsec) t :: Either ParseFailure (RDF TList)
-                      in case res of
-                        Left e -> error (show e)
-                        Right rdfG -> rdfG
+                      in either (error . show) id res
                    ) fawltyContentTurtle
               , bench "turtle-attoparsec" $
                 nf (\t ->
                       let res = parseString (TurtleParserCustom Nothing Nothing Attoparsec)  t :: Either ParseFailure (RDF TList)
-                      in case res of
-                        Left e -> error (show e)
-                        Right rdfG -> rdfG
+                      in either (error . show) id res
                    ) fawltyContentTurtle
               ]
           ,
