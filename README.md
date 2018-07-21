@@ -28,11 +28,11 @@ NTriples | complete | complete
 Turtle | complete | complete
 RDF/XML | partial (115/162 W3C tests) | not supported
 
-This is based on tests run on 15.04.2018 on commit 6a26142bc727993bce5a9030b055a6f5b8ddbadd .
+These results are produced with version 3.1.0 of this library (commit https://github.com/robstewart57/rdf4h/commit/1d0073e3ff9645bcdc4451b81fc79d96927c6006).
 
 These tests are run on the W3C unit tests for RDF formats: https://github.com/w3c/rdf-tests.
 
-Pull requests to increase coverage of the Turtle and RDF/XML parsers are welcome!
+Pull requests are welcome to fix the RDF/XML parser bugs identified with the W3C unit tests :)
 
 ### Running tests
 
