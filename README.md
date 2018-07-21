@@ -25,8 +25,8 @@ The coverage of the W3C RDF standards are:
 Format | Parsing | Serialising
 --- | --- | ---
 NTriples | complete | complete
-Turtle | partial (532/596 W3C tests) | complete
-RDF/XML | partial (116/162 W3C tests) | not supported
+Turtle | complete | complete
+RDF/XML | partial (115/162 W3C tests) | not supported
 
 This is based on tests run on 15.04.2018 on commit 6a26142bc727993bce5a9030b055a6f5b8ddbadd .
 
