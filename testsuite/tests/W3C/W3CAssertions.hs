@@ -1,4 +1,10 @@
-module W3C.W3CAssertions where
+module W3C.W3CAssertions
+  ( runManifestTests
+  , assertIsIsomorphic
+  , assertIsParsed
+  , assertIsNotParsed
+  , nodeURI
+  ) where
 
 import qualified Data.Text as T
 import           Data.RDF
