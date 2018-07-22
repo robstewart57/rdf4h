@@ -69,8 +69,6 @@ executable rdf4h
                  , rdf4h
                  , containers
                  , text >= 1.2.1.0
-                 , network-uri >= 2.6
-                 , network >= 2.6
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
