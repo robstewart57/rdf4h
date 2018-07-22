@@ -1,4 +1,7 @@
-module W3C.NTripleTest where
+module W3C.NTripleTest
+  ( testsParsec
+  , testsAttoparsec
+  ) where
 
 import Data.Maybe (fromJust)
 import Test.Tasty

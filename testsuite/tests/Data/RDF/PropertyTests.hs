@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.RDF.PropertyTests (graphTests,arbitraryTs) where
+module Data.RDF.PropertyTests (graphTests) where
 
 import qualified Data.Text.IO as T
 import Data.RDF hiding (empty)

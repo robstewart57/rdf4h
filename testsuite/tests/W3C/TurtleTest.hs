@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module W3C.TurtleTest where
+module W3C.TurtleTest
+  ( testsParsec
+  , testsAttoparsec
+  ) where
 
 import Test.Tasty
 import qualified Test.Tasty.HUnit as TU

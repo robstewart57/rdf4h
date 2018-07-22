@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module W3C.RdfXmlTest where
+module W3C.RdfXmlTest
+  ( tests
+  ) where
 
 import Data.Maybe (fromJust)
 import Test.Tasty
