@@ -95,14 +95,11 @@ test-suite test-rdf4h
                , tasty-quickcheck
                , QuickCheck >= 1.2.0.0
                , HUnit >= 1.2.2.1
-               , bytestring
                , containers
                , text >= 1.2.1.0
                , filepath
                , directory
                , safe
-               , network-uri >= 2.6
-               , network >= 2.6
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
