@@ -8,8 +8,8 @@ description:
   for triples  containing a particular subject, predicate, or object, or
   selecting triples that satisfy an arbitrary predicate function.
 
-author:          Rob Stewart, Wismill, Slava Kravchenko, Calvin Smith
-copyright:       (c) Rob Stewart, Wismill, Slava Kravchenko, Calvin Smith
+author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith
+copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith
 maintainer:      Rob Stewart <robstewart57@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
