@@ -40,8 +40,7 @@ mfEntryToTest (TestXMLNegativeSyntax nm _ _ act') =
 mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
 
 mfBaseURIXml :: BaseUrl
--- mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
-mfBaseURIXml = BaseUrl ""
+mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
 
 testParser :: XmlParser
 testParser = XmlParser (Just mfBaseURIXml) Nothing
