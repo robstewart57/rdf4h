@@ -32,6 +32,8 @@ import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),firs
 
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
 
+-- Useful HXT intro: http://adit.io/posts/2012-04-14-working_with_HTML_in_haskell.html
+
 -- note on generating stack tracing with ghci
 --
 -- use 'traceStack'
