@@ -37,6 +37,7 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
+                 , Text.RDF.RDF4H.XmlParserXmlbf
                  , Text.RDF.RDF4H.ParserUtils
   build-depends:   attoparsec
                  , base >= 4.8.0.0
@@ -55,6 +56,8 @@ library
                  , parsers
                  , mtl
                  , network-uri >= 2.6
+                 , xmlbf >= 0.4.2
+                 , xmlbf-xeno
   if impl(ghc < 7.6)
     build-depends: ghc-prim
   if !impl(ghc >= 8.0)
