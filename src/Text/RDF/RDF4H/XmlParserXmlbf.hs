@@ -1,4 +1,3 @@
-{-# LANGUAGE Arrows #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -16,6 +15,9 @@ module Text.RDF.RDF4H.XmlParserXmlbf (
 import qualified Control.Applicative as Applicative
 import Control.Exception
 import Control.Monad
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Map as Map
+import Data.Maybe
 import Data.RDF.Types
 import qualified Data.HashMap.Strict as HM
 import Data.Text (Text)
@@ -55,7 +57,7 @@ parseXmlRDF :: (Rdf a)
 parseXmlRDF bUrl dUrl xmlStr =
   case Xeno.nodes (T.encodeUtf8 xmlEg) of
     Left xmlParseError -> Left (ParseFailure xmlParseError)
-    Right nodes ->
+    Right nodes -> -- error (show nodes)
       case runParser rdfParser nodes of
         Left rdfParseError -> Left (ParseFailure rdfParseError)
         Right rdf -> Right rdf
@@ -68,23 +70,55 @@ rdfParser = do
 
 -- Text "\n"
 newline :: Parser ()
-newline = void $ pure (text "\n")
+newline = void $ pText' "\n"
+-- newline = pure (text "\n") *> pure ()
 
 {-
 [ ("xmlns:si","https://www.w3schools.com/rdf/")
 , ("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 ]
 -}
-prefixes :: Parser (HM.HashMap Text Text)
-prefixes = pAttrs
+prefixes :: Parser [(Text,Text)]
+prefixes = do
+  xs <- HashMap.toList <$> pAttrs
+  pure (map (\(k,v) -> (fromJust (T.stripPrefix "xmlns:" k),v)) xs)
+
+rdfTriple :: Parser Triple
+rdfTriple = do
+  newline
+  -- t <- pText
+  -- error (show t)
+  -- void newline
+  subj <- unode <$> pAttr "rdf:about"
+  -- x <- pName
+  -- error (show x)
+  (predText,obj) <- pElement' predObj
+  -- x <- pElement "rdf:Description"
+  pure $ triple subj (unode predText) obj
+
+predObj :: Parser (Data.RDF.Types.Node)
+predObj = do
+  t <- pText
+  pure $ lnode (plainL t)
+--   t <- pName
+--   error (show t)
+  -- newline
+  -- x <- pName
+  -- error (show x)
+
+rdfDescription' :: Parser (PrefixMappings,Maybe BaseUrl,Triples)
+rdfDescription' = do
+  pfixes <- prefixes
+  (_,triple) <- pElement' rdfTriple
+  -- error (show e)
+  pure (PrefixMappings (Map.fromList pfixes), Nothing, [triple])
 
 rdfDescription :: Rdf a => Parser (RDF a)
 rdfDescription = do
-  newline
-  pfixes <- pElement "rdf:RDF" prefixes
-  children <- pChildren
-  error (show (head children))
-  -- return Data.RDF.Types.empty
+  (pfixes,bUrl,triples) <- pElement "rdf:RDF" rdfDescription'
+  -- error (show $ pfixes)
+  many newline
+  pure $ mkRdf triples bUrl pfixes
 
 {-
 [ Text "\n"

@@ -2,7 +2,12 @@ resolver: lts-12.1
 compiler-check: newer-minor
 packages:
 - '.'
-- /home/rob/code/haskell/xmlbf/xmlbf/
-- /home/rob/code/haskell/xmlbf/xmlbf-xeno/
+- /home/rob/code/haskell/xmlbf/xmlbf
+- /home/rob/code/haskell/xmlbf/xmlbf-xeno
 extra-deps:
 - hgal-2.0.0.2
+# - git: git@gitlab.com:k0001/xmlbf.git
+#   commit: dca1998daf9bede159ee8817d834c7aafe48d71a
+#   subdirs:
+#   - xmlbf
+#   - xmlbf-xeno
