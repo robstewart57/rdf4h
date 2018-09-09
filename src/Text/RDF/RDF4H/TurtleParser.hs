@@ -603,7 +603,7 @@ parseURLParsec :: (Rdf a) =>
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
-parseURLParsec bUrl docUrl = _parseURL (parseStringParsec bUrl docUrl)
+parseURLParsec bUrl docUrl = parseFromURL (parseStringParsec bUrl docUrl)
 
 -- |Parse the given file as a Turtle document. The arguments and return type have the same semantics
 -- as 'parseURL', except that the last @String@ argument corresponds to a filesystem location rather
@@ -645,7 +645,7 @@ parseURLAttoparsec :: (Rdf a) =>
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
-parseURLAttoparsec bUrl docUrl = _parseURL (parseStringAttoparsec bUrl docUrl)
+parseURLAttoparsec bUrl docUrl = parseFromURL (parseStringAttoparsec bUrl docUrl)
 
 ---------------------------------
 

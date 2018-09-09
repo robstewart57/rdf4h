@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Text.RDF.RDF4H.ParserUtils(
-  _parseURL,
+  parseFromURL,
   Parser(..)
 ) where
 
@@ -20,8 +20,8 @@ data Parser = Parsec | Attoparsec
 errResult :: String -> Either ParseFailure (RDF rdfImpl)
 errResult msg = Left (ParseFailure msg)
 
-_parseURL :: (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
-_parseURL parseFunc url = do
+parseFromURL :: (Rdf rdfImpl) => (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
+parseFromURL parseFunc url = do
   result <- Control.Exception.Lifted.try $ simpleHttp url
   case result of
     Left (ex::HttpException) ->
