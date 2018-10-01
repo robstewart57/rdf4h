@@ -28,11 +28,27 @@ NTriples | complete | complete
 Turtle | complete | complete
 RDF/XML | partial (115/162 W3C tests) | not supported
 
-These results are produced with version 3.1.0 of this library (commit https://github.com/robstewart57/rdf4h/commit/1d0073e3ff9645bcdc4451b81fc79d96927c6006).
+These results are produced with version 3.1.0 of this library.
 
 These tests are run on the W3C unit tests for RDF formats: https://github.com/w3c/rdf-tests.
 
-Pull requests are welcome to fix the RDF/XML parser bugs identified with the W3C unit tests :)
+### Feature requests
+
+1. Pull requests are welcome to fix the remaining W3C RDF/XML parser
+   bugs. The [xmlbf
+   branch](https://github.com/robstewart57/rdf4h/tree/xmlbf) is
+   working on a reimplementation of the XmlParser module with the
+   [xmlbf](https://gitlab.com/k0001/xmlbf/tree/master/xmlbf) library.
+
+2. The parsers in this library parse large files/strings contents
+   entirely before generating RDF triples. This doesn't scale for very
+   large files. Implementing stream based RDF parsers would overcome
+   this problem, e.g. by creating input streams enabling output
+   streams in the
+   [io-streams](http://hackage.haskell.org/package/io-streams) library
+   to consume triples on-the-fly during parsing. This is discussed
+   here:
+   https://github.com/robstewart57/rdf4h/issues/44#issuecomment-426054978
 
 ### Running tests
 
