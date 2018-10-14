@@ -155,8 +155,16 @@ predObjP = do
 
 -- TODO: unodes, and all different kinds of plain text nodes
 objP :: Parser Data.RDF.Types.Node
-objP =
-  (lnode . plainL . TL.toStrict) <$> pText
+objP = do
+  -- typed literal
+  theType <- pAttr "rdf:datatype"
+  theText <- pText
+  pure (lnode (typedL (TL.toStrict theText) theType))
+  <|>
+  -- plain literal
+  ((lnode . plainL . TL.toStrict) <$> pText)
+
+
 
 rdfDescription' :: Parser (PrefixMappings,Maybe BaseUrl,Triples)
 rdfDescription' = do
