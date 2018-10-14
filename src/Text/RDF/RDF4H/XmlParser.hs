@@ -147,11 +147,16 @@ predObjP = do
   void $ many newline
   pAnyElement $ do
     p <- unode <$> pName
-    o <- (lnode . plainL . TL.toStrict) <$> pText
+    o <- objP
     pure (p,o)
     
   -- t <- pText
   -- pure $ lnode (plainL (TL.toStrict t))
+
+-- TODO: unodes, and all different kinds of plain text nodes
+objP :: Parser Data.RDF.Types.Node
+objP =
+  (lnode . plainL . TL.toStrict) <$> pText
 
 rdfDescription' :: Parser (PrefixMappings,Maybe BaseUrl,Triples)
 rdfDescription' = do
