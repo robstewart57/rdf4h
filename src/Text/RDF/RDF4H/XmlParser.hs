@@ -17,12 +17,14 @@ where
 
 import Text.RDF.RDF4H.ParserUtils (parseFromURL)
 
+import Debug.Trace
 import qualified Control.Applicative as Applicative
 import Control.Exception
 import Control.Monad
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.RDF.IRI
 import Data.RDF.Types
 import Data.RDF.Graph.TList
 import qualified Data.HashMap.Strict as HM
@@ -100,18 +102,29 @@ rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
 rdfParser bUrl dUrl = do
   let initState = ParseState bUrl Nothing undefined 0
   rdf <- rdfDescription initState
+  newlines
+  -- tree <- showTree
+  -- error (show tree)
   void pEndOfInput
   return rdf
 
 -- Text "\n"
 -- TODO: check that all that follows from \n is zero or more ' ' characters.
 newline :: Parser ()
--- newline = void $ (pText' "\n")
 newline = do
   t <- pText
-  if (T.take 1 (TL.toStrict t) == T.pack "\n")
+  if not $ anyUsefulChars (TL.toStrict t)
   then pure ()
   else pFail "not a newline text node"
+  where
+    anyUsefulChars t =
+      if T.length t == 0
+      then False
+      else
+       let c = T.head t
+       in if (c /= '\n' && c /= '\r' && c /= ' ')
+          then True
+          else anyUsefulChars (T.tail t)
 
 newlines :: Parser ()
 newlines = void (many newline) 
@@ -121,7 +134,7 @@ pNodeNot t = do
   n <- pName
   if (n /= t)
   then pure ()
-  else pFail "forbidden element name"
+  else pFail ("forbidden element name: " ++ show t)
 
 {-
 [ ("xmlns:si","https://www.w3schools.com/rdf/")
@@ -133,70 +146,121 @@ prefixes = do
   xs <- HashMap.toList <$> pAttrs
   pure (map (\(k,v) -> (fromJust (T.stripPrefix "xmlns:" k),v)) xs)
 
-rdfTriplesP :: ParseState -> Parser ([Triple],ParseState)
+oneAttr :: Parser (Text,Text)
+oneAttr = do
+  xs <- pAttrs
+  case length (HashMap.toList xs) of
+    1 -> pure $ head (HashMap.toList xs)
+    _ -> pFail "not one attr"
+
+rdfTriplesP :: ParseState -> Parser (Triples,ParseState)
 rdfTriplesP st = do
   newlines
-  pAnyElement $ do
-    -- n <- pName
-    ((subj,reifiedTriples),st') <- subjP st
-    (predObjs) <- many (predObjP)
-    pure $
-      ((map (\(p,o) ->
-               triple subj p o
-            ) predObjs
-        ++ reifiedTriples)
-      ,st')
+  pElement "rdf:Description" $ do
+    newlines
+    ((subj, reifiedTriples), st') <- subjP st
+    (ts) <- concat <$> many (predObjP st')
+    newlines
+    -- tree <- showTree
+    -- error (show tree)
+    void pEndOfInput
+    pure (ts ++ reifiedTriples,st')
+    -- pure $ ((map (\(p, o) -> triple subj p o) predObjs ++ reifiedTriples), st')
+
+{- NOTE:
+  remember to use `showTree` in the fork of xmlbf when pEndOfInput needs
+  debugging.
+-}
 
 subjP :: ParseState -> Parser ((Node,Triples),ParseState)
 subjP st = do
-  void (pNodeNot "rdf:RDF") -- rdfms-rdf-names-use-error-001
+  -- void (pNodeNot "rdf:RDF") -- rdfms-rdf-names-use-error-001
   (do
       s <- unode <$> pAttr "rdf:about"
-      pure ((s,[]),st)
+      pure ((s,[]),st { stateSubject = s } )
         <|> do
         -- theId <- pAttr "rdf:ID"
         let theBnode = BNodeGen (stateGenId st)
             st' = st { stateGenId = stateGenId st + 1}
         pure ((theBnode,[]),st'))
 
-predObjP :: Parser ((Node,Node))
-predObjP = do
-  void $ many newline
-  void (pNodeNot "rdf:Description")
-  (do
-      pAnyElement $ do
+-- predObjP :: Parser ((Node,Node))
+predObjP :: ParseState -> Parser Triples
+predObjP st = do
+  void newlines
+  (do pAnyElement $ do
+        void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
         p <- unode <$> pName
-        (o) <- objP
-        pure ((p,o))
+        (ts) <-
+            (do
+                -- typed literal
+                theType <- pAttr "rdf:datatype"
+                theText <- pText
+                pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))])
+            <|>
+          -- blank node
+          (do (p1,o1) <- oneAttr
+              -- TODO: increment stateGenId
+              let bnode = BNodeGen (stateGenId st)
+                  t1 = triple (stateSubject st) p bnode
+                  a = case stateBaseUrl st of
+                        Nothing -> T.pack ""
+                        Just (BaseUrl uri) -> uri
+                  Right txt = resolveIRI a p1
+                  p2 = unode txt
+                  -- TODO: typed and lang literals
+                  t2 = triple bnode p2 (lnode (plainL o1))
+              pure [t1,t2])
+            <|>
+            (do
+                -- plain literal
+                theText <- pText
+                newlines
+                pure [triple
+                      (stateSubject st)
+                      p
+                      (lnode (plainL (TL.toStrict theText)))])
+        newlines
+        pure ts
         <|>
-        pFail "unable to parse predicate/object pair")
+        pFail "unable to parse predicate/object pair"
+    )
   -- TODO: reify triple
 
 -- TODO: unodes, and all different kinds of plain text nodes
-objP :: Parser (Node)
-objP = do
-  -- typed literal
-  theType <- pAttr "rdf:datatype"
-  theText <- pText
-  pure ((lnode (typedL (TL.toStrict theText) theType)))
-  <|> do
-  -- plain literal
-  theText <- pText
-  pure (lnode (plainL (TL.toStrict theText)))
+-- objP :: Parser (Node)
+-- objP {- st -} = do
+--   -- unode
+--   -- xs <- head <$> prefixes
+--   -- error (show xs)
+--   -- TODO for:
+--   --  Element "eg:Creator"
+--   --  [("eg:named","D\252rst")]
+--   --  []
+--   pure (unode "http://www.example.com")
+--   <|> do
+--   -- typed literal
+--   theType <- pAttr "rdf:datatype"
+--   theText <- pText
+--   pure ((lnode (typedL (TL.toStrict theText) theType)))
+--   <|> do
+--   -- plain literal
+--   theText <- pText
+--   pure (lnode (plainL (TL.toStrict theText)))
 
 
 
 rdfDescription' :: ParseState -> Parser (PrefixMappings,Maybe BaseUrl,Triples)
 rdfDescription' st = do
+  newlines
   pfixes <- prefixes
   (_,(triples,st')) <- pElement' (rdfTriplesP st)
+  newlines
   pure (PrefixMappings (Map.fromList pfixes), Nothing, triples)
 
 rdfDescription :: Rdf a => ParseState -> Parser (RDF a)
 rdfDescription st = do
   (pfixes,bUrl,triples) <- pElement "rdf:RDF" (rdfDescription' st)
-  -- error (show $ pfixes)
-  many newline
   pure $ mkRdf triples bUrl pfixes
 
 {-
@@ -339,4 +403,130 @@ many = Applicative.many
     ]
 , Text "\n"
 ]
+-}
+
+
+{- rdf-tests/rdf-xml/amp-in-url/test001.rdf
+
+[ Text "\n\n"
+, Element "rdf:RDF"
+  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+  ]
+  [ Text "\n\n  "
+  , Element "rdf:Description"
+    [("rdf:about","http://example/q?abc=1&def=2")
+    ]
+    [ Text "\n    "
+    , Element "rdf:value"
+      []
+      [Text "xxx"]
+    , Text "\n  "
+    ]
+  , Text "\n\n"
+  ]
+, Text "\n"
+]
+-}
+
+{- "rdf-tests/rdf-xml/rdfms-rdf-names-use/error-001.rdf"
+
+[ Text "\n\n\n"
+, Element "rdf:RDF"
+  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
+  [ Text "\n  "
+  , Element "rdf:RDF"
+    []
+    []
+  , Text "\n"
+  ]
+, Text "\n"
+]
+
+-}
+
+
+
+{- "rdf-tests/rdf-xml/rdfms-rdf-names-use/error-011.rdf"
+Description is forbidden as a property element name.
+
+[ Text "\n\n\n"
+, Element "rdf:RDF"
+  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
+  [ Text "\n  "
+  , Element "rdf:Description"
+    [("rdf:about","http://example.org/node1")]
+    [ Text "\n    "
+    , Element "rdf:Description"
+      [("rdf:resource","http://example.org/node2")]
+      []
+    , Text "\n  "
+    ]
+ , Text "\n"
+ ]
+, Text "\n"
+]
+
+-}
+
+{- "rdf-tests/rdf-xml/rdf-charmod-literals/test001.rdf"
+
+[ Text "\n\n\n"
+, Element "rdf:RDF"
+  [("xmlns:eg","http://example.org/"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
+  [ Text "\n   \n\n   "
+  , Element "rdf:Description"
+    [("rdf:about","http://www.w3.org/TR/2002/WD-charmod-20020220")]
+    [ Text "\n\n   \n      "
+    , Element "eg:Creator"
+      [("eg:named","D\252rst")]
+      []
+    , Text "\n      \n\n   "
+    ]
+  , Text "\n"
+  ]
+, Text "\n"
+]
+
+-}
+
+{- rdf-tests/rdf-xml/rdf-charmod-uris/test001.rdf
+
+[ Text "\r\n\r\n\r\n"
+, Element "rdf:RDF"
+  [("xmlns:eg","http://example.org/#"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
+  [ Text "\r\n\r\n  \r\n\r\n   "
+  , Element "rdf:Description"
+    [("rdf:about","http://example.org/#Andr\233")]
+    [ Text "\r\n      "
+    , Element "eg:owes"
+      []
+      [Text "2000"]
+    , Text "\r\n   "
+    ]
+  , Text "\r\n"
+  ]
+, Text "\r\n"
+]
+
+-}
+
+{- "rdf-tests/rdf-xml/rdf-charmod-uris/test002.rdf"
+
+[ Text "\r\n\r\n"
+, Element "rdf:RDF"
+  [("xmlns:eg","http://example.org/#"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
+  [ Text "\r\n \r\n  \r\n\r\n   "
+  , Element "rdf:Description"
+    [("rdf:about","http://example.org/#Andr%C3%A9")]
+    [ Text "\r\n      "
+    , Element "eg:owes"
+      []
+      [Text "2000"]
+    , Text "\r\n   "
+    ]
+  , Text "\r\n"
+  ]
+, Text " \r\n"
+]
+
 -}
