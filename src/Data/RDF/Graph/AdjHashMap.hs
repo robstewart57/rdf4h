@@ -105,7 +105,7 @@ instance Rdf AdjHashMap where
 --           where subjPredMaps = HashMap.toList spoMap
 --     in concatMap (\t -> show t ++ "\n") ts
 
-showGraph' :: RDF AdjHashMap -> [Char]
+showGraph' :: RDF AdjHashMap -> String
 showGraph' ((AdjHashMap ((spoMap, _), _, _))) =
     let ts = concatMap (uncurry tripsSubj) subjPredMaps
           where subjPredMaps = HashMap.toList spoMap

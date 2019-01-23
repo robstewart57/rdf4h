@@ -150,8 +150,8 @@ addRemoveTriples lbl triples emptyGr populatedGr =
 
 addTriples ::  Rdf a => (Triples,RDF a) -> RDF a
 addTriples (triples,emptyGr) =
-  foldr (\t g -> addTriple g t) emptyGr triples
+  foldr (flip addTriple) emptyGr triples
 
 removeTriples ::  Rdf a => (Triples,RDF a) -> RDF a
 removeTriples (triples,populatedGr) =
-  foldr (\t g -> removeTriple g t) populatedGr triples
+  foldr (flip removeTriple) populatedGr triples

@@ -28,7 +28,7 @@ _parseURL parseFunc url = do
       case ex of
         (HttpExceptionRequest _req content) ->
           case content of
-            ConnectionTimeout -> do
+            ConnectionTimeout ->
               return $ errResult "Connection timed out"
             _ -> return $ errResult ("HttpExceptionRequest content: " ++ show content)
         (InvalidUrlException{}) ->

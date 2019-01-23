@@ -131,7 +131,7 @@ arbitraryPrefixMappings =
 p_empty
   :: Rdf rdf
   => RDF rdf -> Bool
-p_empty empty = triplesOf empty == []
+p_empty empty = null (triplesOf empty)
 
 -- triplesOf any RDF should return unique triples used to create it
 p_mkRdf_triplesOf
@@ -445,7 +445,7 @@ p_remove_triple_from_singleton_graph_query_s
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_s _unused singletonGraph =
-  query newGr (Just s) Nothing Nothing == []
+  null (query newGr (Just s) Nothing Nothing)
   where
     tripleInGraph@(Triple s _p _o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -457,7 +457,7 @@ p_remove_triple_from_singleton_graph_query_p
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_p _unused singletonGraph =
-  query newGr Nothing (Just p) Nothing == []
+  null (query newGr Nothing (Just p) Nothing)
   where
     tripleInGraph@(Triple _s p _o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -469,7 +469,7 @@ p_remove_triple_from_singleton_graph_query_o
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_o _unused singletonGraph =
-  query newGr Nothing Nothing (Just o) == []
+  null (query newGr Nothing Nothing (Just o))
   where
     tripleInGraph@(Triple _s _p o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -482,10 +482,10 @@ p_add_then_remove_triples
 p_add_then_remove_triples _empty genTriples =
   let emptyGraph = _empty
       populatedGraph =
-        foldr (\t gr -> addTriple gr t) emptyGraph genTriples
+        foldr (flip addTriple) emptyGraph genTriples
       emptiedGraph =
-        foldr (\t gr -> removeTriple gr t) populatedGraph genTriples
-  in triplesOf emptiedGraph == []
+        foldr (flip removeTriple) populatedGraph genTriples
+  in null (triplesOf emptiedGraph)
 
 equivNode :: (Node -> Node -> Bool)
           -> (Triple -> Node)
@@ -601,8 +601,7 @@ instance Arbitrary Triple where
   arbitrary = do
     s <- arbitraryS
     p <- arbitraryP
-    o <- arbitraryO
-    return (triple s p o)
+    triple s p <$> arbitraryO
 
 instance Arbitrary Node where
   arbitrary = oneof $ map return unodes

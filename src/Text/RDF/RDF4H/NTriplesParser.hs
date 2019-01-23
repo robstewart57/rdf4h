@@ -13,7 +13,7 @@ module Text.RDF.RDF4H.NTriplesParser
 
 import Prelude hiding (readFile)
 import Data.Semigroup ((<>))
-import Data.Char (isDigit, isLetter, isAlphaNum)
+import Data.Char (isDigit, isLetter, isAlphaNum, isAsciiUpper, isAsciiLower)
 import Control.Applicative
 import Control.Monad (void)
 
@@ -165,8 +165,8 @@ nt_blank_node_label = do
 -- [157s] PN_CHARS_BASE ::= [A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
 nt_pn_chars_base :: CharParsing m => m Char
 nt_pn_chars_base = try $ satisfy isBaseChar
-  where isBaseChar c = (c >= 'A' && c <= 'Z')
-                    || (c >= 'a' && c <= 'z')
+  where isBaseChar c = (isAsciiUpper c)
+                    || (isAsciiLower c)
                     || (c >= '\x00C0' && c <= '\x00D6')
                     || (c >= '\x00D8' && c <= '\x00F6')
                     || (c >= '\x00F8' && c <= '\x02FF')

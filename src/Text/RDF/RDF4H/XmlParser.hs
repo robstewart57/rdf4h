@@ -102,7 +102,7 @@ instance Exception ParserException
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl dUrl fpath =
-   TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
+   parseXmlRDF bUrl dUrl <$> TIO.readFile fpath
 
 -- |Parse the document at the given location URL as an XML document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the XML document itself.
@@ -438,7 +438,7 @@ my_expandURI
 -- |Make a UNode from an absolute string
 mkUNode :: forall a. (ArrowIf a) => a String Node
 mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (unode . T.pack))
-                  , arr (\_ -> True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
+                  , arr (const True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
                   ]
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs

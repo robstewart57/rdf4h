@@ -9,7 +9,6 @@ module Text.RDF.RDF4H.XmlParser_Test
 
 -- Testing imports
 import Test.Tasty
-import Test.Tasty.HUnit
 import Test.Tasty.HUnit as TU
 
 -- Import common libraries to facilitate tests
@@ -70,8 +69,8 @@ loadExpectedGraph1 fname = do
 
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure (RDF TList))
 loadInputGraph1 dir fname =
-  TIO.readFile (printf "%s/%s.rdf" dir fname :: String) >>=
-  return . parseString (XmlParser Nothing (mkDocUrl1 testBaseUri fname)) >>= return . handleLoad
+  (parseString (XmlParser Nothing (mkDocUrl1 testBaseUri fname)) <$>
+     TIO.readFile (printf "%s/%s.rdf" dir fname :: String))
 
 doGoodConformanceTest   :: IO (Either ParseFailure (RDF TList)) ->
                            IO (Either ParseFailure (RDF TList)) ->
