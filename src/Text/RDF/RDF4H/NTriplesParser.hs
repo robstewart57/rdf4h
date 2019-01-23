@@ -39,7 +39,7 @@ import System.IO (IOMode(..), withFile, hSetNewlineMode, noNewlineTranslation, h
 -- class.
 data NTriplesParser = NTriplesParser
 
-data NTriplesParserCustom = NTriplesParserCustom Parser
+newtype NTriplesParserCustom = NTriplesParserCustom Parser
 
 -- |'NTriplesParser' is an instance of 'RdfParser' using parsec based parsers.
 instance RdfParser NTriplesParser where

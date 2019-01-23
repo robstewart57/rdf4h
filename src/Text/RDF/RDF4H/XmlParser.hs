@@ -80,7 +80,7 @@ instance RdfParser XmlParser where
 
 
 -- |Global state for the parser
-data GParseState = GParseState { stateGenId :: Int
+newtype GParseState = GParseState { stateGenId :: Int
                                }
   deriving(Show)
 
@@ -91,7 +91,7 @@ data LParseState = LParseState { stateBaseUrl :: BaseUrl
                                }
   deriving(Show)
 
-data ParserException = ParserException String
+newtype ParserException = ParserException String
                      deriving (Show,Typeable)
 instance Exception ParserException
 
