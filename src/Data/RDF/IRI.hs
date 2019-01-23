@@ -19,12 +19,12 @@ module Data.RDF.IRI
   ) where
 
 import Data.Semigroup (Semigroup(..))
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (maybe, isJust)
 import Data.Functor
 import Data.List (intersperse)
 import Control.Applicative
 import Control.Monad (guard)
-import Control.Arrow ((***), (&&&), (>>>))
+import Control.Arrow (first, (&&&), (>>>))
 import Data.Char (isAlpha, isDigit, isAlphaNum, toUpper, toLower)
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -95,18 +95,18 @@ data SchemaError
 -- [TODO] use Builder
 serializeIRI :: IRIRef -> Text
 serializeIRI (IRIRef s a p q f) = mconcat
-  [ fromMaybe mempty (scheme <$> s)
-  , fromMaybe mempty (authority <$> a)
+  [ maybe mempty scheme s
+  , maybe mempty authority a
   , path p
-  , fromMaybe mempty (query <$> q)
-  , fromMaybe mempty (fragment <$> f)]
+  , maybe mempty query q
+  , maybe mempty fragment f ]
   where
     scheme (Scheme s') = s' <> ":"
     authority (Authority u (Host h) p') = mconcat
       [ "//"
-      , fromMaybe mempty (userInfo <$> u)
+      ,  maybe mempty userInfo u
       , h
-      , fromMaybe mempty (port <$> p') ]
+      , maybe mempty port p' ]
     userInfo (UserInfo u) = u <> "@"
     port (Port p') = (":" <>) . T.pack . show $ p'
     path (Path p') = p'
@@ -123,7 +123,7 @@ parseRelIRI :: Text -> Either String IRIRef
 parseRelIRI = P.parseOnly $ irelativeRefParser <* (P.endOfInput <?> "Unexpected characters at the end")
 
 validateIRI :: Text -> Either String Text
-validateIRI t = const t <$> parseIRI t
+validateIRI t = t <$ parseIRI t
 
 -- | IRI parsing and resolution according to algorithm 5.2 from RFC3986
 -- See: http://www.ietf.org/rfc/rfc3986.txt
@@ -270,7 +270,7 @@ ipathRootlessParser' = mconcat <$> sequence [isegmentNzParser, ipathAbEmptyParse
 
 -- ipath-empty = 0<ipchar>
 ipathEmptyParser :: Parser (Maybe Authority, Path)
-ipathEmptyParser = const (Nothing, mempty) <$> ipathEmptyParser'
+ipathEmptyParser = (Nothing, mempty) <$ ipathEmptyParser'
 
 ipathEmptyParser' :: Parser Text
 ipathEmptyParser' = P.string mempty <?> "Empty path"
@@ -406,7 +406,7 @@ ipV6AddressParser = do
     h16 = parseBetween 1 4 (P.takeWhile isHexaDigit)
     ipNotElided (leading, lengthL) =
       guard (lengthL == 7 && isDecOctet (last leading)) *> partialIpV4 <|>
-      guard (lengthL == 8) *> pure mempty
+      (guard (lengthL == 8) $> mempty)
     ipElided (_, lengthL) = do
       guard $ lengthL <= 8
       elision <- P.string "::"
@@ -476,10 +476,10 @@ isSubDelims c = c `elem` ("!$&'()*+,;=" :: String)
 iauthWithPathParser :: Parser (Maybe Authority, Path)
 iauthWithPathParser = do
   void (P.string "//")
-  curry (Just *** id) <$> iauthorityParser <*> ipathAbEmptyParser
+  curry (first Just) <$> iauthorityParser <*> ipathAbEmptyParser
 
 isHexaDigit :: Char -> Bool
-isHexaDigit c = (c >= '0' && c <= '9') ||
+isHexaDigit c = (isDigit c) ||
                 (c >= 'a' && c <= 'f') ||
                 (c >= 'A' && c <= 'F')
 

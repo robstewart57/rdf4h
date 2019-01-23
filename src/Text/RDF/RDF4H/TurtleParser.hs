@@ -24,6 +24,7 @@ import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
 import qualified Data.Text as T
 import Data.Sequence (Seq, (|>))
+import Data.Functor (($>))
 import qualified Data.Foldable as F
 import Control.Monad
 import Text.Parser.Char
@@ -176,7 +177,7 @@ t_sparql_base = do
   updateBaseUrl (Just $ Just newBaseIri)
 
 t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_verb = try t_predicate <|> (char 'a' *> pure rdfTypeNode) >>= setPredicate
+t_verb = try t_predicate <|> (char 'a' $> rdfTypeNode) >>= setPredicate
 
 -- grammar rule: [11] predicate ::= iri
 t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
@@ -199,7 +200,7 @@ t_pn_local = do
   xs <- option "" $ try $ do
     let recsve = (t_pn_chars_str <|> string ":" <|> t_plx) <|>
                  (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve))) <|>
-                 (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws *> pure "."))
+                 (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws $> "."))
     concat <$> many recsve
   pure (T.pack (x ++ xs))
   where
@@ -235,7 +236,7 @@ t_subject = iri <|> t_blankNode <|> t_collection >>= setSubject
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
 t_blankNode = do
-  genID <- try t_blank_node_label <|> (t_anon *> pure mempty)
+  genID <- try t_blank_node_label <|> (t_anon $> mempty)
   mp <- currGenIdLookup
   maybe (newBN genID) getExistingBN (Map.lookup genID mp)
   where
@@ -297,7 +298,7 @@ t_collection = withConstantSubjectPredicate $
     void (many t_ws)
     return root
   where
-    empty_list = lookAhead (char ')') *> return rdfNilNode
+    empty_list = lookAhead (char ')') $> rdfNilNode
     non_empty_list = do
       ns <- sepEndBy1 element (some t_ws)
       addTripleForObject rdfNilNode
@@ -507,7 +508,7 @@ updateBaseUrl val = _modifyState val no no no no no
 -- combines get_current and increment into a single function
 nextIdCounter :: MonadState ParseState m => m Integer
 nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
-                put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) *> pure i
+                put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) $> i
 
 nextBlankNode :: MonadState ParseState m => m Node
 nextBlankNode = BNodeGen . fromIntegral <$> nextIdCounter

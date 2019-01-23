@@ -125,8 +125,8 @@ mfUnrecognizedDatatypes = unode "http://www.w3.org/2001/sw/DataAccess/tests/test
 -- | Load the manifest from the given file;
 -- apply the given namespace as the base IRI of the manifest.
 loadManifest :: T.Text -> T.Text -> IO Manifest
-loadManifest manifestPath baseIRI = do
-  parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
+loadManifest manifestPath baseIRI =
+  (rdfToManifest . fromEither) <$> parseFile testParser (T.unpack manifestPath)
   where testParser = TurtleParser (Just $ BaseUrl baseIRI) Nothing
 
 rdfToManifest :: RDF TList -> Manifest
