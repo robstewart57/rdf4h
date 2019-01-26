@@ -467,9 +467,9 @@ xmlName str = go [] str
       else Nothing
     isValid c = isAlphaNum c
                 || '_' == c
-                -- || '-' == c
                 || '.' == c
                 || ':' == c
+                -- || '-' == c
 
 -- |Make a literal node with the given type and content
 mkTypedLiteralNode :: Text -> String -> Node
