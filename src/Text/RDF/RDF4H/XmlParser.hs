@@ -469,7 +469,7 @@ xmlName str = go [] str
                 || '_' == c
                 || '.' == c
                 || ':' == c
-                -- || '-' == c
+                -- '-' == c
 
 -- |Make a literal node with the given type and content
 mkTypedLiteralNode :: Text -> String -> Node
