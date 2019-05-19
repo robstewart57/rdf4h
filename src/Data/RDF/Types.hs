@@ -188,7 +188,7 @@ uriValidate = either (const Nothing) Just . isRdfURI
 
 -- |Same as 'uriValidate', but on 'String' rather than 'Text'
 uriValidateString :: String -> Maybe String
-uriValidateString = liftA T.unpack . uriValidate . fromString
+uriValidateString = fmap T.unpack . uriValidate . fromString
 
 isRdfURI :: Text -> Either ParseError Text
 isRdfURI t = parse (iriFragment  <* eof) ("Invalid URI: " ++ T.unpack t) t
@@ -624,12 +624,10 @@ canonicalizerTable =
     doubleUri  = "http://www.w3.org/2001/XMLSchema#double"
 
 _integerStr, _decimalStr, _doubleStr :: Text -> Text
-_integerStr t =
-  if T.length t == 1
-  then t
-  else if T.head t == '0'
-       then _integerStr (T.tail t)
-       else t
+_integerStr t
+   | T.length t == 1 = t
+   | T.head t == '0' = _integerStr (T.tail t)
+   | otherwise = t
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )

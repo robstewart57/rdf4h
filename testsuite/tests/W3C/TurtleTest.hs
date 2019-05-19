@@ -31,8 +31,8 @@ mfEntryToTest :: TurtleParserCustom -> TestEntry -> TestTree
 mfEntryToTest parser (TestTurtleEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       res = (UNode . fromJust . fileSchemeToFilePath) res'
-      parsedRDF   = parseFile parser (nodeURI act) >>= return . fromEither :: IO (RDF TList)
-      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TList)
+      parsedRDF   = (fromEither <$> parseFile parser (nodeURI act)) :: IO (RDF TList)
+      expectedRDF = (fromEither <$> parseFile NTriplesParser (nodeURI res)) :: IO (RDF TList)
   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
 mfEntryToTest parser (TestTurtleNegativeEval nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'

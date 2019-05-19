@@ -20,6 +20,7 @@ module Data.RDF.Query (
 
 import Prelude hiding (pred)
 import Data.List
+import Data.Maybe (fromMaybe)
 import Data.RDF.Types
 import qualified Data.RDF.Namespace as NS
 import           Data.Text (Text)
@@ -173,7 +174,7 @@ expandNode _   n         = n
 -- Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
 expandURI :: PrefixMappings -> Text -> Text
 expandURI _ "a"  = NS.mkUri NS.rdf "type"
-expandURI pms iri = maybe iri id $ foldl' f Nothing (NS.toPMList pms)
+expandURI pms iri = fromMaybe iri $ foldl' f Nothing (NS.toPMList pms)
   where f :: Maybe Text -> (Text, Text) -> Maybe Text
         f x (p, u) = x <|> (T.append u <$> T.stripPrefix (T.append p ":") iri)
 

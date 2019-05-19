@@ -1,53 +1,38 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Text.RDF.RDF4H.ParserUtils(
-  _parseURL, justTriples,
+  _parseURL,
   Parser(..)
 ) where
 
 import Data.RDF.Types
 
-import Network.URI
-import Network.HTTP
-import Data.Char (intToDigit)
+import Control.Exception.Lifted
+import Network.HTTP.Conduit
 import Data.Text.Encoding (decodeUtf8)
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
--- import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 
 data Parser = Parsec | Attoparsec
 
 -- | A convenience function for terminating a parse with a parse failure, using
 -- the given error message as the message for the failure.
-errResult :: {- RDF rdf => -} String -> Either ParseFailure (RDF rdfImpl)
+errResult :: String -> Either ParseFailure (RDF rdfImpl)
 errResult msg = Left (ParseFailure msg)
 
--- | Keep the (Just t) triples (eliminating the Nothing comments), and unbox the
--- triples, leaving a list of triples.
-justTriples :: [Maybe Triple] -> [Triple]
-justTriples = map (fromMaybe (error "ParserUtils.justTriples")) .
-              filter (/= Nothing)
-
--- | Parse contents at URL into an 'RDF'.
-_parseURL :: {- Rdf rdf => -} (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
-_parseURL parseFunc url =
-  maybe
-    (return (Left (ParseFailure $ "Unable to parse URL: " ++ url)))
-    doParse
-    (parseURI url)
-  where
-    showRspCode (a, b, c) = map intToDigit [a, b, c]
-    httpError resp = showRspCode (rspCode resp) ++ " " ++ rspReason resp
-    doParse url' =
-      simpleHTTP (request url') >>= \resp ->
-        case resp of
-          (Left e)    -> return (errResult $ "couldn't retrieve from URL: " ++ show url' ++ " [" ++ show e ++ "]")
-          (Right res) -> case rspCode res of
-                           (2, 0, 0) -> return $ parseFunc (decodeUtf8 (rspBody res))
-                           _         -> return (errResult $ "couldn't retrieve from URL: " ++ httpError res)
-
--- | Construct HTTP GET request.
-request :: URI -> HTTPRequest B.ByteString
-request uri = Request { rqURI = uri,
-                        rqMethod = GET,
-                        rqHeaders = [Header HdrConnection "close"],
-                        rqBody = B.empty }
+_parseURL :: (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
+_parseURL parseFunc url = do
+  result <- Control.Exception.Lifted.try $ simpleHttp url
+  case result of
+    Left (ex::HttpException) ->
+      case ex of
+        (HttpExceptionRequest _req content) ->
+          case content of
+            ConnectionTimeout ->
+              return $ errResult "Connection timed out"
+            _ -> return $ errResult ("HttpExceptionRequest content: " ++ show content)
+        (InvalidUrlException{}) ->
+          return $ errResult "Invalid URL exception"
+    Right bs -> do
+      let s = decodeUtf8 $ BS.toStrict bs
+      return (parseFunc s)

@@ -17,18 +17,32 @@ import Control.Arrow ((>>>),(<<<),(&&&),(***),arr,returnA)
 import Control.Arrow.ArrowList (arrL)
 import Control.Arrow.ArrowState (ArrowState,nextState)
 import Control.Exception
+import Data.Char
 import Data.List (isPrefixOf)
 import qualified Data.Map as Map (fromList)
 import Data.Maybe
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
-import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate,uriValidateString)
+import Data.RDF.IRI
+import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import Data.Text (Text)
 import qualified Data.Text as T -- (Text,pack,unpack)
 import qualified Data.Text.IO as TIO
 import Text.XML.HXT.Core (ArrowXml,ArrowIf,XmlTree,IfThen((:->)),(>.),(>>.),first,neg,(<+>),expandURI,getName,getAttrValue,getAttrValue0,getAttrl,hasAttrValue,hasAttr,constA,choiceA,getChildren,ifA,arr2A,second,hasName,isElem,isWhiteSpace,xshow,listA,isA,isText,getText,this,unlistA,orElse,sattr,mkelem,xreadDoc,runSLA)
 
 -- TODO: write QuickCheck tests for XmlParser instance for RdfParser.
+
+-- Useful HXT intro: http://adit.io/posts/2012-04-14-working_with_HTML_in_haskell.html
+
+-- note on generating stack tracing with ghci
+--
+-- use 'traceStack'
+--
+-- then start ghci with
+--
+-- stack ghci --ghc-options "-fexternal-interpreter" --ghc-options "-prof"
+--
+-- then run the function you with to create a stack trace for.
 
 -- |'XmlParser' is an instance of 'RdfParser'.
 --
@@ -66,7 +80,7 @@ instance RdfParser XmlParser where
 
 
 -- |Global state for the parser
-data GParseState = GParseState { stateGenId :: Int
+newtype GParseState = GParseState { stateGenId :: Int
                                }
   deriving(Show)
 
@@ -77,7 +91,7 @@ data LParseState = LParseState { stateBaseUrl :: BaseUrl
                                }
   deriving(Show)
 
-data ParserException = ParserException String
+newtype ParserException = ParserException String
                      deriving (Show,Typeable)
 instance Exception ParserException
 
@@ -88,7 +102,7 @@ instance Exception ParserException
 -- Returns either a @ParseFailure@ or a new RDF containing the parsed triples.
 parseFile' :: (Rdf a) => Maybe BaseUrl -> Maybe Text -> String -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl dUrl fpath =
-   TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
+   parseXmlRDF bUrl dUrl <$> TIO.readFile fpath
 
 -- |Parse the document at the given location URL as an XML document, using an optional @BaseUrl@
 -- as the base URI, and using the given document URL as the URI of the XML document itself.
@@ -136,15 +150,10 @@ getRDF = proc xml -> do
             rdf <- isElem <<< getChildren -< xml
             bUrl <- arr (BaseUrl . T.pack) <<< ((getAttrValue0 "xml:base" <<< isElem <<< getChildren) `orElse` getAttrValue "transfer-URI") -< xml
             prefixMap <- arr toPrefixMap <<< toAttrMap                  -< rdf
-            triples <- (parseDescription' >. failOnEmptyList >>> unlistA) -< (bUrl,rdf)
+            triples <- parseDescription' >. id -< (bUrl,rdf)
             returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
         toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
-
-        failOnEmptyList :: [b] -> [[b]]
-        failOnEmptyList [] = []
-        failOnEmptyList xs = [xs]
-
 
 -- |Read the initial state from an rdf element
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple
@@ -367,14 +376,18 @@ getTypedTriple state = nameToUNode &&& (attrExpandURI state "rdf:datatype" &&& x
 
 getNodeIdTriple :: forall a. (ArrowXml a)
                 => LParseState -> a XmlTree Triple
-getNodeIdTriple state = nameToUNode &&& (getAttrValue "rdf:nodeID" >>> arr (bnode . T.pack))
+getNodeIdTriple state = nameToUNode &&& (getAttrValue "rdf:nodeID" >>> (arrL (maybeToList . xmlName)) >>> arr (bnode . T.pack))
     >>> arr (attachSubject (stateSubject state))
 
 -- |Read a Node from the "rdf:about" property or generate a blank node
 mkNode :: forall a. (ArrowXml a, ArrowState GParseState a) => LParseState -> a XmlTree Node
 mkNode state = choiceA [ hasAttr "rdf:about" :-> (attrExpandURI state "rdf:about" >>> mkUNode)
                        , hasAttr "rdf:resource" :-> (attrExpandURI state "rdf:resource" >>> mkUNode)
-                       , hasAttr "rdf:nodeID" :-> (getAttrValue "rdf:nodeID" >>> arr (bnode . T.pack))
+                       -- , hasAttr "rdf:nodeID" :-> (getAttrValue "rdf:nodeID" >>> arr (bnode . T.pack))
+                       --
+                       -- rdfms-syntax-incomplete/error001.rdf says:
+                       -- "The value of rdf:nodeID must match the XML Name production"
+                       , hasAttr "rdf:nodeID" :-> (getAttrValue "rdf:nodeID" >>> (arrL (maybeToList . xmlName)) >>> arr (bnode . T.pack))
                        , hasAttr "rdf:ID" :-> mkRelativeNode state
                        , this :-> (validNodeElementName >>> mkBlankNode)
                        ]
@@ -415,37 +428,48 @@ attrExpandURI state attr = getAttrValue attr &&& baseUrl >>> my_expandURI
 
 my_expandURI :: ArrowXml a => a (String, String) String
 my_expandURI
-    = arrL (maybeToList . uncurry my_expandURIString)
-
-my_expandURIString :: String -> String -> Maybe String
-my_expandURIString uri base =
-  let absolute = if getPrefix uri == getPrefix base
-                 then base ++ dropPrefix uri
-                 else base ++ uri
-  in uriValidateString absolute
-
-dropPrefix :: String -> String
-dropPrefix s = T.unpack $ T.drop 1 $ T.dropWhile (/= ':') (T.pack s)
-
-getPrefix :: String -> String
-getPrefix s =
-  let pre = T.takeWhile (/= ':') (T.pack s)
-  in T.unpack $
-    if (not (T.null pre))
-    then (pre `T.append` ":")
-    else (T.pack "") 
+    = arrL (maybeToList . uncurry resolveIRIString)
+      where
+        resolveIRIString uri base =
+          case resolveIRI (T.pack base) (T.pack uri) of
+            Left _err -> Nothing
+            Right x -> Just (T.unpack x)
 
 -- |Make a UNode from an absolute string
 mkUNode :: forall a. (ArrowIf a) => a String Node
 mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (unode . T.pack))
-                  , arr (\_ -> True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
+                  , arr (const True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
                   ]
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs
 mkRelativeNode :: forall a. (ArrowXml a) => LParseState -> a XmlTree Node
-mkRelativeNode s = (getAttrValue "rdf:ID" >>> arr (\x -> '#':x)) &&& baseUrl
+mkRelativeNode s = (getAttrValue "rdf:ID" >>> (arrL (maybeToList . xmlName)) >>> arr (\x -> '#':x)) &&& baseUrl
     >>> expandURI >>> arr (unode . T.pack)
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> T.unpack b)
+
+-- The value of rdf:ID must match the XML Name production
+--
+-- https://docstore.mik.ua/orelly/xml/xmlnut/ch02_04.htm
+-- http://www.informit.com/articles/article.aspx?p=27865&seqNum=4
+--
+-- see rdf-tests test rdfms-rdf-id-error004
+xmlName :: String -> Maybe String
+xmlName str = go [] str
+  where
+    go accum [] = Just accum
+    go accum [s] =
+      if isValid s
+      then go (accum++[s]) []
+      else Nothing
+    go accum (s:ss) =
+      if isValid s
+      then go (accum++[s]) ss
+      else Nothing
+    isValid c = isAlphaNum c
+                || '_' == c
+                -- || '-' == c
+                || '.' == c
+                || ':' == c
 
 -- |Make a literal node with the given type and content
 mkTypedLiteralNode :: Text -> String -> Node

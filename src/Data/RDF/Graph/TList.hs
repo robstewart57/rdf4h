@@ -70,7 +70,7 @@ instance Rdf TList where
   query             = query'
   showGraph         = showGraph'
 
-showGraph' :: RDF TList -> [Char]
+showGraph' :: RDF TList -> String
 showGraph' gr = concatMap (\t -> show t ++ "\n") (expandTriples gr)
 
 prefixMappings' :: RDF TList -> PrefixMappings

@@ -49,7 +49,7 @@ instance Rdf HashSP where
 --     let ts = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . HashMap.toList) tsMap
 --     in concatMap (\t -> show t ++ "\n") ts
 
-showGraph' :: RDF HashSP -> [Char]
+showGraph' :: RDF HashSP -> String
 showGraph' (HashSP (tsMap,_,_)) =
   let ts = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . HashMap.toList) tsMap
   in concatMap (\t -> show t ++ "\n") ts
