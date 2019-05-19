@@ -13,8 +13,7 @@ module Data.RDF.Types (
 
   -- * Constructor functions
   plainL, plainLL, typedL,
-  unode, bnode, uuidBNode, lnode, triple,
-  unodeValidate, uriValidate, uriValidateString,
+  unode, bnode, lnode, triple, unodeValidate, uriValidate, uriValidateString,
 
   -- * Node query function
   isUNode, isLNode, isBNode,
@@ -65,9 +64,8 @@ import Data.Hashable (Hashable)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.FilePath as FP
-import qualified Network.URI as Network
-import qualified Data.UUID as UUID
-import qualified Data.UUID.V4 as UUID
+import qualified Network.URI as Network (uriPath,parseURI)
+import           Network.URI
 import Control.DeepSeq (NFData,rnf)
 import Text.Parsec (ParseError, parse)
 
@@ -246,17 +244,6 @@ escapeRDFSyntax = unescapeUnicode
 {-# INLINE bnode #-}
 bnode :: Text ->  Node
 bnode = BNode
-
--- |Create a blank node with a random UUID label and ensure it does not exist yet in the graph.
-uuidBNode :: (Rdf a) => RDF a -> IO Node
-uuidBNode g = do
-  bn <- BNode . UUID.toText <$> UUID.nextRandom
-  -- Try until we get a blank node not present in the graph.
-  -- NB: a blank node can only be a subject or an object of a triple.
-  if checkSubjects bn && checkObjects bn then return bn else uuidBNode g
-  where
-    checkSubjects bn = null $ query g (Just bn) Nothing Nothing
-    checkObjects bn = null $ query g Nothing Nothing (Just bn)
 
 -- |Return a literal node using the given LValue.
 {-# INLINE lnode #-}
@@ -676,7 +663,7 @@ filePathToUri p
   | FP.isRelative p = Nothing
   | otherwise       = Just . fromString . as_uri . FP.normalise $ p
   where
-    as_uri = ("file://" ++) . Network.escapeURIString Network.isAllowedInURI . as_posix . fix_prefix
+    as_uri = ("file://" ++) . escapeURIString isAllowedInURI . as_posix . fix_prefix
     fix_prefix p' = case (FP.takeDrive p') of
       "/" -> p'
       '\\':'\\':_ -> drop 2 p'
