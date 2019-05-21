@@ -390,16 +390,16 @@ p_select_match_spo _unused = p_select_match_fn same mkPattern triplesOf
 p_get_rdf_list
   :: (Rdf rdf)
   => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
-  -> [NonEmptyList Node] -- ^ List of RDF lists
+  -> [[Node]] -- ^ List of RDF lists
   -> Bool
 p_get_rdf_list _mkRdf ls =
   all compareLists (zip listNodes ls)
   where
-    compareLists (listNode, NonEmpty l) = getRdfList graph listNode == l
+    compareLists (listNode, l) = getRdfList graph listNode == l
     graph = _mkRdf triples mempty (PrefixMappings mempty)
     (_, listNodes, triples) = foldr addList (0, mempty, mempty) ls
-    addList :: NonEmptyList Node -> (Int, [Node], Triples) -> (Int, [Node], Triples)
-    addList (NonEmpty l) (k, lns, ts) = (succ k', n : lns, ts')
+    addList :: [Node] -> (Int, [Node], Triples) -> (Int, [Node], Triples)
+    addList l (k, lns, ts) = (succ k', n : lns, ts')
       where (k', ts', _) = foldl' addItem (k, ts, l) l
             n = BNodeGen k
     addItem :: (Int, Triples, [Node]) -> Node -> (Int, Triples, [Node])
