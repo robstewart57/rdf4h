@@ -84,6 +84,19 @@ objectsOfPredicate :: Rdf a => RDF a -> Predicate -> [Object]
 objectsOfPredicate rdf pred = objectOf <$> query rdf Nothing (Just pred) Nothing
 
 -- |Get an RDF list, given its root.
+--
+-- > g :: RDF Tlist
+-- > g = fromRight empty $ parseString (TurtleParser mempty mempty) "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> (1 2 3) a rdf:List."
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "1" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (BNodeGen 2)
+-- -- Triple (BNodeGen 2) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "2" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 2) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (BNodeGen 3)
+-- -- Triple (BNodeGen 3) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "3" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 3) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#type") (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#List")
+-- > getRdfList g (BNodeGen 1)
+-- > -- [LNode (TypedL "1" "http://www.w3.org/2001/XMLSchema#integer"),LNode (TypedL "2" "http://www.w3.org/2001/XMLSchema#integer"),LNode (TypedL "3" "http://www.w3.org/2001/XMLSchema#integer")]
+--
 -- See: https://www.w3.org/TR/rdf-schema/#ch_collectionvocab
 getRdfList :: (Rdf r) => RDF r -> Node -> [Node]
 getRdfList g = maybe mempty id . go
