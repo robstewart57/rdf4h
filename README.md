@@ -58,7 +58,7 @@ To run all the tests (parsers and the library API):
 $ git submodule update --init --recursive
 $ git submodule foreach git pull origin gh-pages
 # Using Cabal:
-$ cabal v2-run test-rdf4h --quickcheck-tests 1000
+$ cabal v2-run test-rdf4h -- --quickcheck-tests 1000
 # Using Stack:
 $ stack test --test-arguments="--quickcheck-tests 1000"
 ```
@@ -67,9 +67,9 @@ To run specific parser tests when bug fixing:
 
 ```shell
 # Using Cabal:
-$ cabal v2-run test-rdf4h --pattern /parser-w3c-tests-ntriples/
-$ cabal v2-run test-rdf4h --pattern /parser-w3c-tests-turtle/
-$ cabal v2-run test-rdf4h --pattern /parser-w3c-tests-xml/
+$ cabal v2-run test-rdf4h -- --pattern /parser-w3c-tests-ntriples/
+$ cabal v2-run test-rdf4h -- --pattern /parser-w3c-tests-turtle/
+$ cabal v2-run test-rdf4h -- --pattern /parser-w3c-tests-xml/
 # Using Stack:
 $ stack test --test-arguments="--pattern /parser-w3c-tests-ntriples/"
 $ stack test --test-arguments="--pattern /parser-w3c-tests-turtle/"
