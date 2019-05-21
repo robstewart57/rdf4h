@@ -8,6 +8,7 @@ module Data.RDF.PropertyTests (graphTests) where
 import qualified Data.Text.IO as T
 import Data.RDF hiding (empty)
 import Data.RDF.Namespace hiding (rdf)
+import qualified Data.RDF.Namespace as NS
 import qualified Data.Text as T
 import Test.QuickCheck
 import Data.List
@@ -58,6 +59,7 @@ graphTests testGroupName empty _mkRdf =
     , testProperty "select_match_so" (p_select_match_so empty)
     , testProperty "select_match_po" (p_select_match_po empty)
     , testProperty "select_match_spo" (p_select_match_spo empty)
+    , testProperty "get_rdf_list" (p_get_rdf_list _mkRdf)
     , testProperty "reversed RDF handle write" (p_reverseRdfTest _mkRdf)
       -- adding and removing triples from a graph.
     , testProperty "add_triple" (p_add_triple _mkRdf)
@@ -385,6 +387,39 @@ p_select_match_spo _unused = p_select_match_fn same mkPattern triplesOf
       , Just (\n -> n == predicateOf t)
       , Just (\n -> n /= objectOf t))
 
+p_get_rdf_list
+  :: (Rdf rdf)
+  => (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdf)
+  -> [NonEmptyList Node] -- ^ List of RDF lists
+  -> Bool
+p_get_rdf_list _mkRdf ls =
+  all compareLists (zip listNodes ls)
+  where
+    compareLists (listNode, NonEmpty l) = getRdfList graph listNode == l
+    graph = _mkRdf triples mempty (PrefixMappings mempty)
+    (_, listNodes, triples) = foldr addList (0, mempty, mempty) ls
+    addList :: NonEmptyList Node -> (Int, [Node], Triples) -> (Int, [Node], Triples)
+    addList (NonEmpty l) (k, lns, ts) = (succ k', n : lns, ts')
+      where (k', ts', _) = foldl' addItem (k, ts, l) l
+            n = BNodeGen k
+    addItem :: (Int, Triples, [Node]) -> Node -> (Int, Triples, [Node])
+    addItem (k, ts, [_]) i = (k', ts', [])
+      where
+        ts' = triple n (rdf "first") i
+            : triple n (rdf "rest") (rdf "nil")
+            : ts
+        n = BNodeGen k
+        k' = succ k
+    addItem (k, ts, (_:xs)) i = (k', ts', xs)
+      where
+        ts' = triple n (rdf "first") i
+            : triple n (rdf "rest") (BNodeGen k')
+            : ts
+        n = BNodeGen k
+        k' = succ k
+    addItem r _ = r
+    rdf = unode . NS.mkUri NS.rdf
+
 -- |adding a triple to a graph.
 p_add_triple
   :: (Rdf rdf)
@@ -586,8 +621,8 @@ lnodes :: [Node]
 lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
 
 -- maximum number of triples
-maxN :: Int
-maxN = 10
+maxTriples :: Int
+maxTriples = 10
 
 instance (Rdf rdf) => Arbitrary (RDF rdf) where
   arbitrary = do
@@ -608,7 +643,7 @@ instance Arbitrary Node where
 
 arbitraryTs :: Gen Triples
 arbitraryTs = do
-  n <- sized (\_ -> choose (0, maxN))
+  n <- sized (\_ -> choose (0, maxTriples))
   sequence [arbitrary | _ <- [1 .. n]]
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
