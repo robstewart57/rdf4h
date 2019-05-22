@@ -15,6 +15,7 @@ module Data.RDF (
   -- * RDF type class instances
   module Data.RDF.Graph.TList,
   module Data.RDF.Graph.AdjHashMap,
+  module Data.RDF.Graph.AlgebraicGraph,
   -- module Data.RDF.Graph.HashMapSP,
   -- module Data.RDF.Graph.MapSP,
 
@@ -29,6 +30,7 @@ module Data.RDF (
 import Data.RDF.Namespace
 import Data.RDF.Graph.TList
 import Data.RDF.Graph.AdjHashMap
+import Data.RDF.Graph.AlgebraicGraph
 -- import Data.RDF.Graph.HashMapSP
 -- import Data.RDF.Graph.MapSP
 import Text.RDF.RDF4H.NTriplesSerializer
