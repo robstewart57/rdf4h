@@ -48,7 +48,7 @@ library
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text >= 1.2.1.0
-                 , algebraic-graphs >= 0.4 && < 5
+                 , algebraic-graphs >= 0.3 && < 0.5
                  , unordered-containers
                  , hashable
                  , deepseq
