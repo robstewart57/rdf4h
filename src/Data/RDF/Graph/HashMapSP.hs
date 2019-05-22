@@ -3,7 +3,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
 -- |A graph implementation mapping (S,P) pairs to O, backed by 'Data.Map'.
@@ -53,7 +52,7 @@ showGraph' :: RDF HashSP -> String
 showGraph' (HashSP (tsMap,_,_)) =
   let ts = (concatMap (\((s,p),oList) -> map (Triple s p) oList) . HashMap.toList) tsMap
   in concatMap (\t -> show t ++ "\n") ts
-  
+
 -- instance Show (HashSP) where
 --   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
 

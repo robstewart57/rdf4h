@@ -221,7 +221,7 @@ isMetaAttr = isA (== "rdf:about")
 --
 -- And that specifically:
 --
---   <rdf:Description> 
+--   <rdf:Description>
 --     <rdf:foo>foo</rdf:foo>
 --    </rdf:Description>
 --
@@ -279,7 +279,7 @@ parsePredicatesFromChildren = updateState
         , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
         , this :-> defaultA
         ]
-        
+
         -- See: Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use
         --   section: Illegal or unusual use of names from the RDF namespace
         --
@@ -318,7 +318,7 @@ validPropElementName = proc (state,predXml) -> do
 parseObjectsFromChildren :: forall a. (ArrowIf a, ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p =
-  choiceA 
+  choiceA
    [ isText :-> (neg( isWhiteSpace) >>> getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
    , isElem :-> (parseObjectDescription)
    ]
@@ -443,7 +443,7 @@ mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (unode . T.
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs
 mkRelativeNode :: forall a. (ArrowXml a) => LParseState -> a XmlTree Node
-mkRelativeNode s = (getAttrValue "rdf:ID" >>> (arrL (maybeToList . xmlName)) >>> arr (\x -> '#':x)) &&& baseUrl
+mkRelativeNode s = (getAttrValue "rdf:ID" >>> (arrL (maybeToList . xmlName)) >>> arr ('#':)) &&& baseUrl
     >>> expandURI >>> arr (unode . T.pack)
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> T.unpack b)
 

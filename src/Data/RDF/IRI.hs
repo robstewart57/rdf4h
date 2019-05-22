@@ -169,8 +169,8 @@ iriParser = do
   scheme <- Just <$> schemeParser
   _ <- P.string ":" <?> "Missing colon after scheme"
   (authority, path) <- ihierPartParser
-  query <- P.option Nothing (Just <$> iqueryParser)
-  fragment <- P.option Nothing (Just <$> ifragmentParser)
+  query <- optional iqueryParser
+  fragment <- optional ifragmentParser
   return (IRIRef scheme authority path query fragment)
 
 -- ihier-part = "//" iauthority ipath-abempty
@@ -194,8 +194,8 @@ ihierPartParser =
 irelativeRefParser :: Parser IRIRef
 irelativeRefParser = do
   (authority, path) <- irelativePartParser
-  query <- P.option Nothing (Just <$> iqueryParser)
-  fragment <- P.option Nothing (Just <$> ifragmentParser)
+  query <- optional iqueryParser
+  fragment <- optional ifragmentParser
   return (IRIRef Nothing authority path query fragment)
 
 -- irelative-part = "//" iauthority ipath-abempty
@@ -212,9 +212,9 @@ irelativePartParser =
 -- iauthority = [ iuserinfo "@" ] ihost [ ":" port ]
 iauthorityParser :: Parser Authority
 iauthorityParser =
-  Authority <$> P.option Nothing (Just <$> (iuserInfoParser <* P.string "@"))
+  Authority <$> optional (iuserInfoParser <* P.string "@")
             <*> ihostParser
-            <*> P.option Nothing (Just <$> (P.string ":" *> portParser))
+            <*> optional (P.string ":" *> portParser)
             <?> "Authority"
 
 -- iuserinfo = *( iunreserved / pct-encoded / sub-delims / ":" )

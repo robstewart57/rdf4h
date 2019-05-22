@@ -11,6 +11,7 @@ import Data.RDF.Namespace hiding (rdf)
 import qualified Data.Text as T
 import Test.QuickCheck
 import Data.List
+import Data.Semigroup ((<>))
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
@@ -563,9 +564,10 @@ datatypes :: [T.Text]
 datatypes = map (mkUri xsd . T.pack) ["string", "int", "token"]
 
 uris :: [T.Text]
-uris =
-  map (mkUri ex) [T.pack n `T.append` T.pack (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..2]]
-  ++ [T.pack "ex:" `T.append` T.pack n `T.append` T.pack (show (i::Int)) | n <- ["s", "p", "o"], i <- [1..3]]
+uris =  [mkUri ex (n <> T.pack (show (i :: Int)))
+        | n <- ["foo", "bar", "quz", "zak"], i <- [0 .. 2]]
+     <> ["ex:" <> n <> T.pack (show (i::Int))
+        | n <- ["s", "p", "o"], i <- [1..3]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
@@ -580,10 +582,10 @@ unodes :: [Node]
 unodes = map UNode uris
 
 bnodes :: [ Node]
-bnodes = map (BNode . \i -> T.pack ":_genid" `T.append` T.pack (show (i::Int))) [1..5]
+bnodes = map (BNode . \i -> T.pack ":_genid" <> T.pack (show (i::Int))) [1..5]
 
 lnodes :: [Node]
-lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
+lnodes = [LNode lit | lit <- plainliterals <> typedliterals]
 
 -- maximum number of triples
 maxN :: Int
@@ -612,9 +614,9 @@ arbitraryTs = do
   sequence [arbitrary | _ <- [1 .. n]]
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
-arbitraryS = oneof $ map return $ unodes ++ bnodes
+arbitraryS = oneof $ map return $ unodes <> bnodes
 arbitraryP = oneof $ map return unodes
-arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
+arbitraryO = oneof $ map return $ unodes <> bnodes <> lnodes
 
 ----------------------------------------------------
 --  Unit test cases                               --

@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE FlexibleInstances, BangPatterns #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
 module Data.RDF.Graph.TPatriciaTree (TPatriciaTree) where
