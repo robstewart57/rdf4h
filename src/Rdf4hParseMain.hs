@@ -7,6 +7,7 @@ module Main where
 
 import Data.RDF
 
+import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -32,7 +33,7 @@ main =
      when (null args)
       (ioError
         (userError
-           ("\n\n" ++ "INPUT-URI required\n\n" ++ usageInfo header options)))
+           ("\n\n" <> "INPUT-URI required\n\n" <> usageInfo header options)))
      let debug = Debug `elem` opts
          inputUri = head args
          inputFormat = getWithDefault (InputFormat "turtle") opts
@@ -41,8 +42,8 @@ main =
          outputBaseUri = getWithDefault (OutputBaseUri inputBaseUri) opts
      unless (outputFormat == "ntriples" || outputFormat == "turtle")
        (hPrintf stderr
-          ("'" ++
-             outputFormat ++
+          ("'" <>
+             outputFormat <>
                "' is not a valid output format. Supported output formats are: ntriples, turtle\n")
           >> exitWith (ExitFailure 1))
      when debug
@@ -88,7 +89,7 @@ main =
                                   >>=
                                   \ (res :: Either ParseFailure (RDF TList)) ->
                                     write outputFormat docUri emptyPms res
-         (str, _) -> putStrLn ("Invalid format: " ++ str) >> exitFailure
+         (str, _) -> putStrLn ("Invalid format: " <> str) >> exitFailure
 
 write :: (Rdf a) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure (RDF a) -> IO ()
 write format docUri pms res = case res of
@@ -98,7 +99,7 @@ write format docUri pms res = case res of
     doWriteRdf rdf = case format of
       "turtle"   -> writeRdf (TurtleSerializer docUri pms) rdf
       "ntriples" -> writeRdf NTriplesSerializer rdf
-      unknown    -> error $ "Unknown output format: " ++ unknown
+      unknown    -> error $ "Unknown output format: " <> unknown
 
 -- Get the input base URI from the argument list or flags, using the
 -- first string arg as the default if not found in string args (as
@@ -135,7 +136,7 @@ strValue (InputFormat s)   = s
 strValue (InputBaseUri s)  = s
 strValue (OutputFormat s)  = s
 strValue (OutputBaseUri s) = s
-strValue flag              = error $ "No string value for flag: " ++ show flag
+strValue flag              = error $ "No string value for flag: " <> show flag
 
 -- The commandline arguments we accept. None are required.
 data Flag
@@ -160,28 +161,28 @@ instance Eq Flag where
 -- The top part of the usage output.
 header :: String
 header =
-  "\nrdf4h_parse: an RDF parser and serializer\n\n"                          ++
-  "\nUsage: rdf4h_parse [OPTION...] INPUT-URI [INPUT-BASE-URI]\n\n"          ++
-  "  INPUT-URI       a filename, URI or '-' for standard input (stdin).\n"   ++
-  "  INPUT-BASE-URI  the input/parser base URI or '-' for none.\n"           ++
-  "    Default is INPUT-URI\n"                                               ++
+  "\nrdf4h_parse: an RDF parser and serializer\n\n"                          <>
+  "\nUsage: rdf4h_parse [OPTION...] INPUT-URI [INPUT-BASE-URI]\n\n"          <>
+  "  INPUT-URI       a filename, URI or '-' for standard input (stdin).\n"   <>
+  "  INPUT-BASE-URI  the input/parser base URI or '-' for none.\n"           <>
+  "    Default is INPUT-URI\n"                                               <>
   "    Equivalent to -I INPUT-BASE-URI, --input-base-uri INPUT-BASE-URI\n\n"
 
 options :: [OptDescr Flag]
 options =
  [ Option "h"  ["help"]                           (NoArg Help)   "Display this help, then exit"
  , Option "d"  ["debug"]                         (NoArg Debug)   "Print debug info (like INPUT-BASE-URI used, etc.)"
- , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" ++
-                                                                   "  turtle      Turtle (default)\n" ++
-                                                                   "  ntriples    N-Triples\n" ++
+ , Option "i"  ["input"]        (ReqArg InputFormat  "FORMAT") $ "Set input format/parser to one of:\n" <>
+                                                                   "  turtle      Turtle (default)\n" <>
+                                                                   "  ntriples    N-Triples\n" <>
                                                                    "  xml         RDF/XML"
- , Option "I"  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" ++
+ , Option "I"  ["input-base-uri"]  (ReqArg InputBaseUri "URI") $ "Set the input/parser base URI. '-' for none.\n" <>
                                                                    "  Default is INPUT-BASE-URI argument value.\n\n"
 
- , Option "o"  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" ++
-                                                                   "  ntriples    N-Triples (default)\n" ++
+ , Option "o"  ["output"]       (ReqArg OutputFormat "FORMAT") $ "Set output format/serializer to one of:\n" <>
+                                                                   "  ntriples    N-Triples (default)\n" <>
                                                                    "  turtle      Turtle"
- , Option "O" ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" ++
+ , Option "O" ["output-base-uri"] (ReqArg OutputBaseUri "URI") $ "Set the output format/serializer base URI. '-' for none.\n" <>
                                                                    "  Default is input/parser base URI."
  ]
 
@@ -189,4 +190,4 @@ compilerOpts :: [String] -> IO ([Flag], [String])
 compilerOpts argv =
    case getOpt Permute options argv of
       (o,n,[]  ) -> return (o,n)
-      (_,_,errs) -> ioError (userError ("\n\n" ++ concat errs ++ usageInfo header options))
+      (_,_,errs) -> ioError (userError ("\n\n" <> concat errs <> usageInfo header options))

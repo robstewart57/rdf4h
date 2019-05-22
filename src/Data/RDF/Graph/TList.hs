@@ -19,6 +19,7 @@
 module Data.RDF.Graph.TList (TList) where
 
 import Prelude
+import Data.Semigroup ((<>))
 import Control.DeepSeq (NFData)
 import Data.Binary
 import Data.RDF.Namespace
@@ -70,7 +71,7 @@ instance Rdf TList where
   showGraph         = showGraph'
 
 showGraph' :: RDF TList -> String
-showGraph' gr = concatMap (\t -> show t ++ "\n") (expandTriples gr)
+showGraph' gr = concatMap (\t -> show t <> "\n") (expandTriples gr)
 
 prefixMappings' :: RDF TList -> PrefixMappings
 prefixMappings' (TListC(_, _, pms)) = pms

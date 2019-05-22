@@ -7,6 +7,7 @@ module W3C.Manifest (
   TestEntry(..)
 ) where
 
+import Data.Semigroup ((<>))
 import Data.RDF.Graph.TList
 import Data.RDF.Query
 import Data.RDF.Types
@@ -131,10 +132,10 @@ loadManifest manifestPath baseIRI =
 
 rdfToManifest :: RDF TList -> Manifest
 rdfToManifest rdf = Manifest desc tpls
-  where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
+  where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" <> show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
         descNode = query rdf (Just manifestNode) (Just rdfsLabel) Nothing
-                   ++ query rdf (Just manifestNode) (Just mfName) Nothing
+                   <> query rdf (Just manifestNode) (Just mfName) Nothing
 --        descNode = query rdf (Just manifestNode) (Just mfName) Nothing
         tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead
         collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
@@ -156,7 +157,7 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax") -> mkTestXMLNegativeSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesPositiveSyntax") -> mkTestNTriplesPositiveSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesNegativeSyntax") -> mkTestNTriplesNegativeSyntax ts
-    n -> error ("Unknown test case: " ++ show n)
+    n -> error ("Unknown test case: " <> show n)
 
 mkTestTurtleEval :: Triples -> TestEntry
 mkTestTurtleEval ts = TestTurtleEval {

@@ -44,7 +44,7 @@
 # - group: {name: dollar, enabled: true}
 #
 # Generalise map to fmap, ++ to <>
-# - group: {name: generalise, enabled: true}
+- group: {name: generalise, enabled: true}
 
 
 # Ignore some builtin hints
