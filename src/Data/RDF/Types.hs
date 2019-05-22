@@ -579,7 +579,7 @@ instance Show PrefixMappings where
   -- worth optimizing yet.
   show (PrefixMappings pmap) = printf "PrefixMappings [%s]" mappingsStr
     where showPM      = show . PrefixMapping
-          mappingsStr = List.intercalate ", " (map showPM (Map.toList pmap))
+          mappingsStr = List.intercalate ", " (fmap showPM (Map.toList pmap))
 
 -- |A mapping of a prefix to the URI for that prefix.
 newtype PrefixMapping = PrefixMapping (Text, Text)

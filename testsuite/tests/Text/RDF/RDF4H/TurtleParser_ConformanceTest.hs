@@ -73,7 +73,7 @@ doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    in testGroup (printf "conformance-%s" testname) $ map (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
+    in testGroup (printf "conformance-%s" testname) $ fmap (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
 
 checkBadConformanceTest :: Int -> TestTree
 checkBadConformanceTest i =

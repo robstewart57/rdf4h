@@ -137,7 +137,7 @@ rdfToManifest rdf = Manifest desc tpls
         descNode = query rdf (Just manifestNode) (Just rdfsLabel) Nothing
                    <> query rdf (Just manifestNode) (Just mfName) Nothing
 --        descNode = query rdf (Just manifestNode) (Just mfName) Nothing
-        tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead
+        tpls = (rdfToTestEntry rdf) <$> rdfCollectionToList rdf collectionHead
         collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
         manifestNode = headDef (error "manifestSubjectNodes yielding empty list") $ manifestSubjectNodes rdf
 
@@ -274,7 +274,7 @@ manifestSubjectNodes :: RDF TList -> [Subject]
 manifestSubjectNodes rdf = subjectNodes rdf [mfManifest]
 
 subjectNodes :: RDF TList -> [Object] -> [Subject]
-subjectNodes rdf = (map subjectOf) . concatMap queryType
+subjectNodes rdf = (fmap subjectOf) . concatMap queryType
   where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
 -- | Text of the literal node.

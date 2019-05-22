@@ -15,7 +15,7 @@ import           W3C.Manifest
 
 runManifestTests :: (TestEntry -> TestTree) -> Manifest -> TestTree
 runManifestTests mfEntryToTest manifest =
-    testGroup (T.unpack $ description manifest) $ map mfEntryToTest $ entries manifest
+    testGroup (T.unpack $ description manifest) $ mfEntryToTest <$> entries manifest
 
 assertIsIsomorphic :: IO (RDF TList) -> IO (RDF TList) -> IO ()
 assertIsIsomorphic r1 r2 = do

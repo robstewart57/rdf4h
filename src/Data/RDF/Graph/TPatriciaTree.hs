@@ -101,24 +101,24 @@ mkRdf' ts base' pms' =
 
 triplesOf' :: RDF TPatriciaTree -> Triples
 triplesOf' (TPatriciaTree (g,idxLookup,_,_)) =
-    map (\(sIdx,oIdx,p) ->
-             let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
+    fmap (\(sIdx,oIdx,p) ->
+             let [s,o] = fmap (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in Triple s p o) (G.labEdges g)
 
 uniqTriplesOf' :: RDF TPatriciaTree -> Triples
 uniqTriplesOf' ptG@(TPatriciaTree (g,idxLookup,_,_)) =
-    nub $ map (\(sIdx,oIdx,p) ->
-             let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
+    nub $ fmap (\(sIdx,oIdx,p) ->
+             let [s,o] = fmap (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in expandTriple (prefixMappings ptG) (Triple s p o)) (G.labEdges g)
 
 mkTriples :: IntMap.IntMap Node -> Node -> [(Node, IntMap.Key)] -> [(Node, IntMap.Key)] ->  [Triple]
 mkTriples idxLookup thisNode adjsIn adjsOut =
-    let ts1 = map (\(predNode,subjIdx) ->
+    let ts1 = fmap (\(predNode,subjIdx) ->
                    let s = fromJust (IntMap.lookup subjIdx idxLookup)
                    in Triple s predNode thisNode
                   )  adjsIn
 
-        ts2 = map (\(predNode,objIdx) ->
+        ts2 = fmap (\(predNode,objIdx) ->
                        let o = fromJust (IntMap.lookup objIdx idxLookup)
                        in Triple thisNode predNode o
                   ) adjsOut

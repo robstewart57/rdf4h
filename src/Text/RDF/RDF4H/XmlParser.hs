@@ -154,7 +154,7 @@ getRDF = proc xml -> do
             triples <- parseDescription' >. id -< (bUrl,rdf)
             returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
-        toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
+        toPrefixMap = PrefixMappings . Map.fromList . fmap (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
 
 -- |Read the initial state from an rdf element
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple

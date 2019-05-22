@@ -35,7 +35,7 @@ tests =
  , testCase "NML3" test_parseXmlRDF_NML3
  ]
  <>
- map (uncurry checkGoodOtherTest) otherTestFiles
+ fmap (uncurry checkGoodOtherTest) otherTestFiles
 
 otherTestFiles :: [(String, String)]
 otherTestFiles = [ ("data/xml", "example07")
@@ -80,7 +80,7 @@ doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    in testGroup (printf "conformance-%s" testname) $ map (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
+    in testGroup (printf "conformance-%s" testname) $ fmap (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
 
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL
@@ -416,7 +416,7 @@ handleLoad :: Either ParseFailure (RDF TList) -> Either ParseFailure (RDF TList)
 handleLoad res =
   case res of
     l@(Left _)  -> l
-    (Right gr)  -> Right $ mkRdf (map normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
+    (Right gr)  -> Right $ mkRdf (fmap normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
 
 normalize :: Triple -> Triple
 normalize t = let s' = normalizeN $ subjectOf t
