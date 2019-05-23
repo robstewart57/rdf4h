@@ -649,7 +649,7 @@ fileSchemeToFilePath (UNode fileScheme)
   | otherwise = Nothing
   where
     textToFilePath = pure . fromString <=< stringToFilePath . T.unpack
-    stringToFilePath = fixPrefix <=< pure . Network.uriPath <=< Network.parseURI
+    stringToFilePath = fixPrefix <=< pure . unEscapeString . Network.uriPath <=< Network.parseURI
     fixPrefix "" = Nothing
     fixPrefix p@(p':p'')
       | p' == FP.pathSeparator = Just (FP.normalise p) -- Posix path
