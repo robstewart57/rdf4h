@@ -181,42 +181,40 @@ pPredicateObject :: ParseState -> Parser Triples
 pPredicateObject st = do
   void newlines
   do pAnyElement $ do
-       void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
-       p <- unode <$> pName
-       (ts) <-
-           (do
-               -- typed literal
-               theType <- pAttr "rdf:datatype"
-               theText <- pText
-               pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))])
-           <|>
-         -- blank node
-         (do (p1,o1) <- oneAttr
-             -- TODO: increment stateGenId
-             let bnode = BNodeGen (stateGenId st)
-                 t1 = triple (stateSubject st) p bnode
-                 a = case stateBaseUrl st of
-                       Nothing -> T.pack ""
-                       Just (BaseUrl uri) -> uri
-                 Right txt = resolveIRI a p1
-                 p2 = unode txt
-                 -- TODO: typed and lang literals
-                 t2 = triple bnode p2 (lnode (plainL o1))
-             pure [t1,t2])
-           <|>
-           (do
-               -- plain literal
-               theText <- pText
-               newlines
-               pure [triple
-                     (stateSubject st)
-                     p
-                     (lnode (plainL (TL.toStrict theText)))])
-       newlines
-       pure ts
-       <|>
-       pFail "unable to parse predicate/object pair"
-  -- TODO: reify triple
+     void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
+     p <- unode <$> pName
+     ts <- pTypedLiteral p
+       <|> pBNode p
+       <|> pPlainLiteral p
+       <|> pFail "unable to parse predicate/object pair"
+     newlines
+     pure ts
+   -- TODO: reify triple
+  where
+    pTypedLiteral p = do
+      theType <- pAttr "rdf:datatype"
+      theText <- pText
+      pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))]
+    pBNode p = do
+      (p1, o1) <- oneAttr
+      -- TODO: increment stateGenId
+      let bnode = BNodeGen (stateGenId st)
+          t1 = triple (stateSubject st) p bnode
+          a = case stateBaseUrl st of
+                Nothing -> T.pack ""
+                Just (BaseUrl uri) -> uri
+          Right txt = resolveIRI a p1
+          p2 = unode txt
+          -- TODO: typed and lang literals
+          t2 = triple bnode p2 (lnode (plainL o1))
+      pure [t1, t2]
+    pPlainLiteral p = do
+      theText <- pText
+      newlines
+      pure [triple
+            (stateSubject st)
+            p
+            (lnode (plainL (TL.toStrict theText)))]
 
 -- TODO: unodes, and all different kinds of plain text nodes
 -- objP :: Parser (Node)
