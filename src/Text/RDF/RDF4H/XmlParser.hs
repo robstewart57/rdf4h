@@ -1,7 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -9,21 +8,22 @@
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
 
 module Text.RDF.RDF4H.XmlParser
-  -- (
-  -- XmlParser'(XmlParser')
-  -- , xmlEg
-  -- )
-where
+  ( XmlParser(..)
+  , xmlEg
+  ) where
 
 import Text.RDF.RDF4H.ParserUtils (parseFromURL)
 
 import Debug.Trace
-import qualified Control.Applicative as Applicative
+import Control.Applicative
 import Control.Exception
 import Control.Monad
+import Data.Semigroup ((<>))
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Bifunctor
+import Data.Foldable
 import Data.RDF.IRI
 import Data.RDF.Types
 import Data.RDF.Graph.TList
@@ -41,9 +41,9 @@ import qualified Xmlbf.Xeno as Xeno
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
 
 instance RdfParser XmlParser where
-  parseString (XmlParser bUrl dUrl)  = parseXmlRDF bUrl dUrl
-  parseFile   (XmlParser bUrl dUrl)  = parseFile' bUrl dUrl
-  parseURL    (XmlParser bUrl dUrl)  = parseURL'  bUrl dUrl
+  parseString (XmlParser bUrl dUrl) = parseXmlRDF bUrl dUrl
+  parseFile   (XmlParser bUrl dUrl) = parseFile'  bUrl dUrl
+  parseURL    (XmlParser bUrl dUrl) = parseURL'   bUrl dUrl
 
 parseFile' ::
      (Rdf a)
@@ -51,8 +51,7 @@ parseFile' ::
   -> Maybe Text
   -> String
   -> IO (Either ParseFailure (RDF a))
-parseFile' bUrl dUrl fpath =
-   TIO.readFile fpath >>=  return . parseXmlRDF bUrl dUrl
+parseFile' bUrl dUrl fpath = parseXmlRDF bUrl dUrl <$> TIO.readFile fpath
 
 parseURL' ::
      (Rdf a)
@@ -69,12 +68,12 @@ parseURL' bUrl docUrl = parseFromURL (parseXmlRDF bUrl docUrl)
 --   } deriving (Show)
 
 -- |Local state for the parser (dependant on the parent xml elements)
-data ParseState = ParseState { stateBaseUrl :: Maybe BaseUrl
-                             , stateLang :: Maybe Text
-                             , stateSubject :: Subject
-                             , stateGenId :: Int
-                             }
-  deriving(Show)
+data ParseState = ParseState
+  { stateBaseUrl :: Maybe BaseUrl
+  , stateLang :: Maybe Text
+  , stateSubject :: Subject
+  , stateGenId :: Int
+  } deriving(Show)
 
 data ParserException = ParserException String
                      deriving (Show)
@@ -89,23 +88,21 @@ parseXmlRDF :: (Rdf a)
             -> Maybe Text        -- ^ DocUrl: The request URL for the RDF if available
             -> Text              -- ^ The contents to parse
             -> Either ParseFailure (RDF a) -- ^ The RDF representation of the triples or ParseFailure
-parseXmlRDF bUrl dUrl xmlStr =
-  case Xeno.fromRawXml (T.encodeUtf8 xmlStr) of
-    Left xmlParseError -> Left (ParseFailure xmlParseError)
-    Right nodes -> -- error (show nodes)
-      case runParser (rdfParser bUrl dUrl) nodes of
-        Left rdfParseError -> Left (ParseFailure rdfParseError)
-        Right rdf -> Right rdf
+parseXmlRDF bUrl dUrl = parseRdf . parseXml
+  where
+    parseXml = Xeno.fromRawXml . T.encodeUtf8
+    parseRdf = first ParseFailure . join . second parseRdf'
+    parseRdf' = runParser (rdfParser bUrl dUrl)
 -- TODO: use bUrl and dUrl
 
 rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
 rdfParser bUrl dUrl = do
-  let initState = ParseState bUrl Nothing undefined 0
-  rdf <- rdfDescription initState
+  let initState = ParseState bUrl mempty undefined 0
+  rdf <- pRdfDescription initState
   newlines
   -- tree <- showTree
   -- error (show tree)
-  void pEndOfInput
+  pEndOfInput
   return rdf
 
 -- Text "\n"
@@ -117,14 +114,7 @@ newline = do
   then pure ()
   else pFail "not a newline text node"
   where
-    anyUsefulChars t =
-      if T.length t == 0
-      then False
-      else
-       let c = T.head t
-       in if (c /= '\n' && c /= '\r' && c /= ' ')
-          then True
-          else anyUsefulChars (T.tail t)
+    anyUsefulChars = T.any (\c -> c /= '\n' && c /= '\r' && c /= ' ')
 
 newlines :: Parser ()
 newlines = void (many newline)
@@ -132,19 +122,21 @@ newlines = void (many newline)
 pNodeNot :: Text -> Parser ()
 pNodeNot t = do
   n <- pName
-  if (n /= t)
+  if n /= t
   then pure ()
-  else pFail ("forbidden element name: " ++ show t)
+  else pFail ("forbidden element name: " <> show t)
 
 {-
 [ ("xmlns:si","https://www.w3schools.com/rdf/")
 , ("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 ]
 -}
-prefixes :: Parser [(Text,Text)]
-prefixes = do
-  xs <- HashMap.toList <$> pAttrs
-  pure (map (\(k,v) -> (fromJust (T.stripPrefix "xmlns:" k),v)) xs)
+pPrefixMappings :: Parser PrefixMappings
+pPrefixMappings = PrefixMappings <$> pm
+  where
+    pm = Map.fromList . HashMap.foldlWithKey' getPrefixes mempty <$> pAttrs
+    getPrefixes ps k v = maybe ps (\k' -> (k', v):ps) (T.stripPrefix "xmlns:" k)
+
 
 oneAttr :: Parser (Text,Text)
 oneAttr = do
@@ -153,85 +145,84 @@ oneAttr = do
     1 -> pure $ head (HashMap.toList xs)
     _ -> pFail "not one attr"
 
-rdfTriplesP :: ParseState -> Parser (Triples,ParseState)
+rdfTriplesP :: ParseState -> Parser (Triples, ParseState)
 rdfTriplesP st = do
   newlines
   pElement "rdf:Description" $ do
     newlines
-    ((subj, reifiedTriples), st') <- subjP st
-    (ts) <- concat <$> many (predObjP st')
+    ((subj, reifiedTriples), st') <- pSubject st
+    ts <- concat <$> many (pPredicateObject st')
     newlines
     -- tree <- showTree
     -- error (show tree)
-    void pEndOfInput
-    pure (ts ++ reifiedTriples,st')
-    -- pure $ ((map (\(p, o) -> triple subj p o) predObjs ++ reifiedTriples), st')
+    pEndOfInput
+    pure (ts <> reifiedTriples, st')
+    -- pure $ ((fmap (\(p, o) -> triple subj p o) predObjs <> reifiedTriples), st')
 
 {- NOTE:
   remember to use `showTree` in the fork of xmlbf when pEndOfInput needs
   debugging.
 -}
 
-subjP :: ParseState -> Parser ((Node,Triples),ParseState)
-subjP st = do
-  -- void (pNodeNot "rdf:RDF") -- rdfms-rdf-names-use-error-001
-  (do
+pSubject :: ParseState -> Parser ((Node, Triples), ParseState)
+pSubject st = unodeP <|> bnodeP
+  where
+    unodeP = do
       s <- unode <$> pAttr "rdf:about"
-      pure ((s,[]),st { stateSubject = s } )
-        <|> do
-        -- theId <- pAttr "rdf:ID"
-        let theBnode = BNodeGen (stateGenId st)
-            st' = st { stateGenId = stateGenId st + 1}
-        pure ((theBnode,[]),st'))
+      pure ((s, []), st { stateSubject = s } )
+    bnodeP = do
+      -- theId <- pAttr "rdf:ID"
+      let s = BNodeGen (stateGenId st)
+          st' = st { stateGenId = stateGenId st + 1, stateSubject = s}
+      pure ((s, []), st')
 
--- predObjP :: Parser ((Node,Node))
-predObjP :: ParseState -> Parser Triples
-predObjP st = do
+-- pPredicateObject :: Parser ((Node,Node))
+pPredicateObject :: ParseState -> Parser Triples
+pPredicateObject st = do
   void newlines
-  (do pAnyElement $ do
-        void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
-        p <- unode <$> pName
-        (ts) <-
-            (do
-                -- typed literal
-                theType <- pAttr "rdf:datatype"
-                theText <- pText
-                pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))])
-            <|>
-          -- blank node
-          (do (p1,o1) <- oneAttr
-              -- TODO: increment stateGenId
-              let bnode = BNodeGen (stateGenId st)
-                  t1 = triple (stateSubject st) p bnode
-                  a = case stateBaseUrl st of
-                        Nothing -> T.pack ""
-                        Just (BaseUrl uri) -> uri
-                  Right txt = resolveIRI a p1
-                  p2 = unode txt
-                  -- TODO: typed and lang literals
-                  t2 = triple bnode p2 (lnode (plainL o1))
-              pure [t1,t2])
-            <|>
-            (do
-                -- plain literal
-                theText <- pText
-                newlines
-                pure [triple
-                      (stateSubject st)
-                      p
-                      (lnode (plainL (TL.toStrict theText)))])
-        newlines
-        pure ts
-        <|>
-        pFail "unable to parse predicate/object pair"
-    )
+  do pAnyElement $ do
+       void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
+       p <- unode <$> pName
+       (ts) <-
+           (do
+               -- typed literal
+               theType <- pAttr "rdf:datatype"
+               theText <- pText
+               pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))])
+           <|>
+         -- blank node
+         (do (p1,o1) <- oneAttr
+             -- TODO: increment stateGenId
+             let bnode = BNodeGen (stateGenId st)
+                 t1 = triple (stateSubject st) p bnode
+                 a = case stateBaseUrl st of
+                       Nothing -> T.pack ""
+                       Just (BaseUrl uri) -> uri
+                 Right txt = resolveIRI a p1
+                 p2 = unode txt
+                 -- TODO: typed and lang literals
+                 t2 = triple bnode p2 (lnode (plainL o1))
+             pure [t1,t2])
+           <|>
+           (do
+               -- plain literal
+               theText <- pText
+               newlines
+               pure [triple
+                     (stateSubject st)
+                     p
+                     (lnode (plainL (TL.toStrict theText)))])
+       newlines
+       pure ts
+       <|>
+       pFail "unable to parse predicate/object pair"
   -- TODO: reify triple
 
 -- TODO: unodes, and all different kinds of plain text nodes
 -- objP :: Parser (Node)
 -- objP {- st -} = do
 --   -- unode
---   -- xs <- head <$> prefixes
+--   -- xs <- head <$> pPrefixMappings
 --   -- error (show xs)
 --   -- TODO for:
 --   --  Element "eg:Creator"
@@ -249,19 +240,16 @@ predObjP st = do
 --   pure (lnode (plainL (TL.toStrict theText)))
 
 
-
-rdfDescription' :: ParseState -> Parser (PrefixMappings,Maybe BaseUrl,Triples)
-rdfDescription' st = do
+pRdfDescription' :: Rdf a => ParseState -> Parser (RDF a)
+pRdfDescription' st = do
   newlines
-  pfixes <- prefixes
-  (_,(triples,st')) <- pElement' (rdfTriplesP st)
+  pm <- pPrefixMappings
+  (_, (triples, st')) <- pElement' (rdfTriplesP st)
   newlines
-  pure (PrefixMappings (Map.fromList pfixes), Nothing, triples)
+  pure $ mkRdf triples Nothing pm
 
-rdfDescription :: Rdf a => ParseState -> Parser (RDF a)
-rdfDescription st = do
-  (pfixes,bUrl,triples) <- pElement "rdf:RDF" (rdfDescription' st)
-  pure $ mkRdf triples bUrl pfixes
+pRdfDescription :: Rdf a => ParseState -> Parser (RDF a)
+pRdfDescription st = pElement "rdf:RDF" (pRdfDescription' st)
 
 {-
 [ Text "\n"
@@ -329,19 +317,16 @@ test1 = triplesOf got == expected
 -- some reason, capture it using 'pText' before using 'pElement''.
 --
 -- Consumes the element from the parser state.
-pElement' :: Parser a -> Parser (T.Text,a)
-pElement' p = do
-  res <- p
-  name <- pName
-  return (name,res)
+pElement' :: Parser a -> Parser (T.Text, a)
+pElement' = liftA2 (,) pName
 
 pText' :: TL.Text -> Parser TL.Text
 pText' t = do
-  let pTextFail = pFail ("Missing text node " ++ show t)
-  (do t' <- pText
-      if t == t' then pure t
-      else pTextFail
-   <|> pTextFail)
+  let pTextFail = pFail ("Missing text node " <> show t)
+  do t' <- pText
+     if t == t' then pure t
+     else pTextFail
+   <|> pTextFail
 
 
 -- parser combinators missing in Xmlbf
@@ -350,15 +335,6 @@ between open close thing  = open *> thing <* close
 
 manyTill :: Parser a -> Parser end -> Parser [a]
 manyTill thing z = many thing <* z
-
-(<|>) :: Parser a -> Parser a -> Parser a
-(<|>) a b = a Applicative.<|> b
-
-some :: Parser a -> Parser [a]
-some = Applicative.some
-
-many :: Parser a -> Parser [a]
-many = Applicative.many
 
 -- pElem :: Text -> Parser Text
 -- oneOf :: Parser [a] -> Parser a
