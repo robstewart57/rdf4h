@@ -11,6 +11,7 @@ import Data.RDF.Namespace hiding (rdf)
 import qualified Data.Text as T
 import Test.QuickCheck
 import Data.List
+import Data.Semigroup ((<>))
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Control.Monad
@@ -105,7 +106,7 @@ instance Arbitrary PrefixMappings where
 arbitraryBaseUrl :: Gen BaseUrl
 arbitraryBaseUrl =
   oneof $
-  map
+  fmap
     (return . BaseUrl . T.pack)
     ["http://example.org/", "http://example.com/a", "http://asdf.org/b", "http://asdf.org/c"]
 
@@ -131,7 +132,7 @@ arbitraryPrefixMappings =
 p_empty
   :: Rdf rdf
   => RDF rdf -> Bool
-p_empty empty = triplesOf empty == []
+p_empty empty = null (triplesOf empty)
 
 -- triplesOf any RDF should return unique triples used to create it
 p_mkRdf_triplesOf
@@ -445,7 +446,7 @@ p_remove_triple_from_singleton_graph_query_s
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_s _unused singletonGraph =
-  query newGr (Just s) Nothing Nothing == []
+  null (query newGr (Just s) Nothing Nothing)
   where
     tripleInGraph@(Triple s _p _o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -457,7 +458,7 @@ p_remove_triple_from_singleton_graph_query_p
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_p _unused singletonGraph =
-  query newGr Nothing (Just p) Nothing == []
+  null (query newGr Nothing (Just p) Nothing)
   where
     tripleInGraph@(Triple _s p _o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -469,7 +470,7 @@ p_remove_triple_from_singleton_graph_query_o
   :: (Rdf rdf)
   => RDF rdf -> SingletonGraph rdf -> Bool
 p_remove_triple_from_singleton_graph_query_o _unused singletonGraph =
-  query newGr Nothing Nothing (Just o) == []
+  null (query newGr Nothing Nothing (Just o))
   where
     tripleInGraph@(Triple _s _p o) = head (triplesOf (rdfGraph singletonGraph))
     newGr = removeTriple (rdfGraph singletonGraph) tripleInGraph
@@ -482,10 +483,10 @@ p_add_then_remove_triples
 p_add_then_remove_triples _empty genTriples =
   let emptyGraph = _empty
       populatedGraph =
-        foldr (\t gr -> addTriple gr t) emptyGraph genTriples
+        foldr (flip addTriple) emptyGraph genTriples
       emptiedGraph =
-        foldr (\t gr -> removeTriple gr t) populatedGraph genTriples
-  in triplesOf emptiedGraph == []
+        foldr (flip removeTriple) populatedGraph genTriples
+  in null (triplesOf emptiedGraph)
 
 equivNode :: (Node -> Node -> Bool)
           -> (Triple -> Node)
@@ -546,7 +547,7 @@ tripleFromGen
 tripleFromGen _triplesOf rdf =
   if null ts
     then return Nothing
-    else oneof $ map (return . Just) ts
+    else oneof $ fmap (return . Just) ts
   where
     ts = _triplesOf rdf
 
@@ -560,12 +561,13 @@ languages :: [T.Text]
 languages = [T.pack "fr", T.pack "en"]
 
 datatypes :: [T.Text]
-datatypes = map (mkUri xsd . T.pack) ["string", "int", "token"]
+datatypes = fmap (mkUri xsd . T.pack) ["string", "int", "token"]
 
 uris :: [T.Text]
-uris =
-  map (mkUri ex) [T.pack n `T.append` T.pack (show (i::Int)) | n <- ["foo", "bar", "quz", "zak"], i <- [0..2]]
-  ++ [T.pack "ex:" `T.append` T.pack n `T.append` T.pack (show (i::Int)) | n <- ["s", "p", "o"], i <- [1..3]]
+uris =  [mkUri ex (n <> T.pack (show (i :: Int)))
+        | n <- ["foo", "bar", "quz", "zak"], i <- [0 .. 2]]
+     <> ["ex:" <> n <> T.pack (show (i::Int))
+        | n <- ["s", "p", "o"], i <- [1..3]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
@@ -574,16 +576,16 @@ typedliterals :: [LValue]
 typedliterals = [typedL lit dtype | lit <- litvalues, dtype <- datatypes]
 
 litvalues :: [T.Text]
-litvalues = map T.pack ["hello", "world", "peace", "earth", "", "haskell"]
+litvalues = fmap T.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
 unodes :: [Node]
-unodes = map UNode uris
+unodes = fmap UNode uris
 
 bnodes :: [ Node]
-bnodes = map (BNode . \i -> T.pack ":_genid" `T.append` T.pack (show (i::Int))) [1..5]
+bnodes = fmap (BNode . \i -> T.pack ":_genid" <> T.pack (show (i::Int))) [1..5]
 
 lnodes :: [Node]
-lnodes = [LNode lit | lit <- plainliterals ++ typedliterals]
+lnodes = [LNode lit | lit <- plainliterals <> typedliterals]
 
 -- maximum number of triples
 maxN :: Int
@@ -601,11 +603,10 @@ instance Arbitrary Triple where
   arbitrary = do
     s <- arbitraryS
     p <- arbitraryP
-    o <- arbitraryO
-    return (triple s p o)
+    triple s p <$> arbitraryO
 
 instance Arbitrary Node where
-  arbitrary = oneof $ map return unodes
+  arbitrary = oneof $ fmap return unodes
 
 arbitraryTs :: Gen Triples
 arbitraryTs = do
@@ -613,9 +614,9 @@ arbitraryTs = do
   sequence [arbitrary | _ <- [1 .. n]]
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
-arbitraryS = oneof $ map return $ unodes ++ bnodes
-arbitraryP = oneof $ map return unodes
-arbitraryO = oneof $ map return $ unodes ++ bnodes ++ lnodes
+arbitraryS = oneof $ fmap return $ unodes <> bnodes
+arbitraryP = oneof $ fmap return unodes
+arbitraryO = oneof $ fmap return $ unodes <> bnodes <> lnodes
 
 ----------------------------------------------------
 --  Unit test cases                               --

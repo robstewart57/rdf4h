@@ -1,6 +1,3 @@
---{-# LANGUAGE DeriveGeneric #-}
---{-# LANGUAGE TypeFamilies #-}
---{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.RDF.IRITests

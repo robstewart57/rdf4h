@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, BangPatterns #-}
+{-# LANGUAGE FlexibleInstances, BangPatterns #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
 module Data.RDF.Graph.TPatriciaTree (TPatriciaTree) where
@@ -101,28 +101,28 @@ mkRdf' ts base' pms' =
 
 triplesOf' :: RDF TPatriciaTree -> Triples
 triplesOf' (TPatriciaTree (g,idxLookup,_,_)) =
-    map (\(sIdx,oIdx,p) ->
-             let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
+    fmap (\(sIdx,oIdx,p) ->
+             let [s,o] = fmap (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in Triple s p o) (G.labEdges g)
 
 uniqTriplesOf' :: RDF TPatriciaTree -> Triples
 uniqTriplesOf' ptG@(TPatriciaTree (g,idxLookup,_,_)) =
-    nub $ map (\(sIdx,oIdx,p) ->
-             let [s,o] = map (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
+    nub $ fmap (\(sIdx,oIdx,p) ->
+             let [s,o] = fmap (\idx -> fromJust $ IntMap.lookup idx idxLookup) [sIdx,oIdx]
              in expandTriple (prefixMappings ptG) (Triple s p o)) (G.labEdges g)
 
 mkTriples :: IntMap.IntMap Node -> Node -> [(Node, IntMap.Key)] -> [(Node, IntMap.Key)] ->  [Triple]
 mkTriples idxLookup thisNode adjsIn adjsOut =
-    let ts1 = map (\(predNode,subjIdx) ->
+    let ts1 = fmap (\(predNode,subjIdx) ->
                    let s = fromJust (IntMap.lookup subjIdx idxLookup)
                    in Triple s predNode thisNode
                   )  adjsIn
 
-        ts2 = map (\(predNode,objIdx) ->
+        ts2 = fmap (\(predNode,objIdx) ->
                        let o = fromJust (IntMap.lookup objIdx idxLookup)
                        in Triple thisNode predNode o
                   ) adjsOut
-    in ts1 ++ ts2
+    in ts1 <> ts2
 
 select' :: RDF TPatriciaTree -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel =
@@ -137,7 +137,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if fromJust maybeSubjSel thisNode
                                  then mkTriples idxLookup thisNode [] adjsOut
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
             | isNothing maybeSubjSel && isJust maybePredSel && isNothing maybeObjSel =
                        let adjsIn'  = filter (\(p,_idxSubj) -> fromJust maybePredSel p ) adjsIn
                            adjsOut' = filter (\(p,_idxObj) -> fromJust maybePredSel p ) adjsOut
@@ -147,7 +147,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if not (null adjsOut')
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isNothing maybeSubjSel && isNothing maybePredSel && isJust maybeObjSel =
                        let adjsOut' = filter (\(_p,idxObj) -> fromJust maybeObjSel (fromJust (IntMap.lookup idxObj idxLookup)) ) adjsOut
@@ -155,7 +155,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if fromJust maybeObjSel thisNode
                                  then mkTriples idxLookup thisNode adjsIn []
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubjSel && isJust maybePredSel && isNothing maybeObjSel =
                        let adjsIn' = filter (\(p,idxSubj) -> fromJust maybeSubjSel (fromJust (IntMap.lookup idxSubj idxLookup))
@@ -165,7 +165,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if fromJust maybeSubjSel thisNode
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubjSel && isNothing maybePredSel && isJust maybeObjSel =
                        let adjsIn' = filter (\(_p,idxSubj) -> fromJust maybeSubjSel (fromJust (IntMap.lookup idxSubj idxLookup)) ) adjsIn
@@ -176,7 +176,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if fromJust maybeSubjSel thisNode
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isNothing maybeSubjSel && isJust maybePredSel && isJust maybeObjSel =
                        let adjsIn' = filter (\(p,_idxSubj) -> fromJust maybePredSel p ) adjsIn
@@ -186,7 +186,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                                  then mkTriples idxLookup thisNode adjsIn' []
                                  else []
                            ts2 = mkTriples idxLookup thisNode [] adjsOut'
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubjSel && isJust maybePredSel && isJust maybeObjSel =
                        let adjsIn' = filter (\(p,idxSubj) -> fromJust maybeSubjSel (fromJust (IntMap.lookup idxSubj idxLookup))
@@ -199,7 +199,7 @@ select' (TPatriciaTree (g,idxLookup,_,_)) maybeSubjSel maybePredSel maybeObjSel 
                            ts2 = if fromJust maybeSubjSel thisNode
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
         cfun ( _ , _ , _ , _) = undefined -- not sure why this pattern is needed to exhaust cfun arg patterns
 
@@ -218,7 +218,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if thisNode == fromJust maybeSubj
                                  then mkTriples idxLookup thisNode [] adjsOut
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isNothing maybeSubj && isJust maybePred && isNothing maybeObj =
                        let adjsIn'  = filter (\(p,_idxSubj) -> p == fromJust maybePred ) adjsIn
@@ -229,7 +229,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if not (null adjsOut')
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isNothing maybeSubj && isNothing maybePred && isJust maybeObj =
                        let adjsOut' = filter (\(_p,idxObj) -> fromJust (IntMap.lookup idxObj idxLookup) == fromJust maybeObj ) adjsOut
@@ -237,7 +237,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if thisNode == fromJust maybeObj
                                  then mkTriples idxLookup thisNode adjsIn []
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubj && isJust maybePred && isNothing maybeObj =
                        let adjsIn' = filter (\(p,idxSubj) -> fromJust (IntMap.lookup idxSubj idxLookup) == fromJust maybeSubj
@@ -247,7 +247,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if thisNode == fromJust maybeSubj
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubj && isNothing maybePred && isJust maybeObj =
                        let adjsIn' = filter (\(_p,idxSubj) -> fromJust (IntMap.lookup idxSubj idxLookup) == fromJust maybeSubj ) adjsIn
@@ -258,7 +258,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if thisNode == fromJust maybeSubj
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isNothing maybeSubj && isJust maybePred && isJust maybeObj =
                        let adjsIn' = filter (\(p,_idxSubj) -> p  == fromJust maybePred ) adjsIn
@@ -268,7 +268,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                                  then mkTriples idxLookup thisNode adjsIn' []
                                  else []
                            ts2 = mkTriples idxLookup thisNode [] adjsOut'
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
             | isJust maybeSubj && isJust maybePred && isJust maybeObj =
                        let adjsIn' = filter (\(p,idxSubj) -> fromJust (IntMap.lookup idxSubj idxLookup) == fromJust maybeSubj
@@ -281,7 +281,7 @@ query' (TPatriciaTree (g,idxLookup,_,_)) maybeSubj maybePred maybeObj =
                            ts2 = if thisNode == fromJust maybeSubj
                                  then mkTriples idxLookup thisNode [] adjsOut'
                                  else []
-                       in ts1 ++ ts2
+                       in ts1 <> ts2
 
         cfun ( _ , _ , _ , _ ) = undefined  -- not sure why this pattern is needed to exhaust cfun arg patterns
 

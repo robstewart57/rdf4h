@@ -4,6 +4,7 @@ module W3C.RdfXmlTest
   ( tests
   ) where
 
+import Data.Semigroup ((<>))
 import Data.Maybe (fromJust)
 import Test.Tasty
 import qualified Test.Tasty.HUnit as TU
@@ -30,14 +31,14 @@ mfEntryToTest :: TestEntry -> TestTree
 mfEntryToTest (TestXMLEval nm _ _ act' res') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       res = (UNode . fromJust . fileSchemeToFilePath) res'
-      parsedRDF = parseFile testParser (nodeURI act) >>= return . fromEither :: IO (RDF TList)
-      expectedRDF = parseFile NTriplesParser (nodeURI res) >>= return . fromEither :: IO (RDF TList)
+      parsedRDF =  (fromEither <$> parseFile testParser (nodeURI act)) :: IO (RDF TList)
+      expectedRDF = (fromEither <$> parseFile NTriplesParser (nodeURI res)) :: IO (RDF TList)
   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
 mfEntryToTest (TestXMLNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest x = error $ "unknown TestEntry pattern in mfEntryToTest: " <> show x
 
 mfBaseURIXml :: BaseUrl
 mfBaseURIXml = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"

@@ -61,7 +61,12 @@ main = do
          (graphTests
            "AdjHashMap"
            (empty :: RDF AdjHashMap)
-           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))]
+           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap))
+         ,
+         (graphTests
+           "AlgebraicGraph"
+           (empty :: RDF AlgebraicGraph)
+           (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AlgebraicGraph))]
        ,
          testGroup
          "graph-impl-unit-tests"

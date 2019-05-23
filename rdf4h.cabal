@@ -31,6 +31,7 @@ library
                  , Data.RDF.Types
                  , Data.RDF.Query
                  , Data.RDF.Graph.AdjHashMap
+                 , Data.RDF.Graph.AlgebraicGraph
                  , Data.RDF.Graph.TList
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
@@ -48,6 +49,7 @@ library
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text >= 1.2.1.0
+                 , algebraic-graphs >= 0.3 && < 0.5
                  , unordered-containers
                  , hashable
                  , deepseq
@@ -108,6 +110,8 @@ test-suite test-rdf4h
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
 
   other-modules: W3C.TurtleTest
   hs-source-dirs: testsuite/tests
@@ -122,6 +126,9 @@ benchmark rdf4h-bench
                     rdf4h,
                     text >= 1.2.1.0
   ghc-options:      -Wall
+
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
 
 source-repository head
   type:     git

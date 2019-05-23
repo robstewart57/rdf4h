@@ -20,6 +20,8 @@ module Data.RDF.Query (
 
 import Prelude hiding (pred)
 import Data.List
+import Data.Maybe (fromMaybe)
+import Data.Semigroup ((<>))
 import Data.RDF.Types
 import qualified Data.RDF.Namespace as NS
 import           Data.Text (Text)
@@ -132,7 +134,7 @@ isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
       where
         triples = expandTriples g
         triplesHashMap :: HashMap (Subject,Predicate) [Object]
-        triplesHashMap = HashMap.fromListWith (++) [((s,p), [o]) | Triple s p o <- triples]
+        triplesHashMap = HashMap.fromListWith (<>) [((s,p), [o]) | Triple s p o <- triples]
         triplesGrouped :: [((Subject,Predicate),[Object])]
         triplesGrouped = HashMap.toList triplesHashMap
         (dataGraph,_,_) = (graphFromEdges . fmap (\((s,p),os) -> (s,p,os))) triplesGrouped
@@ -156,7 +158,7 @@ expandNode _   n         = n
 -- Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
 expandURI :: PrefixMappings -> Text -> Text
 expandURI _ "a"  = NS.mkUri NS.rdf "type"
-expandURI pms iri = maybe iri id $ foldl' f Nothing (NS.toPMList pms)
+expandURI pms iri = fromMaybe iri $ foldl' f Nothing (NS.toPMList pms)
   where f :: Maybe Text -> (Text, Text) -> Maybe Text
         f x (p, u) = x <|> (T.append u <$> T.stripPrefix (T.append p ":") iri)
 

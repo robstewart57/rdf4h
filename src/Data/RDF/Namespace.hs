@@ -27,8 +27,8 @@ standard_ns_mappings  =  ns_mappings standard_namespaces
 
 -- |Takes a list of 'Namespace's and returns 'PrefixMappings'.
 ns_mappings :: [Namespace] -> PrefixMappings
-ns_mappings ns =  PrefixMappings $ Map.fromList $ 
-                     map (\(PrefixedNS pre uri) -> (pre, uri)) ns
+ns_mappings ns =  PrefixMappings $ Map.fromList $
+                     fmap (\(PrefixedNS pre uri) -> (pre, uri)) ns
 
 -- |The RDF namespace.
 rdf  :: Namespace
@@ -73,7 +73,7 @@ ex2   =   mkPrefixedNS'  "ex2"   "http://www2.example.org/"
 
 -- |Perform a left-biased merge of the two sets of prefix mappings.
 mergePrefixMappings :: PrefixMappings -> PrefixMappings -> PrefixMappings
-mergePrefixMappings (PrefixMappings p1s) (PrefixMappings p2s) = 
+mergePrefixMappings (PrefixMappings p1s) (PrefixMappings p2s) =
   PrefixMappings $ Map.union p1s p2s
 
 -- |View the prefix mappings as a list of key-value pairs. The PM in
