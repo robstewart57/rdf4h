@@ -37,7 +37,7 @@ import qualified Data.Text.Encoding as T
 import Xmlbf hiding (Node)
 import qualified Xmlbf (Node)
 import qualified Xmlbf.Xeno as Xeno
-  
+
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
 
 instance RdfParser XmlParser where
@@ -81,7 +81,7 @@ data ParserException = ParserException String
 instance Exception ParserException
 
 testXeno :: Text -> Either String [Xmlbf.Node]
-testXeno = Xeno.nodes . T.encodeUtf8
+testXeno = Xeno.fromRawXml . T.encodeUtf8
 
 -- |Parse a xml Text to an RDF representation
 parseXmlRDF :: (Rdf a)
@@ -90,7 +90,7 @@ parseXmlRDF :: (Rdf a)
             -> Text              -- ^ The contents to parse
             -> Either ParseFailure (RDF a) -- ^ The RDF representation of the triples or ParseFailure
 parseXmlRDF bUrl dUrl xmlStr =
-  case Xeno.nodes (T.encodeUtf8 xmlStr) of
+  case Xeno.fromRawXml (T.encodeUtf8 xmlStr) of
     Left xmlParseError -> Left (ParseFailure xmlParseError)
     Right nodes -> -- error (show nodes)
       case runParser (rdfParser bUrl dUrl) nodes of
@@ -127,7 +127,7 @@ newline = do
           else anyUsefulChars (T.tail t)
 
 newlines :: Parser ()
-newlines = void (many newline) 
+newlines = void (many newline)
 
 pNodeNot :: Text -> Parser ()
 pNodeNot t = do
@@ -317,7 +317,7 @@ test1 = triplesOf got == expected
          (UNode "si:author")
          (LNode (PlainL "Jan Egil Refsnes"))
       ]
-    
+
 -- missing in Xmlbf
 
 -- | @'pElement'' p@ runs a 'Parser' @p@ inside a element node and
