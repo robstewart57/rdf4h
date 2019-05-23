@@ -3,6 +3,7 @@ module W3C.NTripleTest
   , testsAttoparsec
   ) where
 
+import Data.Semigroup ((<>))
 import Data.Maybe (fromJust)
 import Test.Tasty
 import qualified Test.Tasty.HUnit as TU
@@ -36,11 +37,10 @@ mfEntryToTest testParser (TestNTriplesNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       rdf = parseFile testParser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " <> show x
 
 testParserParsec :: NTriplesParserCustom
 testParserParsec = NTriplesParserCustom Parsec
 
 testParserAttoparsec :: NTriplesParserCustom
 testParserAttoparsec = NTriplesParserCustom Attoparsec
-

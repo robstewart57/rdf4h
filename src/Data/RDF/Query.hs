@@ -21,6 +21,7 @@ module Data.RDF.Query (
 import Prelude hiding (pred)
 import Data.List
 import Data.Maybe (fromMaybe)
+import Data.Semigroup ((<>))
 import Data.RDF.Types
 import qualified Data.RDF.Namespace as NS
 import           Data.Text (Text)
@@ -133,7 +134,7 @@ isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
       where
         triples = expandTriples g
         triplesHashMap :: HashMap (Subject,Predicate) [Object]
-        triplesHashMap = HashMap.fromListWith (++) [((s,p), [o]) | Triple s p o <- triples]
+        triplesHashMap = HashMap.fromListWith (<>) [((s,p), [o]) | Triple s p o <- triples]
         triplesGrouped :: [((Subject,Predicate),[Object])]
         triplesGrouped = HashMap.toList triplesHashMap
         (dataGraph,_,_) = (graphFromEdges . fmap (\((s,p),os) -> (s,p,os))) triplesGrouped

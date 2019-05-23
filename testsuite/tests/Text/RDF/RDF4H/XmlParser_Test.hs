@@ -7,6 +7,7 @@ module Text.RDF.RDF4H.XmlParser_Test
 
 -- todo: QuickCheck tests
 
+import Data.Semigroup ((<>))
 -- Testing imports
 import Test.Tasty
 import Test.Tasty.HUnit as TU
@@ -33,8 +34,8 @@ tests =
  , testCase "NML2" test_parseXmlRDF_NML2
  , testCase "NML3" test_parseXmlRDF_NML3
  ]
- ++
- map (uncurry checkGoodOtherTest) otherTestFiles
+ <>
+ fmap (uncurry checkGoodOtherTest) otherTestFiles
 
 otherTestFiles :: [(String, String)]
 otherTestFiles = [ ("data/xml", "example07")
@@ -79,7 +80,7 @@ doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    in testGroup (printf "conformance-%s" testname) $ map (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
+    in testGroup (printf "conformance-%s" testname) $ fmap (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
 
 mkTextNode :: T.Text -> Node
 mkTextNode = lnode . plainL
@@ -89,7 +90,7 @@ testParse exRDF ex =
     case parsed of
       Right result ->
           assertBool
-            ("expected: " ++ show ex ++ "but got: " ++ show result)
+            ("expected: " <> show ex <> "but got: " <> show result)
             (isIsomorphic (result :: RDF TList) (ex :: RDF TList))
       Left (ParseFailure err) ->
           assertFailure err
@@ -352,7 +353,7 @@ assertEquivalent testname r1 r2 = do
   gr2 <- r2
   case equivalent gr1 gr2 of
     Nothing    -> return ()
-    (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
+    (Just msg) -> fail $ "Graph " <> testname <> " not equivalent to expected:\n" <> msg
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
@@ -371,13 +372,13 @@ equivalent (Right gr1) (Right gr2)   = test $! zip gr1ts gr2ts
     compareTriple t1 t2 =
       if equalNodes s1 s2 && equalNodes p1 p2 && equalNodes o1 o2
         then Nothing
-        else Just ("Expected:\n  " ++ show t1 ++ "\nFound:\n  " ++ show t2 ++ "\n")
+        else Just ("Expected:\n  " <> show t1 <> "\nFound:\n  " <> show t2 <> "\n")
       where
         (s1, p1, o1) = f t1
         (s2, p2, o2) = f t2
         f t = (subjectOf t, predicateOf t, objectOf t)
-    -- equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == T.pack ("_:genid" ++ show i)
-    -- equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" ++ show i)
+    -- equalNodes (BNode fs1) (BNodeGen i) = T.reverse fs1 == T.pack ("_:genid" <> show i)
+    -- equalNodes (BNode fs1) (BNodeGen i) = fs1 == T.pack ("_:genid" <> show i)
 
     -- I'm not sure it's right to compare blank nodes with generated
     -- blank nodes. This is because parsing an already generated blank
@@ -402,20 +403,20 @@ assertLoadSuccess :: String -> IO (Either ParseFailure (RDF TList)) -> TU.Assert
 assertLoadSuccess idStr exprGr = do
   g <- exprGr
   case g of
-    Left (ParseFailure err) -> TU.assertFailure $ idStr  ++ err
+    Left (ParseFailure err) -> TU.assertFailure $ idStr  <> err
     Right _ -> return ()
 
 -- assertLoadFailure idStr exprGr = do
 --   g <- exprGr
 --   case g of
 --     Left _ -> return ()
---     Right _ -> TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
+--     Right _ -> TU.assertFailure $ "Bad test " <> idStr <> " loaded successfully."
 
 handleLoad :: Either ParseFailure (RDF TList) -> Either ParseFailure (RDF TList)
 handleLoad res =
   case res of
     l@(Left _)  -> l
-    (Right gr)  -> Right $ mkRdf (map normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
+    (Right gr)  -> Right $ mkRdf (fmap normalize (triplesOf gr)) (baseUrl gr) (prefixMappings gr)
 
 normalize :: Triple -> Triple
 normalize t = let s' = normalizeN $ subjectOf t
@@ -423,7 +424,7 @@ normalize t = let s' = normalizeN $ subjectOf t
                   o' = normalizeN $ objectOf t
               in  triple s' p' o'
 normalizeN :: Node -> Node
-normalizeN (BNodeGen i) = BNode (T.pack $ "_:genid" ++ show i)
+normalizeN (BNodeGen i) = BNode (T.pack $ "_:genid" <> show i)
 normalizeN n            = n
 
 -- The Base URI to be used for all conformance tests:

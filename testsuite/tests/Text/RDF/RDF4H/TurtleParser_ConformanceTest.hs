@@ -4,6 +4,7 @@ module Text.RDF.RDF4H.TurtleParser_ConformanceTest
   ( tests
   ) where
 
+import Data.Semigroup ((<>))
 -- Testing imports
 import Test.Tasty
 import Test.Tasty.HUnit as TU
@@ -48,7 +49,7 @@ fpath :: String -> Int -> String -> String
 fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
 
 tests :: [TestTree]
-tests = ts1 ++ ts2 ++ ts3
+tests = ts1 <> ts2 <> ts3
    where ts1 = fmap checkGoodConformanceTest [0..29]
          ts2 = fmap checkBadConformanceTest [0..15]
          ts3 = fmap (uncurry checkGoodOtherTest) otherTestFiles
@@ -72,7 +73,7 @@ doGoodConformanceTest expGr inGr testname =
     let t1 = assertLoadSuccess (printf "expected (%s): " testname) expGr
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
-    in testGroup (printf "conformance-%s" testname) $ map (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
+    in testGroup (printf "conformance-%s" testname) $ fmap (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
 
 checkBadConformanceTest :: Int -> TestTree
 checkBadConformanceTest i =
@@ -82,21 +83,21 @@ checkBadConformanceTest i =
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
 equivalent :: Rdf a => Either ParseFailure (RDF a) -> Either ParseFailure (RDF a) -> Maybe String
-equivalent (Left e)    _           = Just $ "Parse failure of the expected graph: " ++ show e
-equivalent _           (Left e)    = Just $ "Parse failure of the input graph: " ++ show e
+equivalent (Left e)    _           = Just $ "Parse failure of the expected graph: " <> show e
+equivalent _           (Left e)    = Just $ "Parse failure of the input graph: " <> show e
 equivalent (Right gr1) (Right gr2) = checkSize <|> (test $! zip gr1ts gr2ts)
   where
     gr1ts = uordered $ triplesOf gr1
     gr2ts = uordered $ triplesOf gr2
     length1 = length gr1ts
     length2 = length gr2ts
-    checkSize = if (length1 == length2) then Nothing else (Just $ "Size different. Expected: " ++ (show length1) ++ ", got: " ++ (show length2))
+    checkSize = if (length1 == length2) then Nothing else (Just $ "Size different. Expected: " <> (show length1) <> ", got: " <> (show length2))
     test []           = Nothing
     test ((t1,t2):ts) = maybe (test ts) pure (compareTriple t1 t2)
     compareTriple t1@(Triple s1 p1 o1) t2@(Triple s2 p2 o2) =
       if equalNodes s1 s2 && equalNodes p1 p2 && equalNodes o1 o2
         then Nothing
-        else Just ("Expected:\n  " ++ show t1 ++ "\nFound:\n  " ++ show t2 ++ "\n")
+        else Just ("Expected:\n  " <> show t1 <> "\nFound:\n  " <> show t2 <> "\n")
 
     -- I'm not sure it's right to compare blank nodes with generated
     -- blank nodes. This is because parsing an already generated blank
@@ -140,14 +141,14 @@ assertLoadSuccess, assertLoadFailure :: String -> IO (Either ParseFailure (RDF T
 assertLoadSuccess idStr exprGr = do
   g <- exprGr
   case g of
-    Left (ParseFailure err) -> TU.assertFailure $ idStr  ++ err
+    Left (ParseFailure err) -> TU.assertFailure $ idStr  <> err
     Right _ -> return ()
 
 assertLoadFailure idStr exprGr = do
   g <- exprGr
   case g of
     Left _ -> return ()
-    Right _ -> TU.assertFailure $ "Bad test " ++ idStr ++ " loaded successfully."
+    Right _ -> TU.assertFailure $ "Bad test " <> idStr <> " loaded successfully."
 
 assertEquivalent :: Rdf a => String -> IO (Either ParseFailure (RDF a)) -> IO (Either ParseFailure (RDF a)) -> TU.Assertion
 assertEquivalent testname r1 r2 = do
@@ -155,7 +156,7 @@ assertEquivalent testname r1 r2 = do
   gr2 <- r2
   case equivalent gr1 gr2 of
     Nothing    -> return ()
-    (Just msg) -> fail $ "Graph " ++ testname ++ " not equivalent to expected:\n" ++ msg
+    (Just msg) -> fail $ "Graph " <> testname <> " not equivalent to expected:\n" <> msg
 
 mkDocUrl :: Text -> String -> Int -> Maybe Text
 mkDocUrl baseDocUrl fname testNum = Just . fromString $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum

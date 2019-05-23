@@ -6,6 +6,7 @@ module W3C.W3CAssertions
   , nodeURI
   ) where
 
+import           Data.Semigroup ((<>))
 import qualified Data.Text as T
 import           Data.RDF
 import qualified Test.HUnit as TU
@@ -14,13 +15,13 @@ import           W3C.Manifest
 
 runManifestTests :: (TestEntry -> TestTree) -> Manifest -> TestTree
 runManifestTests mfEntryToTest manifest =
-    testGroup (T.unpack $ description manifest) $ map mfEntryToTest $ entries manifest
+    testGroup (T.unpack $ description manifest) $ mfEntryToTest <$> entries manifest
 
 assertIsIsomorphic :: IO (RDF TList) -> IO (RDF TList) -> IO ()
 assertIsIsomorphic r1 r2 = do
   gr1 <- r1
   gr2 <- r2
-  TU.assertBool ("not isomorphic: " ++ show gr1 ++ " compared with " ++ show gr2) (isSame gr1 gr2) -- (isGraphIsomorphic gr1 gr2)
+  TU.assertBool ("not isomorphic: " <> show gr1 <> " compared with " <> show gr2) (isSame gr1 gr2) -- (isGraphIsomorphic gr1 gr2)
   where
     noBlankNodes g = (all noBlanks . expandTriples) g
     noBlanks (Triple s p o) = not (blankNode s)
@@ -41,12 +42,12 @@ assertIsIsomorphic r1 r2 = do
 assertIsParsed :: IO (Either ParseFailure (RDF TList)) -> TU.Assertion
 assertIsParsed r1 = do
   gr1 <- r1
-  TU.assertBool ("unable to parse, reason:\n" ++ show gr1) (isParsed gr1)
+  TU.assertBool ("unable to parse, reason:\n" <> show gr1) (isParsed gr1)
 
 assertIsNotParsed :: IO (Either ParseFailure (RDF TList)) -> TU.Assertion
 assertIsNotParsed r1 = do
   gr1 <- r1
-  TU.assertBool ("parsed unexpectantly:\n" ++ show gr1) (not (isParsed gr1))
+  TU.assertBool ("parsed unexpectantly:\n" <> show gr1) (not (isParsed gr1))
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False
@@ -54,4 +55,4 @@ isParsed (Right _) = True
 
 nodeURI :: Node -> String
 nodeURI (UNode u) = T.unpack u
-nodeURI node = error $ "W3CAssertions: unexpected node in `nodeURI`: " ++ show node
+nodeURI node = error $ "W3CAssertions: unexpected node in `nodeURI`: " <> show node

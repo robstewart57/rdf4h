@@ -8,6 +8,7 @@ module W3C.TurtleTest
 import Test.Tasty
 import qualified Test.Tasty.HUnit as TU
 
+import Data.Semigroup ((<>))
 import Data.Maybe (fromJust)
 import qualified Data.Text as T
 
@@ -46,7 +47,7 @@ mfEntryToTest parser (TestTurtleNegativeSyntax nm _ _ act') =
   let act = (UNode . fromJust . fileSchemeToFilePath) act'
       rdf = parseFile parser (nodeURI act) :: IO (Either ParseFailure (RDF TList))
   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
-mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " ++ show x
+mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " <> show x
 
 mfBaseURITurtle :: BaseUrl
 mfBaseURITurtle   = BaseUrl "http://www.w3.org/2013/TurtleTests/"

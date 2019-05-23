@@ -21,6 +21,7 @@ import Data.Char
 import Data.List (isPrefixOf)
 import qualified Data.Map as Map (fromList)
 import Data.Maybe
+import Data.Semigroup ((<>))
 import Data.Typeable
 import Text.RDF.RDF4H.ParserUtils
 import Data.RDF.IRI
@@ -135,7 +136,7 @@ addMetaData :: (ArrowXml a) => Maybe BaseUrl -> Maybe Text -> a XmlTree XmlTree
 addMetaData bUrlM dUrlM = mkelem "/"
                         ( [ sattr "transfer-Message" "OK"
                           , sattr "transfer-MimeType" "text/rdf"
-                          ] ++ mkSource dUrlM ++ mkBase bUrlM
+                          ] <> mkSource dUrlM <> mkBase bUrlM
                         )
                         [ arr id ]
   where mkSource (Just dUrl) = [ sattr "source" (T.unpack dUrl) ]
@@ -153,7 +154,7 @@ getRDF = proc xml -> do
             triples <- parseDescription' >. id -< (bUrl,rdf)
             returnA -< mkRdf triples (Just bUrl) prefixMap
   where toAttrMap = (getAttrl >>> (getName &&& (getChildren >>> getText))) >. id
-        toPrefixMap = PrefixMappings . Map.fromList . map (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
+        toPrefixMap = PrefixMappings . Map.fromList . fmap (\(n, m) -> (T.pack (drop 6 n), T.pack m)) . filter (isPrefixOf "xmlns:" . fst)
 
 -- |Read the initial state from an rdf element
 parseDescription' :: forall a. (ArrowXml a, ArrowState GParseState a) => a (BaseUrl, XmlTree) Triple
@@ -173,7 +174,7 @@ parseDescription = updateState
   where readTypeTriple :: (ArrowXml a) => LParseState -> a XmlTree Triple
         readTypeTriple state = getName >>> arr (Triple (stateSubject state) rdfType . unode . T.pack)
         replaceLiElems acc n (Triple s p o : rest) | p == (unode . T.pack) "rdf:li" =
-            replaceLiElems (Triple s ((unode . T.pack) ("rdf:_" ++ show n)) o : acc) (n + 1) rest
+            replaceLiElems (Triple s ((unode . T.pack) ("rdf:_" <> show n)) o : acc) (n + 1) rest
         replaceLiElems acc n (Triple s p o : rest) = replaceLiElems (Triple s p o : acc) n rest
         replaceLiElems acc _ [] = acc
 
@@ -438,12 +439,12 @@ my_expandURI
 -- |Make a UNode from an absolute string
 mkUNode :: forall a. (ArrowIf a) => a String Node
 mkUNode = choiceA [ (arr (isJust . unodeValidate . T.pack)) :-> (arr (unode . T.pack))
-                  , arr (const True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " ++ uri)))
+                  , arr (const True) :-> arr (\uri -> throw (ParserException ("Invalid URI: " <> uri)))
                   ]
 
 -- |Make a UNode from a rdf:ID element, expanding relative URIs
 mkRelativeNode :: forall a. (ArrowXml a) => LParseState -> a XmlTree Node
-mkRelativeNode s = (getAttrValue "rdf:ID" >>> (arrL (maybeToList . xmlName)) >>> arr (\x -> '#':x)) &&& baseUrl
+mkRelativeNode s = (getAttrValue "rdf:ID" >>> (arrL (maybeToList . xmlName)) >>> arr ('#':)) &&& baseUrl
     >>> expandURI >>> arr (unode . T.pack)
   where baseUrl = constA (case stateBaseUrl s of BaseUrl b -> T.unpack b)
 
@@ -459,11 +460,11 @@ xmlName str = go [] str
     go accum [] = Just accum
     go accum [s] =
       if isValid s
-      then go (accum++[s]) []
+      then go (accum<>[s]) []
       else Nothing
     go accum (s:ss) =
       if isValid s
-      then go (accum++[s]) ss
+      then go (accum<>[s]) ss
       else Nothing
     isValid c = isAlphaNum c
                 || '_' == c

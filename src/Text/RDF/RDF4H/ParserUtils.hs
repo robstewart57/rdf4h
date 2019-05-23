@@ -10,6 +10,7 @@ import Data.RDF.Types
 import Control.Exception.Lifted
 import Network.HTTP.Conduit
 import Data.Text.Encoding (decodeUtf8)
+import Data.Semigroup ((<>))
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Text as T
 
@@ -30,7 +31,7 @@ _parseURL parseFunc url = do
           case content of
             ConnectionTimeout ->
               return $ errResult "Connection timed out"
-            _ -> return $ errResult ("HttpExceptionRequest content: " ++ show content)
+            _ -> return $ errResult ("HttpExceptionRequest content: " <> show content)
         (InvalidUrlException{}) ->
           return $ errResult "Invalid URL exception"
     Right bs -> do
