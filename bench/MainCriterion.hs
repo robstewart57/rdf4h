@@ -4,7 +4,7 @@
 module Main where
 
 import Prelude hiding (readFile)
-import Data.Semigroup ((<>))
+import Data.Semigroup (Semigroup(..))
 import Criterion
 import Criterion.Types
 import Criterion.Main
@@ -53,11 +53,13 @@ main = defaultMainWith
             fawltyContentNTriples <- readFile "data/nt/all-fawlty-towers.nt"
             rdf1' <- parseFile (XmlParser Nothing Nothing) xmlFile
             rdf2' <- parseFile (XmlParser Nothing Nothing) xmlFile
+            rdf3' <- parseFile (XmlParser Nothing Nothing) xmlFile
             let rdf1 = either (error . show) id rdf1' :: RDF TList
                 rdf2 = either (error . show) id rdf2' :: RDF AdjHashMap
+                rdf3 = either (error . show) id rdf3' :: RDF AlgebraicGraph
                 triples = triplesOf rdf1
-            return (rdf1, rdf2, triples, fawltyContentNTriples, fawltyContentTurtle)) $
-            \ ~(triplesList, adjMap, triples, fawltyContentNTriples, fawltyContentTurtle) ->
+            return (rdf1, rdf2, rdf3, triples, fawltyContentNTriples, fawltyContentTurtle)) $
+            \ ~(triplesList, adjMap, algGraph, triples, fawltyContentNTriples, fawltyContentTurtle) ->
         bgroup
           "rdf4h"
            [ bgroup
@@ -87,24 +89,28 @@ main = defaultMainWith
             bgroup
               "query"
               (queryBench "TList" triplesList <>
-               queryBench "AdjHashMap" adjMap
+               queryBench "AdjHashMap" adjMap <>
+               queryBench "AlgebraicGraph" algGraph
                -- queryBench "SP" mapSP <> queryBench "HashSP" hashMapSP
               )
           , bgroup
               "select"
               (selectBench "TList" triplesList <>
-               selectBench "AdjHashMap" adjMap
+               selectBench "AdjHashMap" adjMap <>
+               selectBench "AlgebraicGraph" algGraph
                -- selectBench "SP" mapSP <> selectBench "HashSP" hashMapSP
               )
           , bgroup
               "add-remove-triples"
-              (addRemoveTriples "TList" triples (empty :: RDF TList) triplesList
-              <> addRemoveTriples "AdjHashMap" triples (empty :: RDF AdjHashMap) adjMap
+              (addRemoveTriples "TList" triples (empty :: RDF TList) triplesList <>
+               addRemoveTriples "AdjHashMap" triples (empty :: RDF AdjHashMap) adjMap <>
+               addRemoveTriples "AlgebraicGraph" triples (empty :: RDF AlgebraicGraph) algGraph
               )
           , bgroup
             "count_triples"
             [ bench "TList" (nf (length . triplesOf) triplesList)
             , bench "AdjHashMap" (nf (length . triplesOf) adjMap)
+            , bench "AlgebraicGraph" (nf (length . triplesOf) algGraph)
             ]
           ]
     ]
