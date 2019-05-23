@@ -16,6 +16,7 @@ import Data.Char (toLower, toUpper, isDigit, isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
+import Data.Semigroup ((<>))
 import Data.RDF.Types
 import Data.RDF.IRI
 import Data.RDF.Namespace
@@ -190,7 +191,7 @@ t_pname_ns = do
   (_, _, _, pms, _, _, _, _) <- get
   case resolveQName pre pms of
     Just n  -> pure n
-    Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
+    Nothing -> unexpected ("Cannot resolve QName prefix: " <> T.unpack pre)
 
 -- grammar rules: [168s] PN_LOCAL
 -- [168s] PN_LOCAL ::= (PN_CHARS_U | ':' | [0-9] | PLX) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX))?
@@ -202,7 +203,7 @@ t_pn_local = do
                  (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve))) <|>
                  (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws $> "."))
     concat <$> many recsve
-  pure (T.pack (x ++ xs))
+  pure (T.pack (x <> xs))
   where
     satisfy_str      = pure <$> satisfy isDigit
     t_pn_chars_str   = pure <$> t_pn_chars
@@ -571,8 +572,8 @@ addTripleForObject obj = do
   t <- getTriple s p
   put (bUrl, dUrl, i, pms, s, p, ts |> t, genMap)
   where
-    getTriple Nothing   _         = unexpected $ "No Subject with which to create triple for: " ++ show obj
-    getTriple _         Nothing   = unexpected $ "No Predicate with which to create triple for: " ++ show obj
+    getTriple Nothing   _         = unexpected $ "No Subject with which to create triple for: " <> show obj
+    getTriple _         Nothing   = unexpected $ "No Predicate with which to create triple for: " <> show obj
     getTriple (Just s') (Just p') = pure $ Triple s' p' obj
 
 
@@ -632,7 +633,7 @@ parseStringAttoparsec bUrl docUrl t = handleResult' $ parse (evalStateT t_turtle
   where
     handleResult' res = case res of
         Fail _ _ err -> -- error err
-          Left $ ParseFailure $ "Parse failure: \n" ++ show err
+          Left $ ParseFailure $ "Parse failure: \n" <> show err
         Partial f -> handleResult' (f mempty)
         Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
 
@@ -656,7 +657,7 @@ initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Not
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result = case result of
-  (Left err)         -> Left (ParseFailure $ "Parse failure: \n" ++ show err)
+  (Left err)         -> Left (ParseFailure $ "Parse failure: \n" <> show err)
   (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
 
 
@@ -669,7 +670,7 @@ caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 
 -- Match the string 's', accepting either lowercase or uppercase form of each character
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
-caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
+caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" <> s <> "\""
 
 tryIriResolution :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
 tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
@@ -677,4 +678,4 @@ tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
     tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
     tryIriResolution' _ (Just dIri)           = either err pure (resolveIRI dIri iriFrag)
     tryIriResolution' _ _                     = either err pure (resolveIRI mempty iriFrag)
-    err m = unexpected $ "Cannot resolve IRI: " ++ m ++ " " ++ show (mbUrl, mdUrl, iriFrag)
+    err m = unexpected $ "Cannot resolve IRI: " <> m <> " " <> show (mbUrl, mdUrl, iriFrag)

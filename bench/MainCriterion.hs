@@ -4,6 +4,7 @@
 module Main where
 
 import Prelude hiding (readFile)
+import Data.Semigroup ((<>))
 import Criterion
 import Criterion.Types
 import Criterion.Main
@@ -85,20 +86,20 @@ main = defaultMainWith
           ,
             bgroup
               "query"
-              (queryBench "TList" triplesList ++
+              (queryBench "TList" triplesList <>
                queryBench "AdjHashMap" adjMap
-               -- queryBench "SP" mapSP ++ queryBench "HashSP" hashMapSP
+               -- queryBench "SP" mapSP <> queryBench "HashSP" hashMapSP
               )
           , bgroup
               "select"
-              (selectBench "TList" triplesList ++
+              (selectBench "TList" triplesList <>
                selectBench "AdjHashMap" adjMap
-               -- selectBench "SP" mapSP ++ selectBench "HashSP" hashMapSP
+               -- selectBench "SP" mapSP <> selectBench "HashSP" hashMapSP
               )
           , bgroup
               "add-remove-triples"
               (addRemoveTriples "TList" triples (empty :: RDF TList) triplesList
-              ++ addRemoveTriples "AdjHashMap" triples (empty :: RDF AdjHashMap) adjMap
+              <> addRemoveTriples "AdjHashMap" triples (empty :: RDF AdjHashMap) adjMap
               )
           , bgroup
             "count_triples"
@@ -110,13 +111,13 @@ main = defaultMainWith
 
 selectBench :: Rdf a => String -> RDF a -> [Benchmark]
 selectBench label gr =
-   [ bench (label ++ " SPO") $ nf selectGr (subjSelect,predSelect,objSelect,gr)
-   , bench (label ++ " SP")  $ nf selectGr (subjSelect,predSelect,selectNothing,gr)
-   , bench (label ++ " S")   $ nf selectGr (subjSelect,selectNothing,selectNothing,gr)
-   , bench (label ++ " PO")  $ nf selectGr (selectNothing,predSelect,objSelect,gr)
-   , bench (label ++ " SO")  $ nf selectGr (subjSelect,selectNothing,objSelect,gr)
-   , bench (label ++ " P")   $ nf selectGr (selectNothing,predSelect,selectNothing,gr)
-   , bench (label ++ " O")   $ nf selectGr (selectNothing,selectNothing,objSelect,gr)
+   [ bench (label <> " SPO") $ nf selectGr (subjSelect,predSelect,objSelect,gr)
+   , bench (label <> " SP")  $ nf selectGr (subjSelect,predSelect,selectNothing,gr)
+   , bench (label <> " S")   $ nf selectGr (subjSelect,selectNothing,selectNothing,gr)
+   , bench (label <> " PO")  $ nf selectGr (selectNothing,predSelect,objSelect,gr)
+   , bench (label <> " SO")  $ nf selectGr (subjSelect,selectNothing,objSelect,gr)
+   , bench (label <> " P")   $ nf selectGr (selectNothing,predSelect,selectNothing,gr)
+   , bench (label <> " O")   $ nf selectGr (selectNothing,selectNothing,objSelect,gr)
    ]
 
 subjSelect, predSelect, objSelect, selectNothing :: Maybe (Node -> Bool)
@@ -133,19 +134,19 @@ queryNothing = Nothing
 
 queryBench :: Rdf a => String -> RDF a -> [Benchmark]
 queryBench label gr =
-   [ bench (label ++ " SPO") $ nf queryGr (subjQuery,predQuery,objQuery,gr)
-   , bench (label ++ " SP")  $ nf queryGr (subjQuery,predQuery,queryNothing,gr)
-   , bench (label ++ " S")   $ nf queryGr (subjQuery,queryNothing,queryNothing,gr)
-   , bench (label ++ " PO")  $ nf queryGr (queryNothing,predQuery,objQuery,gr)
-   , bench (label ++ " SO")  $ nf queryGr (subjQuery,queryNothing,objQuery,gr)
-   , bench (label ++ " P")   $ nf queryGr (queryNothing,predQuery,queryNothing,gr)
-   , bench (label ++ " O")   $ nf queryGr (queryNothing,queryNothing,objQuery,gr)
+   [ bench (label <> " SPO") $ nf queryGr (subjQuery,predQuery,objQuery,gr)
+   , bench (label <> " SP")  $ nf queryGr (subjQuery,predQuery,queryNothing,gr)
+   , bench (label <> " S")   $ nf queryGr (subjQuery,queryNothing,queryNothing,gr)
+   , bench (label <> " PO")  $ nf queryGr (queryNothing,predQuery,objQuery,gr)
+   , bench (label <> " SO")  $ nf queryGr (subjQuery,queryNothing,objQuery,gr)
+   , bench (label <> " P")   $ nf queryGr (queryNothing,predQuery,queryNothing,gr)
+   , bench (label <> " O")   $ nf queryGr (queryNothing,queryNothing,objQuery,gr)
    ]
 
 addRemoveTriples :: (NFData a,NFData (RDF a), Rdf a) => String -> Triples -> RDF a -> RDF a -> [Benchmark]
 addRemoveTriples lbl triples emptyGr populatedGr =
-   [ bench (lbl ++ "-add-triples") $ nf addTriples (triples,emptyGr)
-   , bench (lbl ++ "-remove-triples") $ nf removeTriples (triples,populatedGr)
+   [ bench (lbl <> "-add-triples") $ nf addTriples (triples,emptyGr)
+   , bench (lbl <> "-remove-triples") $ nf removeTriples (triples,populatedGr)
    ]
 
 addTriples ::  Rdf a => (Triples,RDF a) -> RDF a

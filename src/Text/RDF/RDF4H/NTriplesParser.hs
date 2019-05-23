@@ -109,13 +109,13 @@ nt_langtag :: (CharParsing m, Monad m) => m T.Text
 nt_langtag = do
   ss   <- char '@' *> some (satisfy isLetter)
   rest <- concat <$> many (char '-' *> some (satisfy isAlphaNum) >>= \lang_str -> pure ('-':lang_str))
-  pure (T.pack (ss ++ rest))
+  pure (T.pack (ss <> rest))
 
 -- [8] IRIREF
 nt_iriref :: (CharParsing m, Monad m) => m T.Text
 nt_iriref = between (char '<') (char '>') $ do
   raw_iri <- iriFragment
-  either (const empty) pure (validateIRI raw_iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " ++ show raw_iri
+  either (const empty) pure (validateIRI raw_iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " <> show raw_iri
 
 -- [153s] ECHAR
 nt_echar :: (CharParsing m, Monad m) => m Char
@@ -251,11 +251,11 @@ handleAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
 handleAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
   where
     handleResult res = case res of
-        Fail _i _contexts err -> Left $ ParseFailure $ "Parse failure: \n" ++ show err
+        Fail _i _contexts err -> Left $ ParseFailure $ "Parse failure: \n" <> show err
           -- error $
-          -- "\nnot consumed: " ++ show i
-          -- ++ "\ncontexts: " ++ show contexts
-          -- ++ "\nerror: " ++ show err
+          -- "\nnot consumed: " <> show i
+          -- <> "\ncontexts: " <> show contexts
+          -- <> "\nerror: " <> show err
         Partial f -> handleResult (f (T.encodeUtf8 mempty))
         Done _ ts -> Right $ mkRdf ts Nothing (PrefixMappings mempty)
 

@@ -105,6 +105,8 @@ test-suite test-rdf4h
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
 
   other-modules: W3C.TurtleTest
   hs-source-dirs: testsuite/tests

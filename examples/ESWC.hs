@@ -13,8 +13,8 @@ heldByProp       = "swc:heldBy"
 eswcCommitteeMembers :: RDF TList -> [T.Text]
 eswcCommitteeMembers graph =
   let triples = query graph (Just (unode eswcCommitteeURI)) (Just (unode heldByProp)) Nothing
-      memberURIs = map objectOf triples
-  in map
+      memberURIs = fmap objectOf triples
+  in fmap
      (\memberURI ->
               let (LNode (PlainL (firstName::T.Text))) =
                     objectOf $ head $ query graph (Just memberURI) (Just (unode "foaf:firstName")) Nothing
@@ -22,7 +22,7 @@ eswcCommitteeMembers graph =
                     objectOf $ head $ query graph (Just memberURI) (Just (unode "foaf:lastName")) Nothing
               in (T.append firstName (T.append (T.pack  " ") lastName)))
      memberURIs
-        
+
 main :: IO ()
 main = do
   result <- parseURL
