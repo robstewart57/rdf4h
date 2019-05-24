@@ -34,9 +34,10 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
-import Xmlbf hiding (Node)
+import Xmlbf hiding (Node, Parser)
 import qualified Xmlbf (Node)
 import qualified Xmlbf.Xeno as Xeno
+import Control.Monad.State.Strict
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
 
@@ -67,6 +68,9 @@ parseURL' bUrl docUrl = parseFromURL (parseXmlRDF bUrl docUrl)
 --   { stateGenId :: Int
 --   } deriving (Show)
 
+
+type Parser = ParserT (State ParseState)
+
 -- |Local state for the parser (dependant on the parent xml elements)
 data ParseState = ParseState
   { stateBaseUrl :: Maybe BaseUrl
@@ -92,16 +96,14 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
   where
     parseXml = Xeno.fromRawXml . T.encodeUtf8
     parseRdf = first ParseFailure . join . second parseRdf'
-    parseRdf' = runParser (rdfParser bUrl dUrl)
+    parseRdf' ns = evalState (runParserT (rdfParser bUrl dUrl) ns) initState
+    initState = ParseState bUrl mempty undefined 0
 -- TODO: use bUrl and dUrl
 
 rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
 rdfParser bUrl dUrl = do
-  let initState = ParseState bUrl mempty undefined 0
-  rdf <- pRdf initState
+  rdf <- pRdf
   pWs
-  -- tree <- showTree
-  -- error (show tree)
   pEndOfInput
   return rdf
 
@@ -143,21 +145,23 @@ oneAttr = do
   debugging.
 -}
 
-pSubject :: ParseState -> Parser ((Node, Triples), ParseState)
-pSubject st = unodeP <|> bnodeP
+pSubject :: Parser (Node, Triples)
+pSubject = unodeP <|> bnodeP
   where
     unodeP = do
       s <- unode <$> pAttr "rdf:about"
-      pure ((s, []), st { stateSubject = s } )
+      modify $ \st -> st { stateSubject = s }
+      pure (s, [])
     bnodeP = do
       -- theId <- pAttr "rdf:ID"
+      st <- get
       let s = BNodeGen (stateGenId st)
-          st' = st { stateGenId = stateGenId st + 1, stateSubject = s}
-      pure ((s, []), st')
+      modify $ \st -> st { stateGenId = stateGenId st + 1, stateSubject = s }
+      pure (s, [])
 
 -- pPredicateObject :: Parser ((Node,Node))
-pPredicateObject :: ParseState -> Parser Triples
-pPredicateObject st = do
+pPredicateObject :: Parser Triples
+pPredicateObject = do
   void pWs
   do pAnyElement $ do
      void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
@@ -173,10 +177,12 @@ pPredicateObject st = do
     pTypedLiteral p = do
       theType <- pAttr "rdf:datatype"
       theText <- pText
+      st <- get
       pure [triple (stateSubject st) p ((lnode (typedL (TL.toStrict theText) theType)))]
     pBNode p = do
       (p1, o1) <- oneAttr
       -- TODO: increment stateGenId
+      st <- get
       let bnode = BNodeGen (stateGenId st)
           t1 = triple (stateSubject st) p bnode
           a = case stateBaseUrl st of
@@ -190,6 +196,7 @@ pPredicateObject st = do
     pPlainLiteral p = do
       theText <- pText
       pWs
+      st <- get
       pure [triple
             (stateSubject st)
             p
@@ -216,24 +223,24 @@ pPredicateObject st = do
 --   theText <- pText
 --   pure (lnode (plainL (TL.toStrict theText)))
 
-pRdf :: Rdf a => ParseState -> Parser (RDF a)
-pRdf st = pElement "rdf:RDF" $ do
+pRdf :: Rdf a => Parser (RDF a)
+pRdf = pElement "rdf:RDF" $ do
   pm <- pPrefixMappings
   -- [TODO] Ensure no attributes
-  triples <- pNodeElementList st
+  triples <- pNodeElementList
   pure $ mkRdf triples Nothing pm
 
-pNodeElementList :: ParseState -> Parser Triples
-pNodeElementList st = do
+pNodeElementList :: Parser Triples
+pNodeElementList = do
   pWs
-  snd <$> pElement' (pRdfTriples st)
+  snd <$> pElement' pRdfTriples
 
-pRdfTriples :: ParseState -> Parser Triples
-pRdfTriples st = do
+pRdfTriples :: Parser Triples
+pRdfTriples =
   pElement "rdf:Description" $ do
     pWs
-    ((subj, reifiedTriples), st') <- pSubject st
-    ts <- concat <$> many (pPredicateObject st')
+    (subj, reifiedTriples) <- pSubject
+    ts <- concat <$> many pPredicateObject
     pWs
     -- tree <- showTree
     -- error (show tree)
