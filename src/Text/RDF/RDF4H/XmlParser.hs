@@ -98,26 +98,19 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
 rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
 rdfParser bUrl dUrl = do
   let initState = ParseState bUrl mempty undefined 0
-  rdf <- pRdfDescription initState
-  newlines
+  rdf <- pRdf initState
+  pWs
   -- tree <- showTree
   -- error (show tree)
   pEndOfInput
   return rdf
 
--- Text "\n"
--- TODO: check that all that follows from \n is zero or more ' ' characters.
-newline :: Parser ()
-newline = do
-  t <- pText
-  if not $ anyUsefulChars (TL.toStrict t)
-  then pure ()
-  else pFail "not a newline text node"
+-- |White spaces parser
+pWs :: Parser ()
+pWs = (T.all ws . TL.toStrict <$> pText) >>= guard
   where
-    anyUsefulChars = T.any (\c -> c /= '\n' && c /= '\r' && c /= ' ')
-
-newlines :: Parser ()
-newlines = void (many newline)
+    -- See: https://www.w3.org/TR/2000/REC-xml-20001006#NT-S
+    ws c = c == '\x20' || c == '\x09' || c == '\x0d' || c == '\x0a'
 
 pNodeNot :: Text -> Parser ()
 pNodeNot t = do
@@ -145,20 +138,6 @@ oneAttr = do
     1 -> pure $ head (HashMap.toList xs)
     _ -> pFail "not one attr"
 
-rdfTriplesP :: ParseState -> Parser (Triples, ParseState)
-rdfTriplesP st = do
-  newlines
-  pElement "rdf:Description" $ do
-    newlines
-    ((subj, reifiedTriples), st') <- pSubject st
-    ts <- concat <$> many (pPredicateObject st')
-    newlines
-    -- tree <- showTree
-    -- error (show tree)
-    pEndOfInput
-    pure (ts <> reifiedTriples, st')
-    -- pure $ ((fmap (\(p, o) -> triple subj p o) predObjs <> reifiedTriples), st')
-
 {- NOTE:
   remember to use `showTree` in the fork of xmlbf when pEndOfInput needs
   debugging.
@@ -179,7 +158,7 @@ pSubject st = unodeP <|> bnodeP
 -- pPredicateObject :: Parser ((Node,Node))
 pPredicateObject :: ParseState -> Parser Triples
 pPredicateObject st = do
-  void newlines
+  void pWs
   do pAnyElement $ do
      void (pNodeNot "rdf:Description")  -- rdfms-rdf-names-use-error-011
      p <- unode <$> pName
@@ -187,7 +166,7 @@ pPredicateObject st = do
        <|> pBNode p
        <|> pPlainLiteral p
        <|> pFail "unable to parse predicate/object pair"
-     newlines
+     pWs
      pure ts
    -- TODO: reify triple
   where
@@ -210,7 +189,7 @@ pPredicateObject st = do
       pure [t1, t2]
     pPlainLiteral p = do
       theText <- pText
-      newlines
+      pWs
       pure [triple
             (stateSubject st)
             p
@@ -237,18 +216,29 @@ pPredicateObject st = do
 --   theText <- pText
 --   pure (lnode (plainL (TL.toStrict theText)))
 
-
-pRdfDescription' :: Rdf a => ParseState -> Parser (RDF a)
-pRdfDescription' st = do
-  newlines
+pRdf :: Rdf a => ParseState -> Parser (RDF a)
+pRdf st = pElement "rdf:RDF" $ do
   pm <- pPrefixMappings
-  (_, (triples, st')) <- pElement' (rdfTriplesP st)
-  newlines
+  -- [TODO] Ensure no attributes
+  triples <- pNodeElementList st
   pure $ mkRdf triples Nothing pm
 
-pRdfDescription :: Rdf a => ParseState -> Parser (RDF a)
-pRdfDescription st = pElement "rdf:RDF" (pRdfDescription' st)
+pNodeElementList :: ParseState -> Parser Triples
+pNodeElementList st = do
+  pWs
+  snd <$> pElement' (pRdfTriples st)
 
+pRdfTriples :: ParseState -> Parser Triples
+pRdfTriples st = do
+  pElement "rdf:Description" $ do
+    pWs
+    ((subj, reifiedTriples), st') <- pSubject st
+    ts <- concat <$> many (pPredicateObject st')
+    pWs
+    -- tree <- showTree
+    -- error (show tree)
+    pEndOfInput
+    pure (ts <> reifiedTriples)
 {-
 [ Text "\n"
 , Element
