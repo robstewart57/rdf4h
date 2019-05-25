@@ -79,6 +79,7 @@ data ParseState = ParseState
   , stateLang :: Maybe Text
   , stateSubject :: Maybe Subject
   , stateGenId :: Int
+  , stateListIndex :: Int
   } deriving(Show)
 
 data ParserException = ParserException String
@@ -99,7 +100,7 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
     parseXml = Xeno.fromRawXml . T.encodeUtf8
     parseRdf = first ParseFailure . join . second parseRdf'
     parseRdf' ns = evalState (runParserT (rdfParser bUrl dUrl) ns) initState
-    initState = ParseState bUrl empty empty 0
+    initState = ParseState bUrl empty empty 0 0
 -- TODO: use bUrl and dUrl
 
 rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
@@ -168,11 +169,11 @@ pSubject = do
       let s = BNode bn
       setSubject (Just s)
       pure s
-    -- Default subject: a new blank node
     pUnode = do
       s <- unode <$> pAboutAttr
       setSubject (Just s)
       pure s
+    -- Default subject: a new blank node
     pBnodeGen = do
       s <- newBNode
       setSubject (Just s)
@@ -199,21 +200,24 @@ pLang :: Parser (Maybe Text)
 pLang = optional (pAttr "xml:lang")
 
 pPropertyEltList :: Parser Triples
-pPropertyEltList = pWs *> fmap mconcat (many (pPropertyElt <* pWs))
+pPropertyEltList =  pWs
+                 *> resetListIndex
+                 *> fmap mconcat (many (pPropertyElt <* pWs))
 
 pPropertyElt :: Parser Triples
 pPropertyElt = pAnyElement $ do
-   p <- unode <$> pName
-   -- [TODO] check URI
-   pParseTypeLiteralPropertyElt p
-     -- <|> pLiteralPropertyElt p
-     -- <|> pParseTypeLiteralPropertyElt p
-     <|> pParseTypeResourcePropertyElt p
-     <|> pParseTypeCollectionPropertyElt p
-     <|> pParseTypeOtherPropertyElt p
-     <|> pResourcePropertyElt p
-     <|> pLiteralPropertyElt p
-     <|> pEmptyPropertyElt p
+  p <- unode <$> (pName >>= listExpansion)
+  -- [TODO] check URI
+  pParseTypeLiteralPropertyElt p
+    <|> pParseTypeResourcePropertyElt p
+    <|> pParseTypeCollectionPropertyElt p
+    <|> pParseTypeOtherPropertyElt p
+    <|> pResourcePropertyElt p
+    <|> pLiteralPropertyElt p
+    <|> pEmptyPropertyElt p
+  where
+    listExpansion "rdf:li" = nextListIndex
+    listExpansion u        = pure u
 
 pResourcePropertyElt :: Node -> Parser Triples
 pResourcePropertyElt p = do
@@ -258,13 +262,34 @@ pParseTypeResourcePropertyElt p = do
   pure ts
 
 pParseTypeCollectionPropertyElt :: Node -> Parser Triples
-pParseTypeCollectionPropertyElt _p = do
+pParseTypeCollectionPropertyElt p = do
   -- [TODO] idAttr
   pt <- pAttr "rdf:parseType"
   guard (pt == "Collection")
-  -- pNodeElementList
-  -- pWs *> (mconcat <$> many pNodeElement)
-  pFail "TODO" -- [TODO]
+  s <- currentSubject
+  case s of
+    Nothing -> pure mempty
+    Just s' -> do
+      r <- optional pNodeElement
+      case r of
+        Nothing -> pure [Triple s' p rdfNilNode]
+        Just ts1 -> do
+          s'' <- currentSubject
+          n <- newBNode
+          let ts2 = maybe mempty (\s''' -> [Triple s' p n, Triple n rdfFirstNode s''']) s''
+          ts3 <- go n
+          pure $ mconcat [ts1, ts2, ts3]
+  where
+    go s = do
+      r <- optional pNodeElement
+      case r of
+        Nothing -> pure $ [Triple s rdfRestNode rdfNilNode]
+        Just ts1 -> do
+          s' <- currentSubject
+          n <- newBNode
+          let ts2 = maybe mempty (\s'' -> [Triple s rdfRestNode n, Triple n rdfFirstNode s'']) s'
+          ts3 <- go n
+          pure $ mconcat [ts1, ts2, ts3]
 
 pParseTypeOtherPropertyElt :: Node -> Parser Triples
 pParseTypeOtherPropertyElt _p = do
@@ -324,6 +349,14 @@ newBNode = do
   modify $ \st -> st { stateGenId = stateGenId st + 1 }
   st <- get
   pure $ BNodeGen (stateGenId st)
+
+nextListIndex :: Parser Text
+nextListIndex = do
+  modify $ \st -> st { stateListIndex = stateListIndex st + 1 }
+  (rdfListIndex <>) . T.pack . show . stateListIndex <$> get
+
+resetListIndex :: Parser ()
+resetListIndex = modify $ \st -> st { stateListIndex = 0 }
 
 currentBaseUri :: Parser (Maybe BaseUrl)
 currentBaseUri = stateBaseUri <$> get
@@ -428,170 +461,3 @@ xmlEg = T.pack $ unlines
 -- pElem :: Text -> Parser Text
 -- oneOf :: Parser [a] -> Parser a
 -- noneOf :: Parser [a] -> Parser a
-
-
----------------------------
--- Example trees from xeno
-
--- data/xml/example07.rdf
-{-
-[ Text "\n"
-, Element "rdf:RDF"
-    [ ("xmlns:dc","http://purl.org/dc/elements/1.1/")
-    , ("xmlns:ex","http://example.org/stuff/1.0/")
-    , ("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-    ]
-    [ Text "\n  "
-    , Element "rdf:Description"
-        [ ("rdf:about","http://www.w3.org/TR/rdf-syntax-grammar")
-        , ("dc:title","RDF/XML Syntax Specification (Revised)")
-        ]
-        [ Text "\n    "
-        , Element "ex:editor"
-            []
-            [ Text "\n      "
-            , Element "rdf:Description"
-                [ ("ex:fullName","Dave Beckett")
-                ]
-                [ Text "\n        "
-                , Element "ex:homePage"
-                    [ ("rdf:resource","http://purl.org/net/dajobe/")
-                    ]
-                    []
-                , Text "\n      "
-                ]
-            , Text "\n    "
-            ]
-        , Text "\n  "
-        ]
-    , Text "\n"
-    ]
-, Text "\n"
-]
--}
-
-
-{- rdf-tests/rdf-xml/amp-in-url/test001.rdf
-
-[ Text "\n\n"
-, Element "rdf:RDF"
-  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-  ]
-  [ Text "\n\n  "
-  , Element "rdf:Description"
-    [("rdf:about","http://example/q?abc=1&def=2")
-    ]
-    [ Text "\n    "
-    , Element "rdf:value"
-      []
-      [Text "xxx"]
-    , Text "\n  "
-    ]
-  , Text "\n\n"
-  ]
-, Text "\n"
-]
--}
-
-{- "rdf-tests/rdf-xml/rdfms-rdf-names-use/error-001.rdf"
-
-[ Text "\n\n\n"
-, Element "rdf:RDF"
-  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
-  [ Text "\n  "
-  , Element "rdf:RDF"
-    []
-    []
-  , Text "\n"
-  ]
-, Text "\n"
-]
-
--}
-
-
-
-{- "rdf-tests/rdf-xml/rdfms-rdf-names-use/error-011.rdf"
-Description is forbidden as a property element name.
-
-[ Text "\n\n\n"
-, Element "rdf:RDF"
-  [("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
-  [ Text "\n  "
-  , Element "rdf:Description"
-    [("rdf:about","http://example.org/node1")]
-    [ Text "\n    "
-    , Element "rdf:Description"
-      [("rdf:resource","http://example.org/node2")]
-      []
-    , Text "\n  "
-    ]
- , Text "\n"
- ]
-, Text "\n"
-]
-
--}
-
-{- "rdf-tests/rdf-xml/rdf-charmod-literals/test001.rdf"
-
-[ Text "\n\n\n"
-, Element "rdf:RDF"
-  [("xmlns:eg","http://example.org/"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
-  [ Text "\n   \n\n   "
-  , Element "rdf:Description"
-    [("rdf:about","http://www.w3.org/TR/2002/WD-charmod-20020220")]
-    [ Text "\n\n   \n      "
-    , Element "eg:Creator"
-      [("eg:named","D\252rst")]
-      []
-    , Text "\n      \n\n   "
-    ]
-  , Text "\n"
-  ]
-, Text "\n"
-]
-
--}
-
-{- rdf-tests/rdf-xml/rdf-charmod-uris/test001.rdf
-
-[ Text "\r\n\r\n\r\n"
-, Element "rdf:RDF"
-  [("xmlns:eg","http://example.org/#"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
-  [ Text "\r\n\r\n  \r\n\r\n   "
-  , Element "rdf:Description"
-    [("rdf:about","http://example.org/#Andr\233")]
-    [ Text "\r\n      "
-    , Element "eg:owes"
-      []
-      [Text "2000"]
-    , Text "\r\n   "
-    ]
-  , Text "\r\n"
-  ]
-, Text "\r\n"
-]
-
--}
-
-{- "rdf-tests/rdf-xml/rdf-charmod-uris/test002.rdf"
-
-[ Text "\r\n\r\n"
-, Element "rdf:RDF"
-  [("xmlns:eg","http://example.org/#"),("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")]
-  [ Text "\r\n \r\n  \r\n\r\n   "
-  , Element "rdf:Description"
-    [("rdf:about","http://example.org/#Andr%C3%A9")]
-    [ Text "\r\n      "
-    , Element "eg:owes"
-      []
-      [Text "2000"]
-    , Text "\r\n   "
-    ]
-  , Text "\r\n"
-  ]
-, Text " \r\n"
-]
-
--}

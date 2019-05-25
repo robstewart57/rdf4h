@@ -4,7 +4,7 @@
 module Text.RDF.RDF4H.ParserUtils
   ( Parser(..)
   , parseFromURL
-  , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode
+  , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode, rdfListIndex
   , xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri
   ) where
 
@@ -48,6 +48,9 @@ rdfTypeNode   = UNode $ mkUri rdf "type"
 rdfNilNode    = UNode $ mkUri rdf "nil"
 rdfFirstNode  = UNode $ mkUri rdf "first"
 rdfRestNode   = UNode $ mkUri rdf "rest"
+
+rdfListIndex :: Text
+rdfListIndex = mkUri rdf "_"
 
 xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: Text
 xsdIntUri     = mkUri xsd "integer"
