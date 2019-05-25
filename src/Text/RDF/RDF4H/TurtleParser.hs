@@ -19,7 +19,6 @@ import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.RDF.Types
 import Data.RDF.IRI
-import Data.RDF.Namespace
 import Text.RDF.RDF4H.ParserUtils
 import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
@@ -314,18 +313,6 @@ t_collection = withConstantSubjectPredicate $
       setPredicate rdfRestNode
       return bn
     getSubject = get >>= \(_, _, _, _, s, _, _, _) -> pure s
-
-rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkUri rdf "type"
-rdfNilNode    = UNode $ mkUri rdf "nil"
-rdfFirstNode  = UNode $ mkUri rdf "first"
-rdfRestNode   = UNode $ mkUri rdf "rest"
-
-xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: T.Text
-xsdIntUri     = mkUri xsd "integer"
-xsdDoubleUri  = mkUri xsd "double"
-xsdDecimalUri = mkUri xsd "decimal"
-xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_literal =

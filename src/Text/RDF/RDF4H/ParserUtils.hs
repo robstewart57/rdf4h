@@ -1,17 +1,22 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Text.RDF.RDF4H.ParserUtils(
-  parseFromURL,
-  Parser(..)
-) where
+module Text.RDF.RDF4H.ParserUtils
+  ( Parser(..)
+  , parseFromURL
+  , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode
+  , xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri
+  ) where
 
 import Data.RDF.Types
+import Data.RDF.Namespace
 
 import Control.Exception.Lifted
 import Network.HTTP.Conduit
 import Data.Text.Encoding (decodeUtf8)
 import Data.Semigroup ((<>))
 import qualified Data.ByteString.Lazy as BS
+import           Data.Text (Text)
 import qualified Data.Text as T
 
 data Parser = Parsec | Attoparsec
@@ -25,8 +30,8 @@ parseFromURL :: (Rdf rdfImpl) => (T.Text -> Either ParseFailure (RDF rdfImpl)) -
 parseFromURL parseFunc url = do
   result <- Control.Exception.Lifted.try $ simpleHttp url
   case result of
-    Left (ex::HttpException) ->
-      case ex of
+    Left (err :: HttpException) ->
+      case err of
         (HttpExceptionRequest _req content) ->
           case content of
             ConnectionTimeout ->
@@ -37,3 +42,15 @@ parseFromURL parseFunc url = do
     Right bs -> do
       let s = decodeUtf8 $ BS.toStrict bs
       return (parseFunc s)
+
+rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
+rdfTypeNode   = UNode $ mkUri rdf "type"
+rdfNilNode    = UNode $ mkUri rdf "nil"
+rdfFirstNode  = UNode $ mkUri rdf "first"
+rdfRestNode   = UNode $ mkUri rdf "rest"
+
+xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: Text
+xsdIntUri     = mkUri xsd "integer"
+xsdDoubleUri  = mkUri xsd "double"
+xsdDecimalUri = mkUri xsd "decimal"
+xsdBooleanUri = mkUri xsd "boolean"
