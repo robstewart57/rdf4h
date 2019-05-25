@@ -3,6 +3,7 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |An parser for the RDF/XML format
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
@@ -15,29 +16,29 @@ module Text.RDF.RDF4H.XmlParser
   ) where
 
 import Text.RDF.RDF4H.ParserUtils hiding (Parser)
-import Data.RDF.IRI
+--import Data.RDF.IRI
 import Data.RDF.Types hiding (empty)
-import Data.RDF.Graph.TList
+--import Data.RDF.Graph.TList
 
-import Debug.Trace
+--import Debug.Trace
 import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Control.Monad.State.Strict
 import Data.Semigroup ((<>))
 import qualified Data.Map as Map
-import Data.Maybe
+--import Data.Maybe
 import Data.Bifunctor
-import Data.Foldable
+--import Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import Data.Text (Text)
-import Data.Text.Encoding
+--import Data.Text.Encoding
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
 import Xmlbf hiding (Node, Parser)
-import qualified Xmlbf (Node)
+--import qualified Xmlbf (Node)
 import qualified Xmlbf.Xeno as Xeno
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
@@ -74,7 +75,7 @@ type Parser = ParserT (State ParseState)
 
 -- |Local state for the parser (dependant on the parent xml elements)
 data ParseState = ParseState
-  { stateBaseUrl :: Maybe BaseUrl
+  { stateBaseUri :: Maybe BaseUrl
   , stateLang :: Maybe Text
   , stateSubject :: Maybe Subject
   , stateGenId :: Int
@@ -84,8 +85,8 @@ data ParserException = ParserException String
                      deriving (Show)
 instance Exception ParserException
 
-testXeno :: Text -> Either String [Xmlbf.Node]
-testXeno = Xeno.fromRawXml . T.encodeUtf8
+-- testXeno :: Text -> Either String [Xmlbf.Node]
+-- testXeno = Xeno.fromRawXml . T.encodeUtf8
 
 -- |Parse a xml Text to an RDF representation
 parseXmlRDF :: (Rdf a)
@@ -102,24 +103,11 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
 -- TODO: use bUrl and dUrl
 
 rdfParser :: Rdf a => Maybe BaseUrl -> Maybe Text -> Parser (RDF a)
-rdfParser bUrl dUrl = do
+rdfParser _bUrl _dUrl = do
   rdf <- pRdf
   pWs
   pEndOfInput
   return rdf
-
-{-
-[ ("xmlns:si","https://www.w3schools.com/rdf/")
-, ("xmlns:rdf","http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-]
--}
-
-oneAttr :: Parser (Text,Text)
-oneAttr = do
-  xs <- pAttrs
-  case length (HM.toList xs) of
-    1 -> pure $ head (HM.toList xs)
-    _ -> pFail "not one attr"
 
 {- NOTE:
   remember to use `showTree` in the fork of xmlbf when pEndOfInput needs
@@ -128,6 +116,8 @@ oneAttr = do
 
 pRdf :: Rdf a => Parser (RDF a)
 pRdf = pElement "rdf:RDF" $ do
+  bUri <- optional pBaseUri
+  setBaseUri bUri
   pm <- pPrefixMappings
   -- [TODO] Ensure no attributes
   triples <- pNodeElementList
@@ -138,6 +128,9 @@ pPrefixMappings = PrefixMappings <$> pm
   where
     pm = Map.fromList . HM.foldlWithKey' getPrefixes mempty <$> pAttrs
     getPrefixes ps k v = maybe ps (\k' -> (k', v):ps) (T.stripPrefix "xmlns:" k)
+
+pBaseUri :: Parser BaseUrl
+pBaseUri = BaseUrl <$> pAttr "xml:base"
 
 pNodeElementList :: Parser Triples
 pNodeElementList = pWs *> (mconcat <$> many pNodeElement)
@@ -159,23 +152,25 @@ pNodeElement = pAnyElement $ do
 
 pSubject :: Parser (Node, Triples)
 pSubject = do
-  n <- pUnodeId <|> pUnode <|> pBnode <|> pBnodeGen
+  s <- pUnodeId <|> pBnode <|> pUnode <|> pBnodeGen
   uri <- pName
   pLang >>= setLang
-  mtype <- optional (pType1 n uri)
-  ts <- handlePropertyAttr n uri
-  pure (n, (maybe ts (:ts) mtype))
+  mtype <- optional (pType1 s uri)
+  ts <- pPropertyAttrs s
+  pure (s, (maybe ts (:ts) mtype))
   where
     pUnodeId = do
-      _ <- pIdAttr
-      pFail "[TODO] rdf:ID"
-    pUnode = do
-      s <- unode <$> pAboutAttr
-      setSubject (Just s)
-      pure s
+      nid <- pIdAttr
+      -- [FIXME] undefined
+      mkUNodeID nid >>= maybe undefined pure
     pBnode = do
       bn <- pNodeIdAttr
       let s = BNode bn
+      setSubject (Just s)
+      pure s
+    -- Default subject: a new blank node
+    pUnode = do
+      s <- unode <$> pAboutAttr
       setSubject (Just s)
       pure s
     pBnodeGen = do
@@ -184,16 +179,21 @@ pSubject = do
       pure s
     pType1 n uri =
       if uri /= "rdf:Description"
-        then pure $ triple n rdfTypeNode (unode uri)
+        then pure $ Triple n rdfTypeNode (unode uri)
         else empty
-    handlePropertyAttr n uri = do
-      attrs <- pAttrs
-      HM.elems <$> HM.traverseWithKey f attrs
-      where
-        -- [TODO] resolve IRIs
-        f attr value = pure $ if attr == "rdf:type"
-          then triple n rdfTypeNode (unode value)
-          else triple n (unode attr) (lnode (plainL value))
+
+pPropertyAttrs :: Node -> Parser Triples
+pPropertyAttrs s = do
+  attrs <- pAttrs
+  HM.elems <$> HM.traverseWithKey f attrs
+  where
+    -- [TODO] resolve IRIs
+    f attr value = if attr == "rdf:type"
+      then pure $ Triple s rdfTypeNode (unode value)
+      else do
+        lang <- currentLang
+        pure $ let mkLiteral = maybe plainL (flip plainLL) lang
+               in Triple s (unode attr) (lnode (mkLiteral value))
 
 pLang :: Parser (Maybe Text)
 pLang = optional (pAttr "xml:lang")
@@ -205,12 +205,14 @@ pPropertyElt :: Parser Triples
 pPropertyElt = pAnyElement $ do
    p <- unode <$> pName
    -- [TODO] check URI
-   pResourcePropertyElt p
-     <|> pLiteralPropertyElt p
-     <|> pParseTypeLiteralPropertyElt p
+   pParseTypeLiteralPropertyElt p
+     -- <|> pLiteralPropertyElt p
+     -- <|> pParseTypeLiteralPropertyElt p
      <|> pParseTypeResourcePropertyElt p
      <|> pParseTypeCollectionPropertyElt p
      <|> pParseTypeOtherPropertyElt p
+     <|> pResourcePropertyElt p
+     <|> pLiteralPropertyElt p
      <|> pEmptyPropertyElt p
 
 pResourcePropertyElt :: Node -> Parser Triples
@@ -218,13 +220,11 @@ pResourcePropertyElt p = do
   -- [TODO] idAttr
   -- [TODO] rdf:ID
   pWs
-  uri <- pName
-  let p = unode uri
   s <- currentSubject
   ts <- pNodeElement
   o <- currentSubject
   pWs
-  let mt = flip triple p <$> s <*> o
+  let mt = flip Triple p <$> s <*> o
   pure $ maybe ts (:ts) mt
 
 pLiteralPropertyElt :: Node -> Parser Triples
@@ -236,10 +236,10 @@ pLiteralPropertyElt p = do
   lang <- liftA2 (<|>) pLang currentLang
   let t' = TL.toStrict t
   let literal = maybe (plainL t') id $ (typedL t' <$> dt) <|> (plainLL t' <$> lang)
-  pure $ maybe mempty (\s' -> [triple s' p (lnode literal)]) s
+  pure $ maybe mempty (\s' -> [Triple s' p (lnode literal)]) s
 
 pParseTypeLiteralPropertyElt :: Node -> Parser Triples
-pParseTypeLiteralPropertyElt p = do
+pParseTypeLiteralPropertyElt _p = do
   -- [TODO] idAttr
   pt <- pAttr "rdf:parseType"
   guard (pt == "Literal")
@@ -250,23 +250,24 @@ pParseTypeResourcePropertyElt p = do
   -- [TODO] idAttr
   pt <- pAttr "rdf:parseType"
   guard (pt == "Resource")
-  o <- newBNode
   s <- currentSubject
-  let ts = maybe mempty (\s' -> [triple s' p o]) s
-  setSubject (Just o)
+  o <- newBNode
+  let ts = maybe mempty (\s' -> [Triple s' p o]) s
+  -- setSubject (Just o)
   -- pPropertyEltList [TODO]
   pure ts
 
 pParseTypeCollectionPropertyElt :: Node -> Parser Triples
-pParseTypeCollectionPropertyElt p = do
+pParseTypeCollectionPropertyElt _p = do
   -- [TODO] idAttr
   pt <- pAttr "rdf:parseType"
   guard (pt == "Collection")
   -- pNodeElementList
+  -- pWs *> (mconcat <$> many pNodeElement)
   pFail "TODO" -- [TODO]
 
 pParseTypeOtherPropertyElt :: Node -> Parser Triples
-pParseTypeOtherPropertyElt p = do
+pParseTypeOtherPropertyElt _p = do
   -- [TODO] idAttr
   pt <- pAttr "rdf:parseType"
   guard (pt /= "Resource" && pt /= "Literal" && pt /= "Collection")
@@ -274,22 +275,17 @@ pParseTypeOtherPropertyElt p = do
 
 pEmptyPropertyElt :: Node -> Parser Triples
 pEmptyPropertyElt p = do
-  -- [TODO] idAttr
+  -- [TODO] idAttr, rdf:ID
   s <- currentSubject
-  l <- currentLang
-  ts <- optional (pResourceAttr' s <|> pNodeIdAttr' s l <|> pDatatypeAttr' s l)
-  pure $ maybe mempty id ts
-  -- ps <- pPropertyAttr -- [TODO]
+  case s of
+    Nothing -> pure mempty
+    Just s' -> do
+      o <- pResourceAttr' <|> pNodeIdAttr' <|> newBNode
+      ts <- pPropertyAttrs o
+      pure (Triple s' p o : ts)
   where
-    pResourceAttr' s = do
-      o <- unode <$> pResourceAttr
-      pure $ maybe mempty (\s' -> [triple s' p o]) s
-    pNodeIdAttr' s l = do
-      bn <- pNodeIdAttr
-      let o = BNode bn
-      pure $ maybe mempty (\s' -> [triple s' p o]) s
-    pDatatypeAttr' s l = do
-      pFail "TODO" -- [TODO]
+    pResourceAttr' = unode <$> pResourceAttr
+    pNodeIdAttr' = BNode <$> pNodeIdAttr
 
 pIdAttr :: Parser Text
 pIdAttr = pAttr "rdf:ID" -- [TODO] Check
@@ -325,9 +321,20 @@ checkIRI msg = maybe (pFail ("Malformed IRI: " <> msg)) pure . uriValidate
 
 newBNode :: Parser Node
 newBNode = do
-  st <- get
   modify $ \st -> st { stateGenId = stateGenId st + 1 }
+  st <- get
   pure $ BNodeGen (stateGenId st)
+
+currentBaseUri :: Parser (Maybe BaseUrl)
+currentBaseUri = stateBaseUri <$> get
+
+setBaseUri :: (Maybe BaseUrl) -> Parser ()
+setBaseUri u = modify (\st -> st { stateBaseUri = u })
+
+mkUNodeID :: Text -> Parser (Maybe Node)
+mkUNodeID t = currentBaseUri >>= \case
+  Nothing          -> pure Nothing
+  Just (BaseUrl u) -> pure . Just . unode $ mconcat [u, "#", t]
 
 currentSubject :: Parser (Maybe Subject)
 currentSubject = stateSubject <$> get
@@ -374,6 +381,7 @@ example12 = T.pack $ unlines
   , "</rdf:RDF>"
   ]
 
+xmlEg :: Text
 xmlEg = T.pack $ unlines
   [ "<?xml version=\"1.0\"?>"
   , "<rdf:RDF"
@@ -386,20 +394,6 @@ xmlEg = T.pack $ unlines
   , "</rdf:RDF>"
   ]
 
-test1 :: Bool
-test1 = triplesOf got == expected
-  where
-    Right (got::RDF TList) = parseXmlRDF Nothing Nothing xmlEg
-    expected =
-      [ Triple
-         (UNode "https://www.w3schools.com")
-         (UNode "si:title")
-         (LNode (PlainL "W3Schools"))
-      , Triple
-         (UNode "https://www.w3schools.com")
-         (UNode "si:author")
-         (LNode (PlainL "Jan Egil Refsnes"))
-      ]
 
 -- missing in Xmlbf
 
@@ -412,24 +406,24 @@ test1 = triplesOf got == expected
 -- some reason, capture it using 'pText' before using 'pElement''.
 --
 -- Consumes the element from the parser state.
-pElement' :: Parser a -> Parser (Text, a)
-pElement' = liftA2 (,) pName
+-- pElement' :: Parser a -> Parser (Text, a)
+-- pElement' = liftA2 (,) pName
 
-pText' :: TL.Text -> Parser TL.Text
-pText' t = do
-  let pTextFail = pFail ("Missing text node " <> show t)
-  do t' <- pText
-     if t == t' then pure t
-     else pTextFail
-   <|> pTextFail
+-- pText' :: TL.Text -> Parser TL.Text
+-- pText' t = do
+--   let pTextFail = pFail ("Missing text node " <> show t)
+--   do t' <- pText
+--      if t == t' then pure t
+--      else pTextFail
+--    <|> pTextFail
 
 
 -- parser combinators missing in Xmlbf
-between :: Parser a -> Parser b -> Parser c -> Parser c
-between open close thing  = open *> thing <* close
-
-manyTill :: Parser a -> Parser end -> Parser [a]
-manyTill thing z = many thing <* z
+-- between :: Parser a -> Parser b -> Parser c -> Parser c
+-- between open close thing  = open *> thing <* close
+--
+-- manyTill :: Parser a -> Parser end -> Parser [a]
+-- manyTill thing z = many thing <* z
 
 -- pElem :: Text -> Parser Text
 -- oneOf :: Parser [a] -> Parser a
