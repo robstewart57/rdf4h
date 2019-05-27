@@ -70,7 +70,7 @@ loadExpectedGraph1 fname = do
 
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure (RDF TList))
 loadInputGraph1 dir fname =
-  (parseString (XmlParser Nothing (mkDocUrl1 testBaseUri fname)) <$>
+  (parseString (XmlParser Nothing (mkDocUrl1 testBaseUri dir fname)) <$>
      TIO.readFile (printf "%s/%s.rdf" dir fname :: String))
 
 doGoodConformanceTest   :: IO (Either ParseFailure (RDF TList)) ->
@@ -431,5 +431,5 @@ normalizeN n            = n
 testBaseUri :: String
 testBaseUri  = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
 
-mkDocUrl1 :: String -> String -> Maybe T.Text
-mkDocUrl1 baseDocUrl fname        = Just $ T.pack $ printf "%s%s.rdf" baseDocUrl fname
+mkDocUrl1 :: String -> String -> String -> Maybe T.Text
+mkDocUrl1 baseDocUrl dir fname = Just . T.pack $ printf "%s/%s/%s.rdf" baseDocUrl dir fname
