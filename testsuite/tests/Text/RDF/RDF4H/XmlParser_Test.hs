@@ -174,7 +174,7 @@ test_parseXmlRDF_vCardPersonal :: Assertion
 test_parseXmlRDF_vCardPersonal = testParse
     "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\
             \ xmlns:v=\"http://www.w3.org/2006/vcard/ns#\">\
-      \<v:VCard rdf:about = \"http://example.com/me/corky\" >\
+      \<v:VCard rdf:about=\"http://example.com/me/corky\" >\
         \<v:fn>Corky Crystal</v:fn>\
         \<v:nickname>Corks</v:nickname>\
         \<v:tel>\
