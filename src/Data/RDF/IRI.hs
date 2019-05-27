@@ -127,7 +127,7 @@ validateIRI t = t <$ parseIRI t
 
 -- | IRI parsing and resolution according to algorithm 5.2 from RFC3986
 -- See: http://www.ietf.org/rfc/rfc3986.txt
--- [FIXME] Currently, this is a correct but naive implemenation.
+-- [FIXME] Currently, this is a correct but naive implementation.
 resolveIRI :: Text -> Text -> Either String Text
 resolveIRI baseIri iri = serializeIRI <$> resolvedIRI
   where

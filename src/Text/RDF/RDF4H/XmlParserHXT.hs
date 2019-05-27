@@ -220,7 +220,7 @@ isMetaAttr = isA (== "rdf:about")
 --
 -- And that specifically:
 --
---   <rdf:Description> 
+--   <rdf:Description>
 --     <rdf:foo>foo</rdf:foo>
 --    </rdf:Description>
 --
@@ -278,7 +278,7 @@ parsePredicatesFromChildren = updateState
         , second hasPredicateAttr :-> (defaultA <+> (mkBlankNode &&& arr id >>> arr2A parsePredicateAttr))
         , this :-> defaultA
         ]
-        
+
         -- See: Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use
         --   section: Illegal or unusual use of names from the RDF namespace
         --
@@ -317,7 +317,7 @@ validPropElementName = proc (state,predXml) -> do
 parseObjectsFromChildren :: forall a. (ArrowIf a, ArrowXml a, ArrowState GParseState a)
                          => LParseState -> Predicate -> a XmlTree Triple
 parseObjectsFromChildren s p =
-  choiceA 
+  choiceA
    [ isText :-> (neg( isWhiteSpace) >>> getText >>> arr (Triple (stateSubject s) p . mkLiteralNode s))
    , isElem :-> (parseObjectDescription)
    ]
@@ -405,10 +405,8 @@ validNodeElementName = neg (hasName "rdf:RDF")
                        >>> neg (hasName "rdf:aboutEach")
                        >>> neg (hasName "rdf:aboutEachPrefix")
 
-rdfXmlLiteral :: Text
 rdfFirst,rdfRest,rdfNil,rdfType,rdfStatement,rdfSubject,rdfPredicate,rdfObject :: Node
 
-rdfXmlLiteral = T.pack "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral"
 rdfFirst = (unode . T.pack) "rdf:first"
 rdfRest = (unode . T.pack) "rdf:rest"
 rdfNil = (unode . T.pack) "rdf:nil"

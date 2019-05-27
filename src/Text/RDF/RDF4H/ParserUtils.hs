@@ -5,6 +5,7 @@ module Text.RDF.RDF4H.ParserUtils
   ( Parser(..)
   , parseFromURL
   , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode, rdfListIndex
+  , rdfSubjectNode, rdfPredicateNode, rdfObjectNode, rdfStatementNode, rdfXmlLiteral
   , xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri
   ) where
 
@@ -44,13 +45,20 @@ parseFromURL parseFunc url = do
       return (parseFunc s)
 
 rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkUri rdf "type"
-rdfNilNode    = UNode $ mkUri rdf "nil"
-rdfFirstNode  = UNode $ mkUri rdf "first"
-rdfRestNode   = UNode $ mkUri rdf "rest"
+rdfTypeNode  = UNode $ mkUri rdf "type"
+rdfNilNode   = UNode $ mkUri rdf "nil"
+rdfFirstNode = UNode $ mkUri rdf "first"
+rdfRestNode  = UNode $ mkUri rdf "rest"
 
-rdfListIndex :: Text
+rdfSubjectNode, rdfPredicateNode, rdfObjectNode, rdfStatementNode :: Node
+rdfSubjectNode   = UNode $ mkUri rdf "subject"
+rdfPredicateNode = UNode $ mkUri rdf "predicate"
+rdfObjectNode    = UNode $ mkUri rdf "object"
+rdfStatementNode = UNode $ mkUri rdf "Statement"
+
+rdfListIndex, rdfXmlLiteral :: Text
 rdfListIndex = mkUri rdf "_"
+rdfXmlLiteral = mkUri rdf "XMLLiteral"
 
 xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: Text
 xsdIntUri     = mkUri xsd "integer"

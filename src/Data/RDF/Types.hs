@@ -40,7 +40,7 @@ module Data.RDF.Types (
   PrefixMappings(PrefixMappings),PrefixMapping(PrefixMapping),
 
   -- * Supporting types
-  BaseUrl(BaseUrl), NodeSelector, ParseFailure(ParseFailure)
+  BaseUrl(..), NodeSelector, ParseFailure(ParseFailure)
 
 ) where
 
@@ -462,7 +462,7 @@ class RdfSerializer s where
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl Text
+newtype BaseUrl = BaseUrl { unBaseUrl :: Text }
   deriving (Eq, Ord, Show, NFData, Semigroup, Generic)
 
 instance Binary BaseUrl

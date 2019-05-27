@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DoAndIfThenElse #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DoAndIfThenElse     #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE TupleSections       #-}
 
 -- |An parser for the RDF/XML format
 -- <http://www.w3.org/TR/REC-rdf-syntax/>.
@@ -16,7 +17,7 @@ module Text.RDF.RDF4H.XmlParser
   ) where
 
 import Text.RDF.RDF4H.ParserUtils hiding (Parser)
---import Data.RDF.IRI
+import Data.RDF.IRI
 import Data.RDF.Types hiding (empty)
 --import Data.RDF.Graph.TList
 
@@ -134,7 +135,7 @@ pBaseUri :: Parser BaseUrl
 pBaseUri = BaseUrl <$> pAttr "xml:base"
 
 pNodeElementList :: Parser Triples
-pNodeElementList = pWs *> (mconcat <$> many pNodeElement)
+pNodeElementList = pWs *> (mconcat <$> some pNodeElement)
 
 -- |White spaces parser
 pWs :: Parser ()
@@ -155,15 +156,14 @@ pSubject :: Parser (Node, Triples)
 pSubject = do
   s <- pUnodeId <|> pBnode <|> pUnode <|> pBnodeGen
   uri <- pName
+  when (not (checkNodeUri uri)) (pFail $ "URI not allowed: " <> T.unpack uri)
   pLang >>= setLang
   mtype <- optional (pType1 s uri)
   ts <- pPropertyAttrs s
   pure (s, (maybe ts (:ts) mtype))
   where
-    pUnodeId = do
-      nid <- pIdAttr
-      -- [FIXME] undefined
-      mkUNodeID nid >>= maybe undefined pure
+    checkNodeUri uri = isNotCoreSyntaxTerm uri && uri /= "rdf:li" && isNotOldTerm uri
+    pUnodeId = pIdAttr >>= mkUNodeID
     pBnode = do
       bn <- pNodeIdAttr
       let s = BNode bn
@@ -189,9 +189,15 @@ pPropertyAttrs s = do
   HM.elems <$> HM.traverseWithKey f attrs
   where
     -- [TODO] resolve IRIs
-    f attr value = if attr == "rdf:type"
-      then pure $ Triple s rdfTypeNode (unode value)
-      else do
+    -- https://www.w3.org/TR/rdf-syntax-grammar/#propertyAttributeURIs
+    isPropertyAttrURI uri =  isNotCoreSyntaxTerm uri
+                          && uri /= "rdf:Description"
+                          && uri /= "rdf:li"
+                          && isNotOldTerm uri
+    f attr value
+      | not (isPropertyAttrURI attr) = pFail $ "URI not allowed for attribute: " <> T.unpack attr
+      | attr == "rdf:type" = pure $ Triple s rdfTypeNode (unode value)
+      | otherwise = do
         lang <- currentLang
         pure $ let mkLiteral = maybe plainL (flip plainLL) lang
                in Triple s (unode attr) (lnode (mkLiteral value))
@@ -221,33 +227,42 @@ pPropertyElt = pAnyElement $ do
 
 pResourcePropertyElt :: Node -> Parser Triples
 pResourcePropertyElt p = do
-  -- [TODO] idAttr
-  -- [TODO] rdf:ID
   pWs
+  mi <- optional pIdAttr
   s <- currentSubject
-  ts <- pNodeElement
+  ts1 <- pNodeElement
   o <- currentSubject
+  setSubject s
   pWs
   let mt = flip Triple p <$> s <*> o
-  pure $ maybe ts (:ts) mt
+  ts2 <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
+  pure $ maybe (ts1 <> ts2) (:(ts1 <> ts2)) mt
 
 pLiteralPropertyElt :: Node -> Parser Triples
 pLiteralPropertyElt p = do
-  -- [TODO] idAttr
+  mi <- optional pIdAttr
   dt <- optional (pAttr "rdf:datatype")
-  t <- pText
+  l <- pText
   s <- currentSubject
   lang <- liftA2 (<|>) pLang currentLang
-  let t' = TL.toStrict t
-  let literal = maybe (plainL t') id $ (typedL t' <$> dt) <|> (plainLL t' <$> lang)
-  pure $ maybe mempty (\s' -> [Triple s' p (lnode literal)]) s
+  let l' = TL.toStrict l
+      o = lnode $ maybe (plainL l') id $ (typedL l' <$> dt) <|> (plainLL l' <$> lang)
+      mt = (\s' -> Triple s' p o) <$> s
+  ts <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
+  pure $ maybe ts (:ts) mt
 
 pParseTypeLiteralPropertyElt :: Node -> Parser Triples
-pParseTypeLiteralPropertyElt _p = do
-  -- [TODO] idAttr
+pParseTypeLiteralPropertyElt p = do
+  mi <- optional pIdAttr
   pt <- pAttr "rdf:parseType"
   guard (pt == "Literal")
-  pFail "TODO" -- [TODO]
+  l <- pText -- [FIXME]
+  s <- currentSubject
+  let l' = TL.toStrict l
+      o = lnode (typedL l' rdfXmlLiteral)
+      mt = (\s' -> Triple s' p o) <$> s
+  ts <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
+  pure $ maybe ts (:ts) mt
 
 pParseTypeResourcePropertyElt :: Node -> Parser Triples
 pParseTypeResourcePropertyElt p = do
@@ -313,7 +328,7 @@ pEmptyPropertyElt p = do
     pNodeIdAttr' = BNode <$> pNodeIdAttr
 
 pIdAttr :: Parser Text
-pIdAttr = pAttr "rdf:ID" -- [TODO] Check
+pIdAttr = pAttr "rdf:ID" -- [TODO] Check ID
 
 pNodeIdAttr :: Parser Text
 pNodeIdAttr = pAttr "rdf:nodeID" -- [TODO] Check
@@ -341,8 +356,38 @@ pPropertyAttr = do
   where
     mkTriple s mkLiteral iri value = Triple s (unode iri) (mkLiteral value)
 
+pNoMoreChildren :: Parser ()
+pNoMoreChildren = pChildren >>= \case
+  [] -> pure ()
+  ns -> pFail $ "Unexpected remaining children: " <> show ns
+
 checkIRI :: String -> Text -> Parser Text
-checkIRI msg = maybe (pFail ("Malformed IRI: " <> msg)) pure . uriValidate
+checkIRI msg iri = do
+  bUri <- maybe mempty unBaseUrl <$> currentBaseUri
+  case uriValidate iri of
+    Nothing -> pFail ("Malformed IRI: " <> msg)
+    Just iri' -> either pFail pure (resolveIRI bUri iri')
+
+-- https://www.w3.org/TR/rdf-syntax-grammar/#coreSyntaxTerms
+isNotCoreSyntaxTerm :: Text -> Bool
+isNotCoreSyntaxTerm uri
+  =  uri /= "rdf:RDF" && uri /= "rdf:ID" && uri /= "rdf:about"
+  && uri /= "rdf:parseType" && uri /= "rdf:resource"
+  && uri /= "rdf:nodeID" && uri /= "rdf:datatype"
+
+-- https://www.w3.org/TR/rdf-syntax-grammar/#oldTerms
+isNotOldTerm :: Text -> Bool
+isNotOldTerm uri =  uri /= "rdf:aboutEach"
+                 && uri /= "rdf:aboutEachPrefix"
+                 && uri /= "rdf:bagID"
+
+reifyTriple :: Text -> Triple -> Parser Triples
+reifyTriple i (Triple s p' o) = do
+  n <- mkUNodeID i
+  pure [ Triple n rdfSubjectNode s
+       , Triple n rdfPredicateNode p'
+       , Triple n rdfObjectNode o
+       , Triple n rdfTypeNode rdfStatementNode ]
 
 newBNode :: Parser Node
 newBNode = do
@@ -350,6 +395,7 @@ newBNode = do
   st <- get
   pure $ BNodeGen (stateGenId st)
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#section-List-Expand
 nextListIndex :: Parser Text
 nextListIndex = do
   modify $ \st -> st { stateListIndex = stateListIndex st + 1 }
@@ -364,10 +410,10 @@ currentBaseUri = stateBaseUri <$> get
 setBaseUri :: (Maybe BaseUrl) -> Parser ()
 setBaseUri u = modify (\st -> st { stateBaseUri = u })
 
-mkUNodeID :: Text -> Parser (Maybe Node)
-mkUNodeID t = currentBaseUri >>= \case
-  Nothing          -> pure Nothing
-  Just (BaseUrl u) -> pure . Just . unode $ mconcat [u, "#", t]
+mkUNodeID :: Text -> Parser Node
+mkUNodeID t = currentBaseUri >>= pure . unode . \case
+  Nothing          -> t
+  Just (BaseUrl u) -> mconcat [u, "#", t]
 
 currentSubject :: Parser (Maybe Subject)
 currentSubject = stateSubject <$> get
