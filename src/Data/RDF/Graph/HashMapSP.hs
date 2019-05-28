@@ -67,7 +67,7 @@ prefixMappings' (HashSP (_, _, pms)) = pms
 
 addPrefixMappings' :: RDF HashSP -> PrefixMappings -> Bool -> RDF HashSP
 addPrefixMappings' (HashSP (tsMap, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  HashSP (tsMap, baseURL, merge pms pms')
 
 empty' :: RDF HashSP

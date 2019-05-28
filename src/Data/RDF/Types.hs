@@ -569,8 +569,8 @@ instance Show Namespace where
   show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (T.unpack prefix) (T.unpack uri)
 
 -- |An alias for a map from prefix to namespace URI.
-newtype PrefixMappings   = PrefixMappings (Map Text Text)
-  deriving (Eq, Ord,NFData, Generic)
+newtype PrefixMappings = PrefixMappings (Map Text Text)
+  deriving (Eq, Ord, NFData, Semigroup, Monoid, Generic)
 
 instance Binary PrefixMappings
 

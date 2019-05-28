@@ -78,7 +78,7 @@ prefixMappings' (TListC(_, _, pms)) = pms
 
 addPrefixMappings' :: RDF TList -> PrefixMappings -> Bool -> RDF TList
 addPrefixMappings' (TListC(ts, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  TListC(ts, baseURL, merge pms pms')
 
 baseUrl' :: RDF TList -> Maybe BaseUrl

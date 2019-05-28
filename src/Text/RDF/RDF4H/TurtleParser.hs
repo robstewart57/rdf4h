@@ -665,4 +665,4 @@ tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
     tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
     tryIriResolution' _ (Just dIri)           = either err pure (resolveIRI dIri iriFrag)
     tryIriResolution' _ _                     = either err pure (resolveIRI mempty iriFrag)
-    err m = unexpected $ "Cannot resolve IRI: " <> m <> " " <> show (mbUrl, mdUrl, iriFrag)
+    err m = unexpected $ mconcat ["Cannot resolve IRI: ", m, " ", show (mbUrl, mdUrl, iriFrag)]
