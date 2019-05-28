@@ -592,7 +592,7 @@ instance Show PrefixMapping where
 
 -- | Resolve a prefix using the given prefix mappings.
 resolveQName :: Text -> PrefixMappings -> Maybe Text
-resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
+resolveQName prefix (PrefixMappings pms) = Map.lookup prefix pms
 
 {-# INLINE mkAbsoluteUrl #-}
 {-# DEPRECATED mkAbsoluteUrl "Use resolveIRI instead, because mkAbsoluteUrl is a partial function" #-}

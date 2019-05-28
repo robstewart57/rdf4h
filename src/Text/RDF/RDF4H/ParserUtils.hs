@@ -4,8 +4,16 @@
 module Text.RDF.RDF4H.ParserUtils
   ( Parser(..)
   , parseFromURL
-  , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode, rdfListIndex
-  , rdfSubjectNode, rdfPredicateNode, rdfObjectNode, rdfStatementNode, rdfXmlLiteral
+  -- RDF
+  , rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode
+  , rdfSubjectNode, rdfPredicateNode, rdfObjectNode, rdfStatementNode
+  , rdfTag, rdfID, rdfAbout, rdfParseType, rdfResource, rdfNodeID, rdfDatatype
+  , rdfType, rdfLi, rdfListIndex
+  , rdfDescription, rdfXmlLiteral
+  , rdfAboutEach, rdfAboutEachPrefix, rdfBagID
+  -- XML
+  , xmlLang
+  -- XSD
   , xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri
   ) where
 
@@ -56,9 +64,33 @@ rdfPredicateNode = UNode $ mkUri rdf "predicate"
 rdfObjectNode    = UNode $ mkUri rdf "object"
 rdfStatementNode = UNode $ mkUri rdf "Statement"
 
-rdfListIndex, rdfXmlLiteral :: Text
+-- Core terms
+rdfTag, rdfID, rdfAbout, rdfParseType, rdfResource, rdfNodeID, rdfDatatype :: Text
+rdfTag = mkUri rdf "RDF"
+rdfID = mkUri rdf "ID"
+rdfAbout = mkUri rdf "about"
+rdfParseType = mkUri rdf "parseType"
+rdfResource = mkUri rdf "resource"
+rdfNodeID = mkUri rdf "nodeID"
+rdfDatatype = mkUri rdf "datatype"
+
+rdfType, rdfLi, rdfListIndex :: Text
+rdfType = mkUri rdf "type"
+rdfLi = mkUri rdf "li"
 rdfListIndex = mkUri rdf "_"
+
+rdfXmlLiteral, rdfDescription :: Text
 rdfXmlLiteral = mkUri rdf "XMLLiteral"
+rdfDescription = mkUri rdf "Description"
+
+-- Old terms
+rdfAboutEach, rdfAboutEachPrefix, rdfBagID :: Text
+rdfAboutEach = mkUri rdf "rdf:aboutEach"
+rdfAboutEachPrefix = mkUri rdf "rdf:aboutEachPrefix"
+rdfBagID = mkUri rdf "rdf:bagID"
+
+xmlLang :: Text
+xmlLang = mkUri xml "lang"
 
 xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: Text
 xsdIntUri     = mkUri xsd "integer"

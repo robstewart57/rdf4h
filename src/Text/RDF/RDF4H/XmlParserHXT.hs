@@ -21,7 +21,7 @@ import Data.List (isPrefixOf)
 import qualified Data.Map as Map (fromList)
 import Data.Maybe
 import Data.Typeable
-import Text.RDF.RDF4H.ParserUtils
+import Text.RDF.RDF4H.ParserUtils hiding (rdfType)
 import Data.RDF.IRI
 import Data.RDF.Types (Rdf,RDF,RdfParser(..),Node(BNodeGen),BaseUrl(..),Triple(..),Triples,Subject,Predicate,Object,PrefixMappings(..),ParseFailure(ParseFailure),mkRdf,lnode,plainL,plainLL,typedL,unode,bnode,unodeValidate)
 import Data.Text (Text)

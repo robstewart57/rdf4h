@@ -9,7 +9,7 @@ module Data.RDF.Namespace(
   mkUri,
   prefixOf, uriOf,
   -- * Predefined namespace values
-  rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2,
+  rdf, rdfs, dc, dct, owl, xml, xsd, skos, foaf, ex, ex2,
   standard_ns_mappings, ns_mappings
 ) where
 
@@ -49,6 +49,10 @@ dct = mkPrefixedNS' "dct" "http://purl.org/dc/terms/"
 -- |The OWL namespace.
 owl :: Namespace
 owl = mkPrefixedNS' "owl" "http://www.w3.org/2002/07/owl#"
+
+-- |The XML Schema namespace.
+xml :: Namespace
+xml = mkPrefixedNS' "xml" "http://www.w3.org/XML/1998/namespace"
 
 -- |The XML Schema namespace.
 xsd :: Namespace

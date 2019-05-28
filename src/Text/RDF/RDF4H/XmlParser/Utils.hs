@@ -1,25 +1,65 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
+
 module Text.RDF.RDF4H.XmlParser.Utils
-  ( validateID
+  (
+  -- Validation
+    validateID
+  , resolveQName, resolveQName'
+  , parseQName
   ) where
 
 
 import           Data.Functor ((<$))
-import           Control.Applicative (liftA2)
+import           Control.Applicative (liftA2, Alternative(..))
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Map as Map
 import           Data.Attoparsec.Text (Parser, (<?>))
 import qualified Data.Attoparsec.Text as P
 
+import           Data.RDF.Namespace
 
+-- IRI processing
 validateID :: Text -> Either String Text
 validateID t = t <$ parseId t
 
 parseId :: Text -> Either String Text
-parseId = P.parseOnly $ idParser <* (P.endOfInput <?> "Unexpected characters at the end")
+parseId = P.parseOnly $ pNCName <* (P.endOfInput <?> "Unexpected characters at the end")
+
+resolveQName :: PrefixMappings -> Text -> Either String Text
+resolveQName pm qn = parseQName qn >>= resolveQName' pm
+
+resolveQName' :: PrefixMappings -> (Maybe Text, Text) -> Either String Text
+resolveQName' (PrefixMappings pm) (Nothing, name) =
+  case Map.lookup mempty pm of
+    Nothing  -> Left "Cannot resolve QName: no default namespace defined."
+    Just iri -> Right $ iri <> name
+resolveQName' (PrefixMappings pm) (Just prefix, name) =
+  case Map.lookup prefix pm of
+    Nothing  -> Left $ mconcat ["Cannot resolve QName: prefix \"", T.unpack prefix, "\" not defined"]
+    Just iri -> Right $ iri <> name
+
+parseQName :: Text -> Either String (Maybe Text, Text)
+parseQName = P.parseOnly $ pQName <* (P.endOfInput <?> "Unexpected characters at the end of a QName")
+
+-- https://www.w3.org/TR/xml-names/#ns-qualnames
+pQName :: Parser (Maybe Text, Text)
+pQName = pPrefixedName <|> pUnprefixedNamed
+  where pUnprefixedNamed = (empty,) <$> pLocalPart
+
+pPrefixedName :: Parser (Maybe Text, Text)
+pPrefixedName = do
+  prefix <- pLocalPart <* P.char ':'
+  localPart <- pLocalPart
+  pure (Just prefix, localPart)
+
+pLocalPart :: Parser Text
+pLocalPart = pNCName
 
 -- http://www.w3.org/TR/REC-xml-names/#NT-NCName
-idParser :: Parser Text
-idParser = liftA2 T.cons pNameStartChar pNameRest
+pNCName :: Parser Text
+pNCName = liftA2 T.cons pNameStartChar pNameRest
   where
     pNameStartChar = P.satisfy isValidFirstCharId
     pNameRest = P.takeWhile isValidRestCharId

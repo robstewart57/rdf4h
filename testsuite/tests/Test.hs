@@ -43,7 +43,7 @@ main = do
         fromJust . filePathToUri $ (dir </> T.unpack suitesDir)
   turtleManifest <-
     loadManifest mfPathTurtle (fileSchemeUri suiteFilesDirTurtle)
-  xmlManifest <- loadManifest mfPathXml (fileSchemeUri suiteFilesDirXml)
+  xmlManifest <- loadManifest mfPathXml (unBaseUrl mfBaseURIXml)
   nTriplesManifest <-
     loadManifest mfPathNTriples (fileSchemeUri suiteFilesDirNTriples)
   -- run tests
@@ -108,7 +108,7 @@ main = do
        ,
        testGroup
        "parser-w3c-tests-xml"
-       [ W3CRdfXmlTest.tests xmlManifest
+       [ W3CRdfXmlTest.tests (dir </> T.unpack suiteFilesDirXml) xmlManifest
        ]
        ]
     )
