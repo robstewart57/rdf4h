@@ -11,7 +11,7 @@
 
 module Text.RDF.RDF4H.XmlParser
   ( XmlParser(..)
-  , parseDebug -- [FIXME]
+  , parseXmlDebug -- [FIXME]
   ) where
 
 import Text.RDF.RDF4H.ParserUtils hiding (Parser)
@@ -97,8 +97,8 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
     parseRdf' ns = join $ evalState (runExceptT (runParserT rdfParser ns)) initState
     initState = ParseState bUrl' mempty mempty empty mempty empty 0 0
 
-parseDebug :: String -> IO (RDF TList)
-parseDebug f = fromRight RDF.empty <$> parseFile (XmlParser (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/")) f
+parseXmlDebug :: String -> IO (RDF TList)
+parseXmlDebug f = fromRight RDF.empty <$> parseFile (XmlParser (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/")) f
 
 rdfParser :: Rdf a => Parser (RDF a)
 rdfParser = do
