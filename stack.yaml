@@ -6,8 +6,8 @@ packages:
 # - /home/rob/code/haskell/xmlbf/xmlbf-xeno
 extra-deps:
 - hgal-2.0.0.2
-- git: git@gitlab.com:k0001/xmlbf.git
-  commit: f46b96a401ac2ef6f30f8939c9f7bf92f38df383
+- git: git@gitlab.com:Wismill/xmlbf.git
+  commit: 0142bd5352316030c97bdcd9fe75d4afc20bf552
   subdirs:
   - xmlbf
   - xmlbf-xeno
