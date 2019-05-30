@@ -12,9 +12,6 @@
 module Text.RDF.RDF4H.XmlParser
   ( XmlParser(..)
   , parseDebug -- [FIXME]
-  , xmlEg
-  , example11
-  , example12
   ) where
 
 import Text.RDF.RDF4H.ParserUtils hiding (Parser)
@@ -171,9 +168,6 @@ pRDFAttr a = do
     (pFail $ mconcat ["Attribute \"", T.unpack a, "\" not found."])
     pure
     (HM.lookup a as)
-
-pMatchAndRemoveAttr :: Text -> Parser Text
-pMatchAndRemoveAttr a = pRDFAttr a <* removeNodeAttr a
 
 pNodeElementList :: Parser Triples
 pNodeElementList = pWs *> (mconcat <$> some (keepState pNodeElement <* pWs))
@@ -428,11 +422,6 @@ pResourceAttr = pRDFAttr rdfResource >>= checkIRI "rdf:resource"
 pDatatypeAttr :: Parser Text
 pDatatypeAttr = pRDFAttr rdfDatatype >>= checkIRI "rdf:datatype"
 
-pNoMoreChildren :: Parser ()
-pNoMoreChildren = pChildren >>= \case
-  [] -> pure ()
-  ns -> throwError $ "Unexpected remaining children: " <> show ns
-
 reifyTriple :: Text -> Triple -> Parser Triples
 reifyTriple i (Triple s p' o) = do
   n <- mkUNodeID i
@@ -573,84 +562,3 @@ currentLang = stateLang <$> get
 
 setLang :: (Maybe Text) -> Parser ()
 setLang lang = modify (\st -> st { stateLang = lang })
-
-example11 :: Text
-example11 = T.pack $ unlines
-  [ "<?xml version=\"1.0\"?>"
-  , "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
-  , "        xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
-  , "         xmlns:ex=\"http://example.org/stuff/1.0/\">"
-  , "  <rdf:Description rdf:about=\"http://www.w3.org/TR/rdf-syntax-grammar\""
-  , "   dc:title=\"RDF/XML Syntax Specification (Revised)\">"
-  , "  <ex:editor rdf:nodeID=\"abc\"/>"
-  , "  </rdf:Description>"
-  , "  <rdf:Description rdf:nodeID=\"abc\""
-  , "                  ex:fullName=\"Dave Beckett\">"
-  , "<ex:homePage rdf:resource=\"http://purl.org/net/dajobe/\"/>"
-  , "</rdf:Description>"
-  , "</rdf:RDF>"
-  ]
-
-example12 :: Text
-example12 = T.pack $ unlines
-  [ "<?xml version=\"1.0\"?>"
-  , "<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
-  , "         xmlns:dc=\"http://purl.org/dc/elements/1.1/\""
-  , "         xmlns:ex=\"http://example.org/stuff/1.0/\">"
-  , "  <rdf:Description rdf:about=\"http://www.w3.org/TR/rdf-syntax-grammar\""
-  , "   dc:title=\"RDF/XML Syntax Specification (Revised)\">"
-  , "    <ex:editor rdf:parseType=\"Resource\">"
-  , "      <ex:fullName>Dave Beckett</ex:fullName>"
-  , "      <ex:homePage rdf:resource=\"http://purl.org/net/dajobe/\"/>"
-  , "    </ex:editor>"
-  , "  </rdf:Description>"
-  , "</rdf:RDF>"
-  ]
-
-xmlEg :: Text
-xmlEg = T.pack $ unlines
-  [ "<?xml version=\"1.0\"?>"
-  , "<rdf:RDF"
-  , "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\""
-  , "xmlns:si=\"https://www.w3schools.com/rdf/\">"
-  , "<rdf:Description rdf:about=\"https://www.w3schools.com\">"
-  , "<si:title>W3Schools</si:title>"
-  , "<si:author>Jan Egil Refsnes</si:author>"
-  , "</rdf:Description>"
-  , "</rdf:RDF>"
-  ]
-
-
--- missing in Xmlbf
-
--- | @'pElement'' p@ runs a 'Parser' @p@ inside a element node and
--- returns a pair with the name of the parsed element and result of
--- @p@. This fails if such element does not exist at the current
--- position.
---
--- Leading whitespace is ignored. If you need to preserve that whitespace for
--- some reason, capture it using 'pText' before using 'pElement''.
---
--- Consumes the element from the parser state.
--- pElement' :: Parser a -> Parser (Text, a)
--- pElement' = liftA2 (,) pName
-
--- pText' :: TL.Text -> Parser TL.Text
--- pText' t = do
---   let pTextFail = pFail ("Missing text node " <> show t)
---   do t' <- pText
---      if t == t' then pure t
---      else pTextFail
---    <|> pTextFail
-
-
--- parser combinators missing in Xmlbf
--- between :: Parser a -> Parser b -> Parser c -> Parser c
--- between open close thing  = open *> thing <* close
---
--- manyTill :: Parser a -> Parser end -> Parser [a]
--- manyTill thing z = many thing <* z
-
--- pElem :: Text -> Parser Text
--- oneOf :: Parser [a] -> Parser a
--- noneOf :: Parser [a] -> Parser a
