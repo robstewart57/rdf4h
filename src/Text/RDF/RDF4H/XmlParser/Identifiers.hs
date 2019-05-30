@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 
-module Text.RDF.RDF4H.XmlParser.Utils
+module Text.RDF.RDF4H.XmlParser.Identifiers
   (
   -- Validation
     validateID
@@ -33,7 +33,7 @@ resolveQName pm qn = parseQName qn >>= resolveQName' pm
 resolveQName' :: PrefixMappings -> (Maybe Text, Text) -> Either String Text
 resolveQName' (PrefixMappings pm) (Nothing, name) =
   case Map.lookup mempty pm of
-    Nothing  -> Left "Cannot resolve QName: no default namespace defined."
+    Nothing  -> Left $ mconcat ["Cannot resolve QName \"", T.unpack name, "\": no default namespace defined."]
     Just iri -> Right $ iri <> name
 resolveQName' (PrefixMappings pm) (Just prefix, name) =
   case Map.lookup prefix pm of

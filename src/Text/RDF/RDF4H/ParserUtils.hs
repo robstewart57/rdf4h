@@ -85,9 +85,9 @@ rdfDescription = mkUri rdf "Description"
 
 -- Old terms
 rdfAboutEach, rdfAboutEachPrefix, rdfBagID :: Text
-rdfAboutEach = mkUri rdf "rdf:aboutEach"
-rdfAboutEachPrefix = mkUri rdf "rdf:aboutEachPrefix"
-rdfBagID = mkUri rdf "rdf:bagID"
+rdfAboutEach = mkUri rdf "aboutEach"
+rdfAboutEachPrefix = mkUri rdf "aboutEachPrefix"
+rdfBagID = mkUri rdf "bagID"
 
 xmlLang :: Text
 xmlLang = mkUri xml "lang"

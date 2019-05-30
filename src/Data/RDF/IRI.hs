@@ -16,6 +16,7 @@ module Data.RDF.IRI
   , serializeIRI
   , parseIRI, parseRelIRI
   , validateIRI, resolveIRI
+  , removeIRIFragment
   ) where
 
 import Data.Semigroup (Semigroup(..))
@@ -91,6 +92,9 @@ data SchemaError
   | InvalidChars     -- ^ Subsequent characters in the schema were invalid
   | MissingColon     -- ^ Schemas must be followed by a colon
   deriving (Show, Eq)
+
+removeIRIFragment :: IRIRef -> IRIRef
+removeIRIFragment (IRIRef s a p q _) = IRIRef s a p q Nothing
 
 -- [TODO] use Builder
 serializeIRI :: IRIRef -> Text
