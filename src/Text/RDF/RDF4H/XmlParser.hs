@@ -44,7 +44,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Builder as BB
-import Xmlbf hiding (Node, Parser, State)
+import Xmlbf hiding (Node, State)
 import qualified Xmlbf.Xeno as Xeno
 
 data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
@@ -94,7 +94,7 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
     bUrl' = BaseUrl <$> dUrl <|> bUrl
     parseXml = Xeno.fromRawXml . T.encodeUtf8
     parseRdf = first ParseFailure . join . second parseRdf'
-    parseRdf' ns = join $ evalState (runExceptT (runParserT rdfParser ns)) initState
+    parseRdf' ns = join $ evalState (runExceptT (parseM rdfParser ns)) initState
     initState = ParseState bUrl' mempty mempty empty mempty empty 0 0
 
 parseXmlDebug :: String -> IO (RDF TList)
@@ -103,7 +103,7 @@ parseXmlDebug f = fromRight RDF.empty <$> parseFile (XmlParser (Just . BaseUrl $
 rdfParser :: Rdf a => Parser (RDF a)
 rdfParser = do
   bUri <- currentBaseUri
-  triples <- (pRdf <* pWs) <||> pNodeElementList
+  triples <- (pRdf <* pWs) <|> pNodeElementList
   pEndOfInput
   mkRdf triples bUri <$> currentPrefixMappings
 
@@ -165,7 +165,7 @@ pRDFAttr :: Text -> Parser Text
 pRDFAttr a = do
   as <- currentNodeAttrs
   maybe
-    (pFail $ mconcat ["Attribute \"", T.unpack a, "\" not found."])
+    (fail $ mconcat ["Attribute \"", T.unpack a, "\" not found."])
     pure
     (HM.lookup a as)
 
@@ -259,12 +259,12 @@ pPropertyElt = pAnyElement $ do
   let p = unode uri
   -- Process 'propertyElt'
   pParseTypeLiteralPropertyElt p
-    <||> pParseTypeResourcePropertyElt p
-    <||> pParseTypeCollectionPropertyElt p
-    <||> pParseTypeOtherPropertyElt p
-    <||> pResourcePropertyElt p
-    <||> pLiteralPropertyElt p
-    <||> pEmptyPropertyElt p
+    <|> pParseTypeResourcePropertyElt p
+    <|> pParseTypeCollectionPropertyElt p
+    <|> pParseTypeOtherPropertyElt p
+    <|> pResourcePropertyElt p
+    <|> pLiteralPropertyElt p
+    <|> pEmptyPropertyElt p
   where
     listExpansion u
       | u == rdfLi = nextListIndex
@@ -429,15 +429,6 @@ reifyTriple i (Triple s p' o) = do
        , Triple n rdfSubjectNode s
        , Triple n rdfPredicateNode p'
        , Triple n rdfObjectNode o ]
-
-
--- Parser utils
-
--- | Try the first parser, if it fails restore the state and try the second parser.
-(<||>) :: Parser a -> Parser a -> Parser a
-(<||>) p1 p2 = do
-  st <- get
-  p1 <|> (put st *> p2)
 
 -- URI checks
 
