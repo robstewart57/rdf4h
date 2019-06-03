@@ -51,7 +51,6 @@ library
                  , Text.RDF.RDF4H.NTriplesParser
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
-                 , Text.RDF.RDF4H.XmlParserHXT
                  , Text.RDF.RDF4H.XmlParser.Identifiers
                  , Text.RDF.RDF4H.ParserUtils
   build-depends:   attoparsec

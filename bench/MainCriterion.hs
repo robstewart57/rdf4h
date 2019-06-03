@@ -85,11 +85,11 @@ main = defaultMainWith
                       let res = parseString (XmlParser Nothing Nothing) t :: Either ParseFailure (RDF TList)
                       in either (error . show) id res
                    ) xmlContent
-              , bench "xml-xht" $
-                nf (\t ->
-                      let res = parseString (XmlParserHXT Nothing Nothing) t :: Either ParseFailure (RDF TList)
-                      in either (error . show) id res
-                   ) xmlContent
+              -- , bench "xml-xht" $
+              --   nf (\t ->
+              --         let res = parseString (XmlParserHXT Nothing Nothing) t :: Either ParseFailure (RDF TList)
+              --         in either (error . show) id res
+              --      ) xmlContent
               ]
           ,
             bgroup
