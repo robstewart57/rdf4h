@@ -19,21 +19,15 @@ import Control.DeepSeq (NFData)
 -- $ gzip -d bills.099.actions.rdf.gz
 
 parseXmlRDF :: Rdf a => T.Text -> RDF a
-parseXmlRDF s =
-  let (Right rdf) = parseString (XmlParser Nothing Nothing) s
-  in rdf
+parseXmlRDF = either (error . show) id . parseString (XmlParser Nothing Nothing)
 {-# INLINE parseXmlRDF #-}
 
 parseNtRDF :: Rdf a => T.Text -> RDF a
-parseNtRDF s =
-  let (Right rdf) = parseString NTriplesParser s
-  in rdf
+parseNtRDF = either (error . show) id . parseString NTriplesParser
 {-# INLINE parseNtRDF #-}
 
 parseTtlRDF :: Rdf a => T.Text -> RDF a
-parseTtlRDF s =
-  let (Right rdf) = parseString (TurtleParser Nothing Nothing) s
-  in rdf
+parseTtlRDF = either (error . show) id . parseString (TurtleParser Nothing Nothing)
 {-# INLINE parseTtlRDF #-}
 
 queryGr :: Rdf a => (Maybe Node,Maybe Node,Maybe Node,RDF a) -> [Triple]
@@ -49,17 +43,19 @@ main :: IO ()
 main = defaultMainWith
     (defaultConfig {resamples = 100})
     [ env
+        -- [FIXME] Do not rely on system's defaults to read files.
         (do fawltyContentTurtle <- readFile "data/ttl/fawlty1.ttl"
             fawltyContentNTriples <- readFile "data/nt/all-fawlty-towers.nt"
-            rdf1' <- parseFile (XmlParser Nothing Nothing) xmlFile
-            rdf2' <- parseFile (XmlParser Nothing Nothing) xmlFile
-            rdf3' <- parseFile (XmlParser Nothing Nothing) xmlFile
-            let rdf1 = either (error . show) id rdf1' :: RDF TList
+            xmlContent <- readFile xmlFile
+            let rdf1' = parseString (XmlParser Nothing Nothing) xmlContent
+                rdf2' = parseString (XmlParser Nothing Nothing) xmlContent
+                rdf3' =parseString (XmlParser Nothing Nothing) xmlContent
+                rdf1 = either (error . show) id rdf1' :: RDF TList
                 rdf2 = either (error . show) id rdf2' :: RDF AdjHashMap
                 rdf3 = either (error . show) id rdf3' :: RDF AlgebraicGraph
                 triples = triplesOf rdf1
-            return (rdf1, rdf2, rdf3, triples, fawltyContentNTriples, fawltyContentTurtle)) $
-            \ ~(triplesList, adjMap, algGraph, triples, fawltyContentNTriples, fawltyContentTurtle) ->
+            return (rdf1, rdf2, rdf3, triples, fawltyContentNTriples, fawltyContentTurtle, xmlContent)) $
+            \ ~(triplesList, adjMap, algGraph, triples, fawltyContentNTriples, fawltyContentTurtle, xmlContent) ->
         bgroup
           "rdf4h"
            [ bgroup
@@ -84,6 +80,16 @@ main = defaultMainWith
                       let res = parseString (TurtleParserCustom Nothing Nothing Attoparsec)  t :: Either ParseFailure (RDF TList)
                       in either (error . show) id res
                    ) fawltyContentTurtle
+              , bench "xml-xmlbf" $
+                nf (\t ->
+                      let res = parseString (XmlParser Nothing Nothing) t :: Either ParseFailure (RDF TList)
+                      in either (error . show) id res
+                   ) xmlContent
+              , bench "xml-xht" $
+                nf (\t ->
+                      let res = parseString (XmlParserHXT Nothing Nothing) t :: Either ParseFailure (RDF TList)
+                      in either (error . show) id res
+                   ) xmlContent
               ]
           ,
             bgroup
@@ -149,7 +155,7 @@ queryBench label gr =
    , bench (label <> " O")   $ nf queryGr (queryNothing,queryNothing,objQuery,gr)
    ]
 
-addRemoveTriples :: (NFData a,NFData (RDF a), Rdf a) => String -> Triples -> RDF a -> RDF a -> [Benchmark]
+addRemoveTriples :: (NFData (RDF a), Rdf a) => String -> Triples -> RDF a -> RDF a -> [Benchmark]
 addRemoveTriples lbl triples emptyGr populatedGr =
    [ bench (lbl <> "-add-triples") $ nf addTriples (triples,emptyGr)
    , bench (lbl <> "-remove-triples") $ nf removeTriples (triples,populatedGr)
