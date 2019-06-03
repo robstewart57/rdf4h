@@ -11,84 +11,105 @@
 
 module Text.RDF.RDF4H.XmlParser
   ( XmlParser(..)
-  , parseXmlDebug -- [FIXME]
+  , parseXmlDebug
   ) where
 
-import Text.RDF.RDF4H.ParserUtils hiding (Parser)
-import Text.RDF.RDF4H.XmlParser.Identifiers
-import Data.RDF.IRI
-import Data.RDF.Types hiding (empty, resolveQName)
+import           Data.RDF.Types hiding (empty, resolveQName)
 import qualified Data.RDF.Types as RDF
-import Data.RDF.Graph.TList
+import           Data.RDF.IRI
+import           Data.RDF.Graph.TList
+import           Text.RDF.RDF4H.ParserUtils hiding (Parser)
+import           Text.RDF.RDF4H.XmlParser.Identifiers
 
---import Debug.Trace
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Except
-import Control.Monad.State.Strict
-import Data.Semigroup ((<>))
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.Except
+import           Control.Monad.State.Strict
+import           Data.Semigroup ((<>))
 import           Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as Map
-import Data.Maybe
-import Data.Either
-import Data.Bifunctor
+import           Data.Maybe
+import           Data.Either
+import           Data.Bifunctor
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HM
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Builder as BB
-import Xmlbf hiding (Node, State)
+import           Xmlbf hiding (Node, State)
 import qualified Xmlbf.Xeno as Xeno
 
-data XmlParser = XmlParser (Maybe BaseUrl) (Maybe Text)
 
 instance RdfParser XmlParser where
   parseString (XmlParser bUrl dUrl) = parseXmlRDF bUrl dUrl
   parseFile   (XmlParser bUrl dUrl) = parseFile'  bUrl dUrl
   parseURL    (XmlParser bUrl dUrl) = parseURL'   bUrl dUrl
 
+-- |Configuration for the XML parser
+data XmlParser = XmlParser
+  (Maybe BaseUrl)
+  -- ^ The base URI to parse the document.
+  (Maybe Text)
+  -- ^ Location URI from which to retrieve the XML document.
+
 parseFile' :: (Rdf a)
   => Maybe BaseUrl
   -> Maybe Text
-  -> String
+  -> FilePath
   -> IO (Either ParseFailure (RDF a))
 parseFile' bUrl dUrl fpath = parseXmlRDF bUrl dUrl <$> TIO.readFile fpath
 
 parseURL' :: (Rdf a)
-  => Maybe BaseUrl -- ^ The optional base URI of the document.
-  -> Maybe Text -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
-  -> String -- ^ The location URI from which to retrieve the XML document.
-  -> IO (Either ParseFailure (RDF a)) -- ^ The parse result, which is either a @ParseFailure@ or the RDF
-                                      --   corresponding to the XML document.
+  => Maybe BaseUrl
+  -- ^ The optional base URI of the document.
+  -> Maybe Text
+  -- ^ The document URI (i.e., the URI of the document itself); if Nothing, use location URI.
+  -> String
+  -- ^ The location URI from which to retrieve the XML document.
+  -> IO (Either ParseFailure (RDF a))
+  -- ^ The parse result, which is either a @ParseFailure@ or the RDF
+  --   corresponding to the XML document.
 parseURL' bUrl docUrl = parseFromURL (parseXmlRDF bUrl docUrl)
 
+-- |The parser monad.
 type Parser = ParserT (ExceptT String (State ParseState))
 
 -- |Local state for the parser (dependant on the parent xml elements)
 data ParseState = ParseState
   { stateBaseUri :: Maybe BaseUrl
-  , stateIdSet :: Set Text -- ^ set of rdf:ID found in the scope of the current base URI.
+  -- ^ The local base URI.
+  , stateIdSet :: Set Text
+  -- ^ The set of @rdf:ID@ found in the scope of the current base URI.
   , statePrefixMapping :: PrefixMappings
+  -- ^ The namespace mapping.
   , stateLang :: Maybe Text
-  , stateNodeAttrs :: HashMap Text Text -- ^ Current node RDF attributes
+  -- ^ The local @xml:lang@
+  , stateNodeAttrs :: HashMap Text Text
+  -- ^ Current node RDF attributes.
   , stateSubject :: Maybe Subject
-  , stateListIndex :: Int
+  -- ^ Current subject for triple construction.
+  , stateCollectionIndex :: Int
+  -- ^ Current collection index.
   , stateGenId :: Int
   } deriving(Show)
 
 -- |Parse a xml Text to an RDF representation
 parseXmlRDF :: (Rdf a)
-  => Maybe BaseUrl     -- ^ The base URL for the RDF if required
-  -> Maybe Text        -- ^ DocUrl: The request URL for the RDF if available
-  -> Text              -- ^ The contents to parse
-  -> Either ParseFailure (RDF a) -- ^ The RDF representation of the triples or ParseFailure
+  => Maybe BaseUrl
+  -- ^ The base URI for the RDF if required
+  -> Maybe Text
+  -- ^ The request URI for the document to  if available
+  -> Text
+  -- ^ The contents to parse
+  -> Either ParseFailure (RDF a)
+  -- ^ The RDF representation of the triples or ParseFailure
 parseXmlRDF bUrl dUrl = parseRdf . parseXml
   where
     bUrl' = BaseUrl <$> dUrl <|> bUrl
@@ -97,9 +118,14 @@ parseXmlRDF bUrl dUrl = parseRdf . parseXml
     parseRdf' ns = join $ evalState (runExceptT (parseM rdfParser ns)) initState
     initState = ParseState bUrl' mempty mempty empty mempty empty 0 0
 
-parseXmlDebug :: String -> IO (RDF TList)
+-- |A parser for debugging purposes.
+parseXmlDebug
+  :: FilePath
+  -- ^ Path of the file to parse.
+  -> IO (RDF TList)
 parseXmlDebug f = fromRight RDF.empty <$> parseFile (XmlParser (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/")) f
 
+-- |Document parser
 rdfParser :: Rdf a => Parser (RDF a)
 rdfParser = do
   bUri <- currentBaseUri
@@ -107,6 +133,8 @@ rdfParser = do
   pEndOfInput
   mkRdf triples bUri <$> currentPrefixMappings
 
+-- |Parser for @rdf:RDF@, if present.
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#RDF
 pRdf :: Parser Triples
 pRdf = pAnyElement $ do
   attrs <- pRDFAttrs
@@ -115,64 +143,95 @@ pRdf = pAnyElement $ do
   unless (null attrs) $ throwError "rdf:RDF: The set of attributes should be empty."
   pNodeElementList
 
+-- |Parser for XML QName: resolve the namespace with the mapping in context.
+--
+--  Throws an error if the namespace is not defined.
 pQName :: Text -> Parser Text
 pQName qn = do
   pm <- currentPrefixMappings
   let qn' = resolveQName pm qn >>= validateIRI
   either throwError pure qn'
 
--- |Process the attributes of a node
+-- |Process the attributes of a node.
+--
+--  To be called __once__ per XML element.
 pRDFAttrs :: Parser (HashMap Text Text)
 pRDFAttrs = do
   -- Language (xml:lang)
   liftA2 (<|>) pLang currentLang >>= setLang
-  -- Base URI
-  -- [TODO] resolve base uri in context
+  -- Base URI (xml:base)
   liftA2 (<|>) pBase currentBaseUri >>= setBaseUri
   bUri <- currentBaseUri
   -- Process the rest of the attributes
   attrs <- pAttrs
   -- Get the namespace definitions (xmlns:)
-  pm <- updatePrefixMappings (PrefixMappings $ HM.foldlWithKey' mkNameSpaces mempty attrs)
+  pm <- updatePrefixMappings (PrefixMappings $ HM.foldlWithKey' mkNameSpace mempty attrs)
   -- Filter and resolve RDF attributes
   let as = HM.foldlWithKey' (mkRdfAttribute pm bUri) mempty attrs
   setNodeAttrs as
   pure as
   where
-    mkNameSpaces ns qn iri =
-      -- [TODO] resolve IRI
-      -- [TODO] check malformed identifiers & IRI
+    -- |Check if an XML attribute is a namespace definition
+    --  and if so add it to the mapping.
+    mkNameSpace
+      :: Map.Map Text Text
+      -- ^ Current namespace mapping
+      -> Text
+      -- ^ XML attribute to process
+      -> Text
+      -- ^ Value of the attribute
+      -> Map.Map Text Text
+    mkNameSpace ns qn iri =
       let qn' = parseQName qn
           ns' = f <$> qn' <*> validateIRI iri
           f (Nothing     , "xmlns") iri' = Map.insert mempty iri' ns
           f (Just "xmlns", prefix ) iri' = Map.insert prefix iri' ns
           f _                       _    = ns
       in either (const ns) id ns'
+    -- |Check if an XML attribute is an RDF attribute
+    --  and if so resolve its URI and keep it.
+    mkRdfAttribute
+      :: PrefixMappings
+      -- ^ Namespace mapping
+      -> Maybe BaseUrl
+      -- ^ Base URI
+      -> HM.HashMap Text Text
+      -- ^ Current set of RDF attributes
+      -> Text
+      -- ^ XML attribute to process
+      -> Text
+      -- ^ Value of the attribute
+      -> HM.HashMap Text Text
     mkRdfAttribute pm bUri as qn v =
       let as' = parseQName qn >>= f
-          -- [NOTE] Ignore xml reserved names
+          -- [NOTE] Ignore XML reserved names
           f (Nothing, n)
             | T.isPrefixOf "xml" n = Right as
             | otherwise            = case bUri of
-              Nothing -> Right as -- [FIXME] manage missing base URI
-              Just (BaseUrl bUri') -> (\a -> HM.insert a v as) <$> resolveIRI bUri' n
+                Nothing -> Right as -- [FIXME] manage missing base URI
+                Just (BaseUrl bUri') -> (\a -> HM.insert a v as) <$> resolveIRI bUri' n
           f qn'@(Just prefix, _)
             | T.isPrefixOf "xml" prefix = Right as
             | otherwise = (\a -> HM.insert a v as) <$> resolveQName' pm qn'
       in either (const as) id as'
 
+-- |Return the value of the requested RDF attribute using its URI.
+--
+--  Fails if the attribute is not defined.
 pRDFAttr :: Text -> Parser Text
 pRDFAttr a = do
   as <- currentNodeAttrs
   maybe
-    (fail $ mconcat ["Attribute \"", T.unpack a, "\" not found."])
+    (fail . mconcat $ ["Attribute \"", T.unpack a, "\" not found."])
     pure
     (HM.lookup a as)
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#nodeElementList
 pNodeElementList :: Parser Triples
 pNodeElementList = pWs *> (mconcat <$> some (keepState pNodeElement <* pWs))
 
 -- |White spaces parser
+--  See: https://www.w3.org/TR/rdf-syntax-grammar/#ws
 pWs :: Parser ()
 pWs = maybe True (T.all ws . TL.toStrict) <$> optional pText >>= guard
   where
@@ -184,7 +243,7 @@ pNodeElement :: Parser Triples
 pNodeElement = pAnyElement $ do
   -- Process attributes
   void pRDFAttrs
-  -- Process subject
+  -- Process URI, subject and @rdf:type@.
   (s, mt) <- pSubject
   ts1 <- pPropertyAttrs s
   -- Process propertyEltList
@@ -193,7 +252,8 @@ pNodeElement = pAnyElement $ do
   let ts = ts1 <> ts2
   pure $ maybe ts (:ts) mt
 
---pSubject :: Parser (Node, Triples)
+-- |Process the following parts of a @nodeElement@: URI, subject and @rdf:type@.
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#nodeElement
 pSubject :: Parser (Node, Maybe Triple)
 pSubject = do
   -- Create the subject
@@ -219,6 +279,7 @@ pSubject = do
         then pure $ Triple n rdfTypeNode (unode uri)
         else empty
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#propertyAttr
 pPropertyAttrs :: Node -> Parser Triples
 pPropertyAttrs s = do
   attrs <- currentNodeAttrs
@@ -235,6 +296,7 @@ pPropertyAttrs s = do
 pLang :: Parser (Maybe Text)
 pLang = optional (pAttr "xml:lang")
 
+-- [TODO] resolve base uri in context
 pBase :: Parser (Maybe BaseUrl)
 pBase = optional $ do
   uri <- pAttr "xml:base"
@@ -244,16 +306,18 @@ pBase = optional $ do
     (pure . serializeIRI . removeIRIFragment)
     (parseIRI uri)
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#propertyEltList
 pPropertyEltList :: Parser Triples
 pPropertyEltList =  pWs
-                 *> resetListIndex
+                 *> resetCollectionIndex
                  *> fmap mconcat (many (pPropertyElt <* pWs))
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#propertyElt
 pPropertyElt :: Parser Triples
 pPropertyElt = pAnyElement $ do
   -- Process attributes
   void pRDFAttrs
-  -- Process URI
+  -- Process the predicate from the URI
   uri <- pName >>= pQName >>= listExpansion
   unless (isPropertyAttrURI uri) (throwError $ "URI not allowed for propertyElt: " <> T.unpack uri)
   let p = unode uri
@@ -267,21 +331,27 @@ pPropertyElt = pAnyElement $ do
     <|> pEmptyPropertyElt p
   where
     listExpansion u
-      | u == rdfLi = nextListIndex
+      | u == rdfLi = nextCollectionIndex
       | otherwise  = pure u
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#resourcePropertyElt
 pResourcePropertyElt :: Node -> Parser Triples
 pResourcePropertyElt p = do
   pWs
+  -- [NOTE] We need to restore part of the state after exploring the element' children.
   (ts1, o) <- keepState $ liftA2 (,) pNodeElement currentSubject
   pWs
   mi <- optional pIdAttr <* removeNodeAttr rdfID
+  -- No other attribute is allowed.
   checkAllowedAttributes []
+  -- Generated triple
   s <- currentSubject
   let mt = flip Triple p <$> s <*> o
+  -- Reify the triple
   ts2 <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
   pure $ maybe (ts1 <> ts2) (:(ts1 <> ts2)) mt
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#literalPropertyElt
 pLiteralPropertyElt :: Node -> Parser Triples
 pLiteralPropertyElt p = do
   l <- pText
@@ -292,12 +362,15 @@ pLiteralPropertyElt p = do
   dt <- optional pDatatypeAttr
   s <- currentSubject
   lang <- currentLang
+  -- Generated triple
   let l' = TL.toStrict l
       o = lnode . fromMaybe (plainL l') $ (typedL l' <$> dt) <|> (plainLL l' <$> lang)
       mt = (\s' -> Triple s' p o) <$> s
+  -- Reify the triple
   ts <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
   pure $ maybe ts (:ts) mt
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeLiteralPropertyElt
 pParseTypeLiteralPropertyElt :: Node -> Parser Triples
 pParseTypeLiteralPropertyElt p = do
   pt <- pRDFAttr rdfParseType
@@ -305,27 +378,34 @@ pParseTypeLiteralPropertyElt p = do
   mi <- optional pIdAttr <* removeNodeAttr rdfID
   checkAllowedAttributes [rdfParseType]
   l <- pXMLLiteral
+  -- Generated triple
   s <- currentSubject
   let o = lnode (typedL l rdfXmlLiteral)
       mt = (\s' -> Triple s' p o) <$> s
+  -- Reify the triple
   ts <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
   pure $ maybe ts (:ts) mt
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeResourcePropertyElt
 pParseTypeResourcePropertyElt :: Node -> Parser Triples
 pParseTypeResourcePropertyElt p = do
   pt <- pRDFAttr rdfParseType
   guard (pt == "Resource")
   mi <- optional pIdAttr <* removeNodeAttr rdfID
   checkAllowedAttributes [rdfParseType]
+  -- Generated triple
   s <- currentSubject
   o <- newBNode
   let mt = (\s' -> Triple s' p o) <$> s
+  -- Reify the triple
   ts1 <- maybe (pure mempty) (uncurry reifyTriple) (liftA2 (,) mi mt)
   setSubject (Just o)
-  ts2 <- keepListIndex pPropertyEltList
-  setSubject s
+  -- Explore children
+  ts2 <- keepCollectionIndex pPropertyEltList
+  --setSubject s
   pure $ maybe (ts1 <> ts2) ((<> ts2) . (:ts1)) mt
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeCollectionPropertyElt
 pParseTypeCollectionPropertyElt :: Node -> Parser Triples
 pParseTypeCollectionPropertyElt p = do
   pt <- pRDFAttr rdfParseType
@@ -339,28 +419,38 @@ pParseTypeCollectionPropertyElt p = do
       r <- optional pNodeElement
       case r of
         Nothing ->
+          -- Empty collection
           let t = Triple s' p rdfNilNode
           in ([t] <>) <$> maybe (pure mempty) (`reifyTriple` t) mi
         Just ts1 -> do
+          -- Non empty collection
           s'' <- currentSubject
           n <- newBNode
+          -- Triples corresping to the first item
           let t = Triple s' p n
               ts2 = maybe mempty (\s''' -> [t, Triple n rdfFirstNode s''']) s''
+          -- Process next item
           ts3 <- go n
+          -- Reify triple
           ts4 <- maybe (pure mempty) (`reifyTriple` t) mi
           pure $ mconcat [ts1, ts2, ts3, ts4]
   where
     go s = do
+      -- Generate the triples of the current item.
       r <- optional pNodeElement
       case r of
+        -- End of the collection
         Nothing -> pure [Triple s rdfRestNode rdfNilNode]
+        -- Add the item to the collection and process the next item
         Just ts1 -> do
           s' <- currentSubject
           n <- newBNode
           let ts2 = maybe mempty (\s'' -> [Triple s rdfRestNode n, Triple n rdfFirstNode s'']) s'
+          -- Next item
           ts3 <- go n
           pure $ mconcat [ts1, ts2, ts3]
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeOtherPropertyElt
 pParseTypeOtherPropertyElt :: Node -> Parser Triples
 pParseTypeOtherPropertyElt _p = do
   pt <- pRDFAttr rdfParseType
@@ -369,6 +459,7 @@ pParseTypeOtherPropertyElt _p = do
   _mi <- optional pIdAttr <* removeNodeAttr rdfID
   throwError "[TODO] pParseTypeOtherPropertyElt"
 
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#emptyPropertyElt
 pEmptyPropertyElt :: Node -> Parser Triples
 pEmptyPropertyElt p = do
   s <- currentSubject
@@ -378,6 +469,7 @@ pEmptyPropertyElt p = do
       mi <- optional pIdAttr <* removeNodeAttr rdfID
       o <- pResourceAttr' <|> pNodeIdAttr' <|> newBNode
       let t = Triple s' p o
+      -- Reify triple
       ts1 <- maybe (pure mempty) (`reifyTriple` t) mi
       ts2 <- pPropertyAttrs o
       pure (t:ts1 <> ts2)
@@ -391,6 +483,8 @@ checkAllowedAttributes as = do
   let diff = HS.difference (HM.keysSet attrs) as
   unless (null diff) (throwError $ "Attributes not allowed: " <> show diff)
 
+-- See: https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-xmlliteral,
+--      https://www.w3.org/TR/rdf-syntax-grammar/#literal
 pXMLLiteral :: Parser Text
 pXMLLiteral =
   T.decodeUtf8 . BL.toStrict . BB.toLazyByteString . encode <$> pChildren
@@ -398,7 +492,8 @@ pXMLLiteral =
 pIdAttr :: Parser Text
 pIdAttr = do
   i <- pRDFAttr rdfID
-  i' <- either throwError pure (validateID i)
+  i' <- either throwError pure (checkRdfId i)
+  -- Check the uniqueness of the ID in the context of the current base URI.
   checkIdIsUnique i'
   pure i'
 
@@ -411,7 +506,7 @@ checkIdIsUnique i = do
 pNodeIdAttr :: Parser Text
 pNodeIdAttr = do
   i <- pRDFAttr rdfNodeID
-  either throwError pure (validateID i)
+  either throwError pure (checkRdfId i)
 
 pAboutAttr :: Parser Text
 pAboutAttr = pRDFAttr rdfAbout >>= checkIRI "rdf:about"
@@ -430,6 +525,7 @@ reifyTriple i (Triple s p' o) = do
        , Triple n rdfPredicateNode p'
        , Triple n rdfObjectNode o ]
 
+--------------------------------------------------------------------------------
 -- URI checks
 
 checkIRI :: String -> Text -> Parser Text
@@ -460,7 +556,9 @@ isNotOldTerm uri =  uri /= rdfAboutEach
                  && uri /= rdfAboutEachPrefix
                  && uri /= rdfBagID
 
+--------------------------------------------------------------------------------
 -- Parser's state utils
+
 -- |Create a new unique blank node
 newBNode :: Parser Node
 newBNode = do
@@ -509,25 +607,25 @@ updatePrefixMappings pm = do
   modify (\st -> st { statePrefixMapping = pm' })
   pure pm'
 
-currentListIndex :: Parser Int
-currentListIndex = stateListIndex <$> get
+currentCollectionIndex :: Parser Int
+currentCollectionIndex = stateCollectionIndex <$> get
 
-setListIndex :: Int -> Parser ()
-setListIndex i = modify (\st -> st { stateListIndex = i })
+setCollectionIndex :: Int -> Parser ()
+setCollectionIndex i = modify (\st -> st { stateCollectionIndex = i })
 
-keepListIndex :: Parser a -> Parser a
-keepListIndex p = do
-  i <- currentListIndex
-  p <* setListIndex i
+keepCollectionIndex :: Parser a -> Parser a
+keepCollectionIndex p = do
+  i <- currentCollectionIndex
+  p <* setCollectionIndex i
 
 -- See: https://www.w3.org/TR/rdf-syntax-grammar/#section-List-Expand
-nextListIndex :: Parser Text
-nextListIndex = do
-  modify $ \st -> st { stateListIndex = stateListIndex st + 1 }
-  (rdfListIndex <>) . T.pack . show . stateListIndex <$> get
+nextCollectionIndex :: Parser Text
+nextCollectionIndex = do
+  modify $ \st -> st { stateCollectionIndex = stateCollectionIndex st + 1 }
+  (rdfListIndex <>) . T.pack . show . stateCollectionIndex <$> get
 
-resetListIndex :: Parser ()
-resetListIndex = modify $ \st -> st { stateListIndex = 0 }
+resetCollectionIndex :: Parser ()
+resetCollectionIndex = modify $ \st -> st { stateCollectionIndex = 0 }
 
 currentBaseUri :: Parser (Maybe BaseUrl)
 currentBaseUri = stateBaseUri <$> get

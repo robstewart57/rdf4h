@@ -2,9 +2,9 @@
 {-# LANGUAGE TupleSections     #-}
 
 module Text.RDF.RDF4H.XmlParser.Identifiers
-  (
-  -- Validation
-    validateID
+  ( -- rdf:ID validation
+    checkRdfId
+    -- Qualified names
   , resolveQName, resolveQName'
   , parseQName
   ) where
@@ -20,17 +20,42 @@ import qualified Data.Attoparsec.Text as P
 
 import           Data.RDF.Namespace
 
--- IRI processing
-validateID :: Text -> Either String Text
-validateID t = t <$ parseId t
+--------------------------------------------------------------------------------
+-- rdf:ID
+
+-- |Validate the value of @rdf:ID@.
+--
+-- See: https://www.w3.org/TR/rdf-syntax-grammar/#rdf-id
+checkRdfId
+  :: Text
+  -- ^ Value of a @rdf:ID@ attribute to validate.
+  -> Either String Text
+checkRdfId t = t <$ parseId t
 
 parseId :: Text -> Either String Text
 parseId = P.parseOnly $ pNCName <* (P.endOfInput <?> "Unexpected characters at the end")
 
-resolveQName :: PrefixMappings -> Text -> Either String Text
+--------------------------------------------------------------------------------
+-- Qualified names
+
+-- |Parse and resolve a qualified name.
+--
+-- See: https://www.w3.org/TR/xml-names/#ns-qualnames
+resolveQName
+  :: PrefixMappings
+  -- ^ Namespace mapping to resolve q qualified name.
+  -> Text
+  -- ^ Raw qualified name to process.
+  -> Either String Text
 resolveQName pm qn = parseQName qn >>= resolveQName' pm
 
-resolveQName' :: PrefixMappings -> (Maybe Text, Text) -> Either String Text
+-- |Resolve a qualified name.
+resolveQName'
+  :: PrefixMappings
+  -- ^ Namespace mapping to resolve q qualified name.
+  -> (Maybe Text, Text)
+  -- ^ (namespace, local name)
+  -> Either String Text
 resolveQName' (PrefixMappings pm) (Nothing, name) =
   case Map.lookup mempty pm of
     Nothing  -> Left $ mconcat ["Cannot resolve QName \"", T.unpack name, "\": no default namespace defined."]
@@ -40,20 +65,26 @@ resolveQName' (PrefixMappings pm) (Just prefix, name) =
     Nothing  -> Left $ mconcat ["Cannot resolve QName: prefix \"", T.unpack prefix, "\" not defined"]
     Just iri -> Right $ iri <> name
 
+-- |Parse a qualified name.
+--
+-- See: https://www.w3.org/TR/xml-names/#ns-qualnames
 parseQName :: Text -> Either String (Maybe Text, Text)
 parseQName = P.parseOnly $ pQName <* (P.endOfInput <?> "Unexpected characters at the end of a QName")
 
 -- https://www.w3.org/TR/xml-names/#ns-qualnames
+-- https://www.w3.org/TR/xml-names/#NT-QName
 pQName :: Parser (Maybe Text, Text)
 pQName = pPrefixedName <|> pUnprefixedNamed
   where pUnprefixedNamed = (empty,) <$> pLocalPart
 
+-- https://www.w3.org/TR/xml-names/#NT-PrefixedName
 pPrefixedName :: Parser (Maybe Text, Text)
 pPrefixedName = do
   prefix <- pLocalPart <* P.char ':'
   localPart <- pLocalPart
   pure (Just prefix, localPart)
 
+-- https://www.w3.org/TR/xml-names/#NT-LocalPart
 pLocalPart :: Parser Text
 pLocalPart = pNCName
 
@@ -63,8 +94,8 @@ pNCName = liftA2 T.cons pNameStartChar pNameRest
   where
     pNameStartChar = P.satisfy isValidFirstCharId
     pNameRest = P.takeWhile isValidRestCharId
-    isValidFirstCharId c =
-         ('A' <= c && c <= 'Z') || c == '_' || ('a' <= c && c <= 'z')
+    isValidFirstCharId c
+      =  ('A' <= c && c <= 'Z') || c == '_' || ('a' <= c && c <= 'z')
       || ('\xC0' <= c && c <= '\xD6') || ('\xD8' <= c && c <= '\xF6')
       || ('\xF8' <= c && c <= '\x2FF') || ('\x370' <= c && c <= '\x37D')
       || ('\x37F' <= c && c <= '\x1FFF') || ('\x200C' <= c && c <= '\x200D')
