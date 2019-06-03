@@ -55,9 +55,9 @@ instance RdfParser XmlParser where
 -- |Configuration for the XML parser
 data XmlParser = XmlParser
   (Maybe BaseUrl)
-  -- ^ The base URI to parse the document.
+  -- ^ The /default/ base URI to parse the document.
   (Maybe Text)
-  -- ^ Location URI from which to retrieve the XML document.
+  -- ^ The /retrieval URI/ of the XML document.
 
 parseFile' :: (Rdf a)
   => Maybe BaseUrl
@@ -152,7 +152,7 @@ pQName qn = do
   let qn' = resolveQName pm qn >>= validateIRI
   either throwError pure qn'
 
--- |Process the attributes of a node.
+-- |Process the attributes of an XML element.
 --
 --  To be called __once__ per XML element.
 pRDFAttrs :: Parser (HashMap Text Text)
@@ -457,7 +457,8 @@ pParseTypeOtherPropertyElt _p = do
   guard (pt /= "Resource" && pt /= "Literal" && pt /= "Collection")
   checkAllowedAttributes [rdfParseType]
   _mi <- optional pIdAttr <* removeNodeAttr rdfID
-  throwError "[TODO] pParseTypeOtherPropertyElt"
+  -- [FIXME] Implement 'parseTypeOtherPropertyElt'
+  throwError "Not implemented: rdf:parseType = other"
 
 -- See: https://www.w3.org/TR/rdf-syntax-grammar/#emptyPropertyElt
 pEmptyPropertyElt :: Node -> Parser Triples
