@@ -73,7 +73,7 @@ $ stack test --test-arguments="--pattern /parser-w3c-tests-xml/"
 To run the bencharks:
 
 ```shell
-$ wget https://www.govtrack.us/data/rdf/bills.099.actions.rdf.gz
+$ wget https://www.dropbox.com/s/z1it340emcreowj/bills.099.actions.rdf
 $ gzip -d bills.099.actions.rdf.gz
 $ stack bench
 ```
