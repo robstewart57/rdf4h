@@ -45,20 +45,8 @@ testBaseUri = "http://www.w3.org/2001/sw/DataAccess/df1/tests/"
 mtestBaseUri :: Maybe BaseUrl
 mtestBaseUri = Just . BaseUrl $ testBaseUri
 
-fpath :: String -> Int -> String -> String
-fpath name i ext = printf "data/ttl/conformance/%s-%02d.%s" name i ext :: String
-
 tests :: [TestTree]
-tests = ts1 <> ts2 <> ts3
-   where ts1 = fmap checkGoodConformanceTest [0..29]
-         ts2 = fmap checkBadConformanceTest [0..15]
-         ts3 = fmap (uncurry checkGoodOtherTest) otherTestFiles
-
-checkGoodConformanceTest :: Int -> TestTree
-checkGoodConformanceTest i =
-  let expGr = loadExpectedGraph "test" i
-      inGr  = loadInputGraph    "test" i
-  in doGoodConformanceTest expGr inGr (printf "test-%d" i :: String)
+tests = fmap (uncurry checkGoodOtherTest) otherTestFiles
 
 checkGoodOtherTest :: String -> String -> TestTree
 checkGoodOtherTest dir fname =
@@ -74,11 +62,6 @@ doGoodConformanceTest expGr inGr testname =
         t2 = assertLoadSuccess (printf "   input (%s): " testname) inGr
         t3 = assertEquivalent testname expGr inGr
     in testGroup (printf "conformance-%s" testname) $ fmap (uncurry testCase) [("loading-expected-graph-data", t1), ("loading-input-graph-data", t2), ("comparing-graphs", t3)]
-
-checkBadConformanceTest :: Int -> TestTree
-checkBadConformanceTest i =
-  let t = assertLoadFailure (show i) (loadInputGraph "bad" i)
-  in testCase (printf "loading-test-%d-negative" i) t
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
@@ -118,37 +101,21 @@ equivalent (Right gr1) (Right gr2) = checkSize <|> (test $! zip gr1ts gr2ts)
     equalNodes (BNode _)    (BNode _)    = True
     equalNodes n1           n2           = n1 == n2
 
--- Returns a graph for a good ttl test that is intended to pass, and normalizes
--- triples into a format so that they can be compared with the expected output triples.
-loadInputGraph :: String -> Int -> IO (Either ParseFailure (RDF TList))
-loadInputGraph name n = parseFile parserConfig path
-  where path = fpath name n "ttl"
-        parserConfig = TurtleParser mtestBaseUri (mkDocUrl testBaseUri name n)
-
 loadInputGraph1 :: String -> String -> IO (Either ParseFailure (RDF TList))
 loadInputGraph1 dir fname = parseFile parserConfig path
   where path = printf "%s/%s.ttl" dir fname :: String
         parserConfig = TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)
 
-loadExpectedGraph :: String -> Int -> IO (Either ParseFailure (RDF TList))
-loadExpectedGraph name n = loadExpectedGraph1 (fpath name n "out")
-
 loadExpectedGraph1 :: String -> IO (Either ParseFailure (RDF TList))
 loadExpectedGraph1 fname =
   parseFile (TurtleParser mtestBaseUri (mkDocUrl1 testBaseUri fname)) fname
 
-assertLoadSuccess, assertLoadFailure :: String -> IO (Either ParseFailure (RDF TList)) -> TU.Assertion
+assertLoadSuccess :: String -> IO (Either ParseFailure (RDF TList)) -> TU.Assertion
 assertLoadSuccess idStr exprGr = do
   g <- exprGr
   case g of
     Left (ParseFailure err) -> TU.assertFailure $ idStr  <> err
     Right _ -> return ()
-
-assertLoadFailure idStr exprGr = do
-  g <- exprGr
-  case g of
-    Left _ -> return ()
-    Right _ -> TU.assertFailure $ "Bad test " <> idStr <> " loaded successfully."
 
 assertEquivalent :: Rdf a => String -> IO (Either ParseFailure (RDF a)) -> IO (Either ParseFailure (RDF a)) -> TU.Assertion
 assertEquivalent testname r1 r2 = do
@@ -157,9 +124,6 @@ assertEquivalent testname r1 r2 = do
   case equivalent gr1 gr2 of
     Nothing    -> return ()
     (Just msg) -> fail $ "Graph " <> testname <> " not equivalent to expected:\n" <> msg
-
-mkDocUrl :: Text -> String -> Int -> Maybe Text
-mkDocUrl baseDocUrl fname testNum = Just . fromString $ printf "%s%s-%02d.ttl" baseDocUrl fname testNum
 
 mkDocUrl1 :: Text -> String -> Maybe Text
 mkDocUrl1 baseDocUrl fname        = Just . fromString $ printf "%s%s.ttl" baseDocUrl fname
