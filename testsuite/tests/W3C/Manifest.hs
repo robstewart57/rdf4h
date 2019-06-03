@@ -7,6 +7,7 @@ module W3C.Manifest (
   TestEntry(..)
 ) where
 
+import Data.Semigroup ((<>))
 import Data.RDF.Graph.TList
 import Data.RDF.Query
 import Data.RDF.Types
@@ -125,18 +126,18 @@ mfUnrecognizedDatatypes = unode "http://www.w3.org/2001/sw/DataAccess/tests/test
 -- | Load the manifest from the given file;
 -- apply the given namespace as the base IRI of the manifest.
 loadManifest :: T.Text -> T.Text -> IO Manifest
-loadManifest manifestPath baseIRI = do
-  parseFile testParser (T.unpack manifestPath) >>= return . rdfToManifest . fromEither
+loadManifest manifestPath baseIRI =
+  (rdfToManifest . fromEither) <$> parseFile testParser (T.unpack manifestPath)
   where testParser = TurtleParser (Just $ BaseUrl baseIRI) Nothing
 
 rdfToManifest :: RDF TList -> Manifest
 rdfToManifest rdf = Manifest desc tpls
-  where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" ++ show (triplesOf rdf))) descNode
+  where desc = lnodeText $ objectOf $ headDef (error ("query empty: subject mf:node & predicate mf:name in:\n\n" <> show (triplesOf rdf))) descNode
         -- FIXME: Inconsistent use of nodes for describing the manifest (W3C bug)
         descNode = query rdf (Just manifestNode) (Just rdfsLabel) Nothing
-                   ++ query rdf (Just manifestNode) (Just mfName) Nothing
+                   <> query rdf (Just manifestNode) (Just mfName) Nothing
 --        descNode = query rdf (Just manifestNode) (Just mfName) Nothing
-        tpls = map (rdfToTestEntry rdf) $ rdfCollectionToList rdf collectionHead
+        tpls = (rdfToTestEntry rdf) <$> rdfCollectionToList rdf collectionHead
         collectionHead = objectOf $ headDef (error "query: mf:node & mf:entries") $ query rdf (Just manifestNode) (Just mfEntries) Nothing
         manifestNode = headDef (error "manifestSubjectNodes yielding empty list") $ manifestSubjectNodes rdf
 
@@ -156,7 +157,7 @@ triplesToTestEntry rdf ts =
     (UNode "http://www.w3.org/ns/rdftest#TestXMLNegativeSyntax") -> mkTestXMLNegativeSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesPositiveSyntax") -> mkTestNTriplesPositiveSyntax ts
     (UNode "http://www.w3.org/ns/rdftest#TestNTriplesNegativeSyntax") -> mkTestNTriplesNegativeSyntax ts
-    n -> error ("Unknown test case: " ++ show n)
+    n -> error ("Unknown test case: " <> show n)
 
 mkTestTurtleEval :: Triples -> TestEntry
 mkTestTurtleEval ts = TestTurtleEval {
@@ -273,7 +274,7 @@ manifestSubjectNodes :: RDF TList -> [Subject]
 manifestSubjectNodes rdf = subjectNodes rdf [mfManifest]
 
 subjectNodes :: RDF TList -> [Object] -> [Subject]
-subjectNodes rdf = (map subjectOf) . concatMap queryType
+subjectNodes rdf = (fmap subjectOf) . concatMap queryType
   where queryType n = query rdf Nothing (Just rdfType) (Just n)
 
 -- | Text of the literal node.

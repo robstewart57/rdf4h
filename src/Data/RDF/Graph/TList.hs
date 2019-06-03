@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyDataDecls #-}
 
@@ -20,6 +19,7 @@
 module Data.RDF.Graph.TList (TList) where
 
 import Prelude
+import Data.Semigroup ((<>))
 import Control.DeepSeq (NFData)
 import Data.Binary
 import Data.RDF.Namespace
@@ -70,15 +70,15 @@ instance Rdf TList where
   query             = query'
   showGraph         = showGraph'
 
-showGraph' :: RDF TList -> [Char]
-showGraph' gr = concatMap (\t -> show t ++ "\n") (expandTriples gr)
+showGraph' :: RDF TList -> String
+showGraph' gr = concatMap (\t -> show t <> "\n") (expandTriples gr)
 
 prefixMappings' :: RDF TList -> PrefixMappings
 prefixMappings' (TListC(_, _, pms)) = pms
 
 addPrefixMappings' :: RDF TList -> PrefixMappings -> Bool -> RDF TList
 addPrefixMappings' (TListC(ts, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  TListC(ts, baseURL, merge pms pms')
 
 baseUrl' :: RDF TList -> Maybe BaseUrl

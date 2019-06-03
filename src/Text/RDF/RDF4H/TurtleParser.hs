@@ -8,6 +8,7 @@
 module Text.RDF.RDF4H.TurtleParser
   ( TurtleParser(TurtleParser)
   , TurtleParserCustom(TurtleParserCustom)
+  , parseTurtleDebug
   ) where
 
 import Prelude hiding (readFile)
@@ -16,20 +17,23 @@ import Data.Char (toLower, toUpper, isDigit, isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
+import Data.Either
+import Data.Semigroup ((<>))
 import Data.RDF.Types
 import Data.RDF.IRI
-import Data.RDF.Namespace
+import Data.RDF.Graph.TList
 import Text.RDF.RDF4H.ParserUtils
 import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
 import qualified Data.Text as T
 import Data.Sequence (Seq, (|>))
+import Data.Functor (($>))
 import qualified Data.Foldable as F
 import Control.Monad
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State.Class
 import Control.Monad.State.Strict
 
@@ -72,6 +76,9 @@ type ParseState =
   , Maybe Predicate  -- current predicate node, if we have parsed a predicate but not finished the triple
   , Seq Triple       -- the triples encountered while parsing; always added to on the right side
   , Map String Integer ) -- map blank node names to generated id.
+
+parseTurtleDebug :: String -> IO (RDF TList)
+parseTurtleDebug f = fromRight empty <$> parseFile (TurtleParserCustom (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/") Attoparsec) f
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
@@ -176,7 +183,7 @@ t_sparql_base = do
   updateBaseUrl (Just $ Just newBaseIri)
 
 t_verb :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m ()
-t_verb = try t_predicate <|> (char 'a' *> pure rdfTypeNode) >>= setPredicate
+t_verb = try t_predicate <|> (char 'a' $> rdfTypeNode) >>= setPredicate
 
 -- grammar rule: [11] predicate ::= iri
 t_predicate :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
@@ -189,7 +196,7 @@ t_pname_ns = do
   (_, _, _, pms, _, _, _, _) <- get
   case resolveQName pre pms of
     Just n  -> pure n
-    Nothing -> unexpected ("Cannot resolve QName prefix: " ++ T.unpack pre)
+    Nothing -> unexpected ("Cannot resolve QName prefix: " <> T.unpack pre)
 
 -- grammar rules: [168s] PN_LOCAL
 -- [168s] PN_LOCAL ::= (PN_CHARS_U | ':' | [0-9] | PLX) ((PN_CHARS | '.' | ':' | PLX)* (PN_CHARS | ':' | PLX))?
@@ -199,9 +206,9 @@ t_pn_local = do
   xs <- option "" $ try $ do
     let recsve = (t_pn_chars_str <|> string ":" <|> t_plx) <|>
                  (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve))) <|>
-                 (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws *> pure "."))
+                 (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws $> "."))
     concat <$> many recsve
-  pure (T.pack (x ++ xs))
+  pure (T.pack (x <> xs))
   where
     satisfy_str      = pure <$> satisfy isDigit
     t_pn_chars_str   = pure <$> t_pn_chars
@@ -235,7 +242,7 @@ t_subject = iri <|> t_blankNode <|> t_collection >>= setSubject
 -- [137s] BlankNode ::= BLANK_NODE_LABEL | ANON
 t_blankNode :: (CharParsing m, MonadState ParseState m) => m Node
 t_blankNode = do
-  genID <- try t_blank_node_label <|> (t_anon *> pure mempty)
+  genID <- try t_blank_node_label <|> (t_anon $> mempty)
   mp <- currGenIdLookup
   maybe (newBN genID) getExistingBN (Map.lookup genID mp)
   where
@@ -297,7 +304,7 @@ t_collection = withConstantSubjectPredicate $
     void (many t_ws)
     return root
   where
-    empty_list = lookAhead (char ')') *> return rdfNilNode
+    empty_list = lookAhead (char ')') $> rdfNilNode
     non_empty_list = do
       ns <- sepEndBy1 element (some t_ws)
       addTripleForObject rdfNilNode
@@ -312,18 +319,6 @@ t_collection = withConstantSubjectPredicate $
       setPredicate rdfRestNode
       return bn
     getSubject = get >>= \(_, _, _, _, s, _, _, _) -> pure s
-
-rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkUri rdf "type"
-rdfNilNode    = UNode $ mkUri rdf "nil"
-rdfFirstNode  = UNode $ mkUri rdf "first"
-rdfRestNode   = UNode $ mkUri rdf "rest"
-
-xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: T.Text
-xsdIntUri     = mkUri xsd "integer"
-xsdDoubleUri  = mkUri xsd "double"
-xsdDecimalUri = mkUri xsd "decimal"
-xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_literal =
@@ -507,7 +502,7 @@ updateBaseUrl val = _modifyState val no no no no no
 -- combines get_current and increment into a single function
 nextIdCounter :: MonadState ParseState m => m Integer
 nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
-                put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) *> pure i
+                put (bUrl, dUrl, i+1, pms, s, p, ts, genMap) $> i
 
 nextBlankNode :: MonadState ParseState m => m Node
 nextBlankNode = BNodeGen . fromIntegral <$> nextIdCounter
@@ -570,8 +565,8 @@ addTripleForObject obj = do
   t <- getTriple s p
   put (bUrl, dUrl, i, pms, s, p, ts |> t, genMap)
   where
-    getTriple Nothing   _         = unexpected $ "No Subject with which to create triple for: " ++ show obj
-    getTriple _         Nothing   = unexpected $ "No Predicate with which to create triple for: " ++ show obj
+    getTriple Nothing   _         = unexpected $ "No Subject with which to create triple for: " <> show obj
+    getTriple _         Nothing   = unexpected $ "No Predicate with which to create triple for: " <> show obj
     getTriple (Just s') (Just p') = pure $ Triple s' p' obj
 
 
@@ -631,7 +626,7 @@ parseStringAttoparsec bUrl docUrl t = handleResult' $ parse (evalStateT t_turtle
   where
     handleResult' res = case res of
         Fail _ _ err -> -- error err
-          Left $ ParseFailure $ "Parse failure: \n" ++ show err
+          Left $ ParseFailure $ "Parse failure: \n" <> show err
         Partial f -> handleResult' (f mempty)
         Done _ (ts,pms) -> Right $! mkRdf (F.toList ts) bUrl pms
 
@@ -650,12 +645,12 @@ parseURLAttoparsec bUrl docUrl = parseFromURL (parseStringAttoparsec bUrl docUrl
 ---------------------------------
 
 initialState :: Maybe BaseUrl -> Maybe T.Text -> ParseState
-initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Nothing, mempty, mempty)
+initialState bUrl docUrl = (BaseUrl <$> docUrl <|> bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Nothing, mempty, mempty)
 
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
 handleResult bUrl result = case result of
-  (Left err)         -> Left (ParseFailure $ "Parse failure: \n" ++ show err)
+  (Left err)         -> Left (ParseFailure $ "Parse failure: \n" <> show err)
   (Right (ts, pms))  -> Right $! mkRdf (F.toList ts) bUrl pms
 
 
@@ -668,7 +663,7 @@ caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 
 -- Match the string 's', accepting either lowercase or uppercase form of each character
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
-caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
+caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" <> s <> "\""
 
 tryIriResolution :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
 tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
@@ -676,4 +671,4 @@ tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
     tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
     tryIriResolution' _ (Just dIri)           = either err pure (resolveIRI dIri iriFrag)
     tryIriResolution' _ _                     = either err pure (resolveIRI mempty iriFrag)
-    err m = unexpected $ "Cannot resolve IRI: " ++ m ++ " " ++ show (mbUrl, mdUrl, iriFrag)
+    err m = unexpected $ mconcat ["Cannot resolve IRI: ", m, " ", show (mbUrl, mdUrl, iriFrag)]

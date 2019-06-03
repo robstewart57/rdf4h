@@ -13,7 +13,7 @@ module Text.RDF.RDF4H.NTriplesParser
 
 import Prelude hiding (readFile)
 import Data.Semigroup ((<>))
-import Data.Char (isDigit, isLetter, isAlphaNum)
+import Data.Char (isDigit, isLetter, isAlphaNum, isAsciiUpper, isAsciiLower)
 import Control.Applicative
 import Control.Monad (void)
 
@@ -39,7 +39,7 @@ import System.IO (IOMode(..), withFile, hSetNewlineMode, noNewlineTranslation, h
 -- class.
 data NTriplesParser = NTriplesParser
 
-data NTriplesParserCustom = NTriplesParserCustom Parser
+newtype NTriplesParserCustom = NTriplesParserCustom Parser
 
 -- |'NTriplesParser' is an instance of 'RdfParser' using parsec based parsers.
 instance RdfParser NTriplesParser where
@@ -109,13 +109,13 @@ nt_langtag :: (CharParsing m, Monad m) => m T.Text
 nt_langtag = do
   ss   <- char '@' *> some (satisfy isLetter)
   rest <- concat <$> many (char '-' *> some (satisfy isAlphaNum) >>= \lang_str -> pure ('-':lang_str))
-  pure (T.pack (ss ++ rest))
+  pure (T.pack (ss <> rest))
 
 -- [8] IRIREF
 nt_iriref :: (CharParsing m, Monad m) => m T.Text
 nt_iriref = between (char '<') (char '>') $ do
   raw_iri <- iriFragment
-  either (const empty) pure (validateIRI raw_iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " ++ show raw_iri
+  either (const empty) pure (validateIRI raw_iri) <?> "Only absolute IRIs allowed in NTriples format, which this isn't: " <> show raw_iri
 
 -- [153s] ECHAR
 nt_echar :: (CharParsing m, Monad m) => m Char
@@ -165,8 +165,8 @@ nt_blank_node_label = do
 -- [157s] PN_CHARS_BASE ::= [A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
 nt_pn_chars_base :: CharParsing m => m Char
 nt_pn_chars_base = try $ satisfy isBaseChar
-  where isBaseChar c = (c >= 'A' && c <= 'Z')
-                    || (c >= 'a' && c <= 'z')
+  where isBaseChar c = (isAsciiUpper c)
+                    || (isAsciiLower c)
                     || (c >= '\x00C0' && c <= '\x00D6')
                     || (c >= '\x00D8' && c <= '\x00F6')
                     || (c >= '\x00F8' && c <= '\x02FF')
@@ -251,11 +251,11 @@ handleAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
 handleAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
   where
     handleResult res = case res of
-        Fail _i _contexts err -> Left $ ParseFailure $ "Parse failure: \n" ++ show err
+        Fail _i _contexts err -> Left $ ParseFailure $ "Parse failure: \n" <> show err
           -- error $
-          -- "\nnot consumed: " ++ show i
-          -- ++ "\ncontexts: " ++ show contexts
-          -- ++ "\nerror: " ++ show err
+          -- "\nnot consumed: " <> show i
+          -- <> "\ncontexts: " <> show contexts
+          -- <> "\nerror: " <> show err
         Partial f -> handleResult (f (T.encodeUtf8 mempty))
         Done _ ts -> Right $ mkRdf ts Nothing (PrefixMappings mempty)
 

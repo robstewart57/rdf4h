@@ -19,18 +19,32 @@ cabal-version:   >= 1.8
 build-type:      Simple
 category:        RDF
 stability:       Experimental
-tested-with:     GHC==7.10.2, GHC==8.0.2
+tested-with:     GHC==7.10.3, GHC==8.0.2, GHC==8.8.2, GHC==8.4.3, GHC==8.6.5
 extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
 
+
+source-repository head
+  type:     git
+  location: https://github.com/robstewart57/rdf4h.git
+
+
+flag dev
+  description: Developer build
+  manual: True
+  default: False
+
+
 library
+  hs-source-dirs:  src
   exposed-modules: Data.RDF
                  , Data.RDF.IRI
                  , Data.RDF.Namespace
                  , Data.RDF.Types
                  , Data.RDF.Query
                  , Data.RDF.Graph.AdjHashMap
+                 , Data.RDF.Graph.AlgebraicGraph
                  , Data.RDF.Graph.TList
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
@@ -38,6 +52,7 @@ library
                  , Text.RDF.RDF4H.NTriplesSerializer
                  , Text.RDF.RDF4H.XmlParser
                  , Text.RDF.RDF4H.XmlParserHXT
+                 , Text.RDF.RDF4H.XmlParser.Identifiers
                  , Text.RDF.RDF4H.ParserUtils
   build-depends:   attoparsec
                  , base >= 4.8.0.0
@@ -48,6 +63,7 @@ library
                  , HTTP >= 4000.0.0
                  , hxt >= 9.3.1.2
                  , text >= 1.2.1.0
+                 , algebraic-graphs >= 0.3 && < 0.5
                  , unordered-containers
                  , hashable
                  , deepseq
@@ -65,8 +81,12 @@ library
   if !impl(ghc >= 8.0)
     build-depends: semigroups == 0.18.*
 
-  hs-source-dirs:  src
-  ghc-options:     -Wall -funbox-strict-fields
+  ghc-options:     -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  if flag(dev)
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -funbox-strict-fields
+
 
 executable rdf4h
   main-is:         src/Rdf4hParseMain.hs
@@ -78,11 +98,17 @@ executable rdf4h
   if impl(ghc < 7.6)
     build-depends: ghc-prim
 
-  ghc-options:   -Wall -funbox-strict-fields
+  ghc-options:   -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  if flag(dev)
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -funbox-strict-fields
+
 
 test-suite test-rdf4h
   type:          exitcode-stdio-1.0
   main-is:       Test.hs
+  hs-source-dirs: testsuite/tests
   other-modules: Data.RDF.PropertyTests
                  Data.RDF.GraphImplTests
                  Data.RDF.IRITests
@@ -90,9 +116,9 @@ test-suite test-rdf4h
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
                  W3C.NTripleTest
+                 W3C.TurtleTest
                  W3C.RdfXmlTest
                  W3C.W3CAssertions
-  ghc-options:   -Wall -fno-warn-orphans -funbox-strict-fields
   build-depends: base >= 4.8.0.0 && < 6
                , rdf4h
                , tasty
@@ -108,9 +134,15 @@ test-suite test-rdf4h
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
 
-  other-modules: W3C.TurtleTest
-  hs-source-dirs: testsuite/tests
+  ghc-options:   -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  if flag(dev)
+  ghc-options: -O0
+  else
+  ghc-options: -O2 -funbox-strict-fields
+
 
 benchmark rdf4h-bench
   type:             exitcode-stdio-1.0
@@ -121,8 +153,12 @@ benchmark rdf4h-bench
                     criterion,
                     rdf4h,
                     text >= 1.2.1.0
-  ghc-options:      -Wall
 
-source-repository head
-  type:     git
-  location: https://github.com/robstewart57/rdf4h.git
+  if !impl(ghc >= 8.0)
+    build-depends: semigroups == 0.18.*
+
+  ghc-options:   -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  if flag(dev)
+    ghc-options: -O0
+  else
+    ghc-options: -O2 -funbox-strict-fields

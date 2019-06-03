@@ -40,7 +40,7 @@ module Data.RDF.Types (
   PrefixMappings(PrefixMappings),PrefixMapping(PrefixMapping),
 
   -- * Supporting types
-  BaseUrl(BaseUrl), NodeSelector, ParseFailure(ParseFailure)
+  BaseUrl(..), NodeSelector, ParseFailure(ParseFailure)
 
 ) where
 
@@ -188,10 +188,10 @@ uriValidate = either (const Nothing) Just . isRdfURI
 
 -- |Same as 'uriValidate', but on 'String' rather than 'Text'
 uriValidateString :: String -> Maybe String
-uriValidateString = liftA T.unpack . uriValidate . fromString
+uriValidateString = fmap T.unpack . uriValidate . fromString
 
 isRdfURI :: Text -> Either ParseError Text
-isRdfURI t = parse (iriFragment  <* eof) ("Invalid URI: " ++ T.unpack t) t
+isRdfURI t = parse (iriFragment  <* eof) ("Invalid URI: " <> T.unpack t) t
 
 -- IRIREF from NTriples spec (without <> enclosing)
 -- [8] IRIREF ::= '<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
@@ -274,9 +274,9 @@ type Triples = [Triple]
 -- /subj/ must be a 'UNode' or 'BNode', and /pred/ must be a 'UNode'.
 triple :: Subject -> Predicate -> Object -> Triple
 triple s p o
-  | isLNode s = error $ "subject must be UNode or BNode: "     ++ show s
-  | isLNode p = error $ "predicate must be UNode, not LNode: " ++ show p
-  | isBNode p = error $ "predicate must be UNode, not BNode: " ++ show p
+  | isLNode s = error $ "subject must be UNode or BNode: "     <> show s
+  | isLNode p = error $ "predicate must be UNode, not LNode: " <> show p
+  | isBNode p = error $ "predicate must be UNode, not BNode: " <> show p
   | otherwise =  Triple s p o
 
 -- |Answer if given node is a URI Ref node.
@@ -462,7 +462,7 @@ class RdfSerializer s where
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl Text
+newtype BaseUrl = BaseUrl { unBaseUrl :: Text }
   deriving (Eq, Ord, Show, NFData, Semigroup, Generic)
 
 instance Binary BaseUrl
@@ -569,8 +569,8 @@ instance Show Namespace where
   show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (T.unpack prefix) (T.unpack uri)
 
 -- |An alias for a map from prefix to namespace URI.
-newtype PrefixMappings   = PrefixMappings (Map Text Text)
-  deriving (Eq, Ord,NFData, Generic)
+newtype PrefixMappings = PrefixMappings (Map Text Text)
+  deriving (Eq, Ord, NFData, Semigroup, Monoid, Generic)
 
 instance Binary PrefixMappings
 
@@ -579,7 +579,7 @@ instance Show PrefixMappings where
   -- worth optimizing yet.
   show (PrefixMappings pmap) = printf "PrefixMappings [%s]" mappingsStr
     where showPM      = show . PrefixMapping
-          mappingsStr = List.intercalate ", " (map showPM (Map.toList pmap))
+          mappingsStr = List.intercalate ", " (fmap showPM (Map.toList pmap))
 
 -- |A mapping of a prefix to the URI for that prefix.
 newtype PrefixMapping = PrefixMapping (Text, Text)
@@ -592,7 +592,7 @@ instance Show PrefixMapping where
 
 -- | Resolve a prefix using the given prefix mappings.
 resolveQName :: Text -> PrefixMappings -> Maybe Text
-resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
+resolveQName prefix (PrefixMappings pms) = Map.lookup prefix pms
 
 {-# INLINE mkAbsoluteUrl #-}
 {-# DEPRECATED mkAbsoluteUrl "Use resolveIRI instead, because mkAbsoluteUrl is a partial function" #-}
@@ -624,12 +624,10 @@ canonicalizerTable =
     doubleUri  = "http://www.w3.org/2001/XMLSchema#double"
 
 _integerStr, _decimalStr, _doubleStr :: Text -> Text
-_integerStr t =
-  if T.length t == 1
-  then t
-  else if T.head t == '0'
-       then _integerStr (T.tail t)
-       else t
+_integerStr t
+   | T.length t == 1 = t
+   | T.head t == '0' = _integerStr (T.tail t)
+   | otherwise = t
 
 -- exponent: [eE] ('-' | '+')? [0-9]+
 -- ('-' | '+') ? ( [0-9]+ '.' [0-9]* exponent | '.' ([0-9])+ exponent | ([0-9])+ exponent )
@@ -649,12 +647,12 @@ fileSchemeToFilePath (UNode fileScheme)
   | otherwise = Nothing
   where
     textToFilePath = pure . fromString <=< stringToFilePath . T.unpack
-    stringToFilePath = fixPrefix <=< pure . Network.uriPath <=< Network.parseURI
+    stringToFilePath = fixPrefix <=< pure . unEscapeString . Network.uriPath <=< Network.parseURI
     fixPrefix "" = Nothing
     fixPrefix p@(p':p'')
       | p' == FP.pathSeparator = Just (FP.normalise p) -- Posix path
       | p' == '/' = Just (FP.normalise p'')            -- Windows classic Path
-      | otherwise = Just ("\\\\" ++ FP.normalise p)    -- Windows UNC Path
+      | otherwise = Just ("\\\\" <> FP.normalise p)    -- Windows UNC Path
 fileSchemeToFilePath _ = Nothing
 
 -- | Converts a file path to a URI with "file:" scheme
@@ -663,7 +661,7 @@ filePathToUri p
   | FP.isRelative p = Nothing
   | otherwise       = Just . fromString . as_uri . FP.normalise $ p
   where
-    as_uri = ("file://" ++) . escapeURIString isAllowedInURI . as_posix . fix_prefix
+    as_uri = ("file://" <>) . escapeURIString isAllowedInURI . as_posix . fix_prefix
     fix_prefix p' = case (FP.takeDrive p') of
       "/" -> p'
       '\\':'\\':_ -> drop 2 p'

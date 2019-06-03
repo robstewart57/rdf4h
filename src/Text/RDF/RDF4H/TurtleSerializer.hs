@@ -1,4 +1,4 @@
--- |An RDF serializer for Turtle 
+-- |An RDF serializer for Turtle
 -- <http://www.w3.org/TeamSubmission/turtle/>.
 
 module Text.RDF.RDF4H.TurtleSerializer(
@@ -23,7 +23,7 @@ data TurtleSerializer = TurtleSerializer (Maybe T.Text) PrefixMappings
 instance RdfSerializer TurtleSerializer where
   hWriteRdf  (TurtleSerializer docUrl pms) h rdf = _writeRdf h docUrl (addPrefixMappings rdf pms False)
   writeRdf   s = hWriteRdf s stdout
-  hWriteH  (TurtleSerializer _ pms) h rdf = writeHeader h (baseUrl rdf) (mergePrefixMappings (prefixMappings rdf) pms)
+  hWriteH  (TurtleSerializer _ pms) h rdf = writeHeader h (baseUrl rdf) (prefixMappings rdf <> pms)
   writeH   s = hWriteRdf s stdout
   -- TODO: should use mdUrl to render <> where appropriate
   hWriteTs (TurtleSerializer docUrl pms) h = writeTriples h docUrl pms
@@ -31,7 +31,7 @@ instance RdfSerializer TurtleSerializer where
   hWriteT  (TurtleSerializer docUrl pms) h = writeTriple h docUrl pms
   writeT  s   = hWriteT s stdout
   hWriteN  (TurtleSerializer docUrl (PrefixMappings pms)) h n = writeNode h docUrl n pms
-  writeN  s   = hWriteN s stdout 
+  writeN  s   = hWriteN s stdout
 
 -- TODO: writeRdf currently merges standard namespace prefix mappings with
 -- the ones that the RDF already contains, so that if the RDF has none
@@ -72,10 +72,10 @@ writeTriples :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeTriples h mdUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
   where
-    revPms = Map.fromList $ map (\(k,v) -> (v,k)) $ Map.toList pms
+    revPms = Map.fromList $ (\(k,v) -> (v,k)) <$> Map.toList pms
 
 writeTriple :: Handle -> Maybe T.Text -> PrefixMappings -> Triple -> IO ()
-writeTriple h mdUrl (PrefixMappings pms) t = 
+writeTriple h mdUrl (PrefixMappings pms) t =
   w subjectOf >> space >> w predicateOf >> space >> w objectOf
   where
     w :: (Triple -> Node) -> IO ()
@@ -100,9 +100,9 @@ writeSubjGroup h dUrl pms ts@(t:_) =
 writePredGroup :: Handle -> Maybe T.Text -> Map T.Text T.Text -> Triples -> IO ()
 writePredGroup _  _       _   []     = return ()
 writePredGroup h  docUrl pms (t:ts) =
-  -- The doesn't rule out <> in either the predicate or object (as well as subject), 
+  -- The doesn't rule out <> in either the predicate or object (as well as subject),
   -- so we pass the docUrl through to writeNode in all cases.
-  writeNode h docUrl (predicateOf t) pms >> hPutChar h ' ' >> 
+  writeNode h docUrl (predicateOf t) pms >> hPutChar h ' ' >>
   writeNode h docUrl (objectOf t) pms >>
   mapM_ (\t' -> hPutStr h ", " >> writeNode h docUrl (objectOf t') pms) ts
 
@@ -131,7 +131,7 @@ _debugPMs pms =  mapM_ (\(k, v) -> T.putStr k >> putStr "__" >> T.putStrLn v) (M
 
 -- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
 -- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
--- there is no such mapping. This function does a linear-time search over the 
+-- there is no such mapping. This function does a linear-time search over the
 -- map, but the prefix mappings should always be very small, so it's okay for now.
 findMapping :: Map T.Text T.Text -> T.Text -> Maybe (T.Text, T.Text)
 findMapping pms uri =

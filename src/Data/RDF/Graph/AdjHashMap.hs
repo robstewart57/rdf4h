@@ -3,7 +3,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -13,11 +12,11 @@
 module Data.RDF.Graph.AdjHashMap (AdjHashMap) where
 
 import Prelude hiding (pred)
+import Data.Semigroup ((<>))
 import Data.List
 import Data.Binary (Binary)
 import Data.RDF.Types
 import Data.RDF.Query
-import Data.RDF.Namespace
 import Data.Hashable ()
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -103,16 +102,16 @@ instance Rdf AdjHashMap where
 --   show (AdjHashMap ((spoMap, _), _, _)) =
 --     let ts = concatMap (uncurry tripsSubj) subjPredMaps
 --           where subjPredMaps = HashMap.toList spoMap
---     in concatMap (\t -> show t ++ "\n") ts
+--     in concatMap (\t -> show t <> "\n") ts
 
-showGraph' :: RDF AdjHashMap -> [Char]
+showGraph' :: RDF AdjHashMap -> String
 showGraph' ((AdjHashMap ((spoMap, _), _, _))) =
     let ts = concatMap (uncurry tripsSubj) subjPredMaps
           where subjPredMaps = HashMap.toList spoMap
-    in concatMap (\t -> show t ++ "\n") ts
+    in concatMap (\t -> show t <> "\n") ts
 
 -- instance Show (RDF AdjHashMap) where
---   show gr = concatMap (\t -> show t ++ "\n")  (triplesOf gr)
+--   show gr = concatMap (\t -> show t <> "\n")  (triplesOf gr)
 
 -- some convenience type alias for readability
 
@@ -132,7 +131,7 @@ prefixMappings' (AdjHashMap (_, _, pms)) = pms
 
 addPrefixMappings' :: RDF AdjHashMap -> PrefixMappings -> Bool -> RDF AdjHashMap
 addPrefixMappings' (AdjHashMap (ts, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  AdjHashMap (ts, baseURL, merge pms pms')
 
 empty' :: RDF AdjHashMap
