@@ -64,7 +64,7 @@ showGraph' r = concatMap (\t -> show t ++ "\n") (expandTriples r)
 
 addPrefixMappings' :: RDF AlgebraicGraph -> PrefixMappings -> Bool -> RDF AlgebraicGraph
 addPrefixMappings' (AlgebraicGraph g baseURL pms) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  AlgebraicGraph g baseURL (merge pms pms')
 
 empty' :: RDF AlgebraicGraph

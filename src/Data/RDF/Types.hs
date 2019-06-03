@@ -40,7 +40,7 @@ module Data.RDF.Types (
   PrefixMappings(PrefixMappings),PrefixMapping(PrefixMapping),
 
   -- * Supporting types
-  BaseUrl(BaseUrl), NodeSelector, ParseFailure(ParseFailure)
+  BaseUrl(..), NodeSelector, ParseFailure(ParseFailure)
 
 ) where
 
@@ -462,7 +462,7 @@ class RdfSerializer s where
 
 
 -- |The base URL of an RDF.
-newtype BaseUrl = BaseUrl Text
+newtype BaseUrl = BaseUrl { unBaseUrl :: Text }
   deriving (Eq, Ord, Show, NFData, Semigroup, Generic)
 
 instance Binary BaseUrl
@@ -569,8 +569,8 @@ instance Show Namespace where
   show (PrefixedNS prefix uri)  =  printf "(PrefixNS %s %s)" (T.unpack prefix) (T.unpack uri)
 
 -- |An alias for a map from prefix to namespace URI.
-newtype PrefixMappings   = PrefixMappings (Map Text Text)
-  deriving (Eq, Ord,NFData, Generic)
+newtype PrefixMappings = PrefixMappings (Map Text Text)
+  deriving (Eq, Ord, NFData, Semigroup, Monoid, Generic)
 
 instance Binary PrefixMappings
 
@@ -592,7 +592,7 @@ instance Show PrefixMapping where
 
 -- | Resolve a prefix using the given prefix mappings.
 resolveQName :: Text -> PrefixMappings -> Maybe Text
-resolveQName prefix (PrefixMappings pms') = Map.lookup prefix pms'
+resolveQName prefix (PrefixMappings pms) = Map.lookup prefix pms
 
 {-# INLINE mkAbsoluteUrl #-}
 {-# DEPRECATED mkAbsoluteUrl "Use resolveIRI instead, because mkAbsoluteUrl is a partial function" #-}
@@ -647,7 +647,7 @@ fileSchemeToFilePath (UNode fileScheme)
   | otherwise = Nothing
   where
     textToFilePath = pure . fromString <=< stringToFilePath . T.unpack
-    stringToFilePath = fixPrefix <=< pure . Network.uriPath <=< Network.parseURI
+    stringToFilePath = fixPrefix <=< pure . unEscapeString . Network.uriPath <=< Network.parseURI
     fixPrefix "" = Nothing
     fixPrefix p@(p':p'')
       | p' == FP.pathSeparator = Just (FP.normalise p) -- Posix path

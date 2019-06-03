@@ -225,7 +225,7 @@ readFile fpath = withFile fpath ReadMode $ \h -> do
   T.hGetContents h
 
 parseURLParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseURLParsec = _parseURL parseStringParsec
+parseURLParsec = parseFromURL parseStringParsec
 
 handleParsec :: (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
                  Either ParseError [Triple] -> Either ParseFailure (RDF a)
@@ -242,7 +242,7 @@ parseFileAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseFileAttoparsec path = handleAttoparsec <$> readFile path
 
 parseURLAttoparsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
-parseURLAttoparsec = _parseURL handleAttoparsec
+parseURLAttoparsec = parseFromURL handleAttoparsec
 
 parseStringAttoparsec :: (Rdf a) => T.Text -> Either ParseFailure (RDF a)
 parseStringAttoparsec = handleAttoparsec

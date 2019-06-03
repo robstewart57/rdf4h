@@ -16,6 +16,7 @@ module Data.RDF.IRI
   , serializeIRI
   , parseIRI, parseRelIRI
   , validateIRI, resolveIRI
+  , removeIRIFragment
   ) where
 
 import Data.Semigroup (Semigroup(..))
@@ -92,6 +93,9 @@ data SchemaError
   | MissingColon     -- ^ Schemas must be followed by a colon
   deriving (Show, Eq)
 
+removeIRIFragment :: IRIRef -> IRIRef
+removeIRIFragment (IRIRef s a p q _) = IRIRef s a p q Nothing
+
 -- [TODO] use Builder
 serializeIRI :: IRIRef -> Text
 serializeIRI (IRIRef s a p q f) = mconcat
@@ -127,8 +131,11 @@ validateIRI t = t <$ parseIRI t
 
 -- | IRI parsing and resolution according to algorithm 5.2 from RFC3986
 -- See: http://www.ietf.org/rfc/rfc3986.txt
--- [FIXME] Currently, this is a correct but naive implemenation.
-resolveIRI :: Text -> Text -> Either String Text
+-- [FIXME] Currently, this is a correct but naive implementation.
+resolveIRI
+  :: Text -- ^ Base URI
+  -> Text -- ^ URI to resolve
+  -> Either String Text
 resolveIRI baseIri iri = serializeIRI <$> resolvedIRI
   where
     resolvedIRI = either (const resolvedRelativeIRI) resolveAbsoluteIRI (parseIRI iri)

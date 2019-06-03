@@ -49,7 +49,7 @@ prefixMappings' (TPatriciaTree (_,_,_,pms')) = pms'
 
 addPrefixMappings' :: RDF TPatriciaTree -> PrefixMappings -> Bool -> RDF TPatriciaTree
 addPrefixMappings' (TPatriciaTree (g, idxLookup, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  TPatriciaTree (g, idxLookup, baseURL, merge pms pms')
 
 baseUrl' :: RDF TPatriciaTree -> Maybe BaseUrl

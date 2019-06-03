@@ -15,6 +15,7 @@ TAGS
 *.backup
 /.cabal-sandbox
 cabal.sandbox.config
+cabal.project.local
 countries.ttl
 *.prof
 bench/MainCriterion

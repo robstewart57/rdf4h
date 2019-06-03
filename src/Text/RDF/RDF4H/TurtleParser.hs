@@ -8,6 +8,7 @@
 module Text.RDF.RDF4H.TurtleParser
   ( TurtleParser(TurtleParser)
   , TurtleParserCustom(TurtleParserCustom)
+  , parseTurtleDebug
   ) where
 
 import Prelude hiding (readFile)
@@ -16,10 +17,11 @@ import Data.Char (toLower, toUpper, isDigit, isHexDigit)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Maybe
+import Data.Either
 import Data.Semigroup ((<>))
 import Data.RDF.Types
 import Data.RDF.IRI
-import Data.RDF.Namespace
+import Data.RDF.Graph.TList
 import Text.RDF.RDF4H.ParserUtils
 import Text.RDF.RDF4H.NTriplesParser
 import Text.Parsec (runParser, ParseError)
@@ -31,7 +33,7 @@ import Control.Monad
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State.Class
 import Control.Monad.State.Strict
 
@@ -74,6 +76,9 @@ type ParseState =
   , Maybe Predicate  -- current predicate node, if we have parsed a predicate but not finished the triple
   , Seq Triple       -- the triples encountered while parsing; always added to on the right side
   , Map String Integer ) -- map blank node names to generated id.
+
+parseTurtleDebug :: String -> IO (RDF TList)
+parseTurtleDebug f = fromRight empty <$> parseFile (TurtleParserCustom (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/") Attoparsec) f
 
 -- grammar rule: [1] turtleDoc
 t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, PrefixMappings)
@@ -314,18 +319,6 @@ t_collection = withConstantSubjectPredicate $
       setPredicate rdfRestNode
       return bn
     getSubject = get >>= \(_, _, _, _, s, _, _, _) -> pure s
-
-rdfTypeNode, rdfNilNode, rdfFirstNode, rdfRestNode :: Node
-rdfTypeNode   = UNode $ mkUri rdf "type"
-rdfNilNode    = UNode $ mkUri rdf "nil"
-rdfFirstNode  = UNode $ mkUri rdf "first"
-rdfRestNode   = UNode $ mkUri rdf "rest"
-
-xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri :: T.Text
-xsdIntUri     = mkUri xsd "integer"
-xsdDoubleUri  = mkUri xsd "double"
-xsdDecimalUri = mkUri xsd "decimal"
-xsdBooleanUri = mkUri xsd "boolean"
 
 t_literal :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
 t_literal =
@@ -605,7 +598,7 @@ parseURLParsec :: (Rdf a) =>
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
-parseURLParsec bUrl docUrl = _parseURL (parseStringParsec bUrl docUrl)
+parseURLParsec bUrl docUrl = parseFromURL (parseStringParsec bUrl docUrl)
 
 -- |Parse the given file as a Turtle document. The arguments and return type have the same semantics
 -- as 'parseURL', except that the last @String@ argument corresponds to a filesystem location rather
@@ -647,12 +640,12 @@ parseURLAttoparsec :: (Rdf a) =>
                  -> IO (Either ParseFailure (RDF a))
                                      -- ^ The parse result, which is either a @ParseFailure@ or the RDF
                                      --   corresponding to the Turtle document.
-parseURLAttoparsec bUrl docUrl = _parseURL (parseStringAttoparsec bUrl docUrl)
+parseURLAttoparsec bUrl docUrl = parseFromURL (parseStringAttoparsec bUrl docUrl)
 
 ---------------------------------
 
 initialState :: Maybe BaseUrl -> Maybe T.Text -> ParseState
-initialState bUrl docUrl = (bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Nothing, mempty, mempty)
+initialState bUrl docUrl = (BaseUrl <$> docUrl <|> bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Nothing, mempty, mempty)
 
 
 handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, PrefixMappings) -> Either ParseFailure (RDF a)
@@ -678,4 +671,4 @@ tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
     tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
     tryIriResolution' _ (Just dIri)           = either err pure (resolveIRI dIri iriFrag)
     tryIriResolution' _ _                     = either err pure (resolveIRI mempty iriFrag)
-    err m = unexpected $ "Cannot resolve IRI: " <> m <> " " <> show (mbUrl, mdUrl, iriFrag)
+    err m = unexpected $ mconcat ["Cannot resolve IRI: ", m, " ", show (mbUrl, mdUrl, iriFrag)]

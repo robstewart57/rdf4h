@@ -23,7 +23,7 @@ data TurtleSerializer = TurtleSerializer (Maybe T.Text) PrefixMappings
 instance RdfSerializer TurtleSerializer where
   hWriteRdf  (TurtleSerializer docUrl pms) h rdf = _writeRdf h docUrl (addPrefixMappings rdf pms False)
   writeRdf   s = hWriteRdf s stdout
-  hWriteH  (TurtleSerializer _ pms) h rdf = writeHeader h (baseUrl rdf) (mergePrefixMappings (prefixMappings rdf) pms)
+  hWriteH  (TurtleSerializer _ pms) h rdf = writeHeader h (baseUrl rdf) (prefixMappings rdf <> pms)
   writeH   s = hWriteRdf s stdout
   -- TODO: should use mdUrl to render <> where appropriate
   hWriteTs (TurtleSerializer docUrl pms) h = writeTriples h docUrl pms

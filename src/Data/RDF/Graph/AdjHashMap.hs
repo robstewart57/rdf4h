@@ -17,7 +17,6 @@ import Data.List
 import Data.Binary (Binary)
 import Data.RDF.Types
 import Data.RDF.Query
-import Data.RDF.Namespace
 import Data.Hashable ()
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
@@ -132,7 +131,7 @@ prefixMappings' (AdjHashMap (_, _, pms)) = pms
 
 addPrefixMappings' :: RDF AdjHashMap -> PrefixMappings -> Bool -> RDF AdjHashMap
 addPrefixMappings' (AdjHashMap (ts, baseURL, pms)) pms' replace =
-  let merge = if replace then flip mergePrefixMappings else mergePrefixMappings
+  let merge = if replace then flip (<>) else (<>)
   in  AdjHashMap (ts, baseURL, merge pms pms')
 
 empty' :: RDF AdjHashMap

@@ -25,13 +25,13 @@ suiteFilesDirXml = "rdf-tests/rdf-xml/"
 suiteFilesDirNTriples = "rdf-tests/ntriples/"
 
 mfPathTurtle,mfPathXml,mfPathNTriples :: T.Text
-mfPathTurtle = T.concat [suiteFilesDirTurtle, "manifest.ttl"]
-mfPathXml = T.concat [suiteFilesDirXml, "manifest.ttl"]
-mfPathNTriples = T.concat [suiteFilesDirNTriples, "manifest.ttl"]
+mfPathTurtle = mconcat [suiteFilesDirTurtle, "manifest.ttl"]
+mfPathXml = mconcat [suiteFilesDirXml, "manifest.ttl"]
+mfPathNTriples = mconcat [suiteFilesDirNTriples, "manifest.ttl"]
 
 mfBaseURITurtle,mfBaseURIXml,mfBaseURINTriples :: BaseUrl
-mfBaseURITurtle   = BaseUrl "http://www.w3.org/2013/TurtleTests/"
-mfBaseURIXml      = BaseUrl "http://www.w3.org/2013/RDFXMLTests/"
+mfBaseURITurtle   = W3CTurtleTest.mfBaseURITurtle
+mfBaseURIXml      = W3CRdfXmlTest.mfBaseURIXml
 mfBaseURINTriples = BaseUrl "http://www.w3.org/2013/N-TriplesTests/"
 
 main :: IO ()
@@ -41,9 +41,8 @@ main = do
   dir <- getCurrentDirectory
   let fileSchemeUri suitesDir =
         fromJust . filePathToUri $ (dir </> T.unpack suitesDir)
-  turtleManifest <-
-    loadManifest mfPathTurtle (fileSchemeUri suiteFilesDirTurtle)
-  xmlManifest <- loadManifest mfPathXml (fileSchemeUri suiteFilesDirXml)
+  turtleManifest <- loadManifest mfPathTurtle (unBaseUrl mfBaseURITurtle)
+  xmlManifest <- loadManifest mfPathXml (unBaseUrl mfBaseURIXml)
   nTriplesManifest <-
     loadManifest mfPathNTriples (fileSchemeUri suiteFilesDirNTriples)
   -- run tests
@@ -100,15 +99,15 @@ main = do
        "parser-w3c-tests-turtle"
        [ testGroup
          "parser-w3c-tests-turtle-parsec"
-         [W3CTurtleTest.testsParsec turtleManifest]
+         [W3CTurtleTest.testsParsec (dir </> T.unpack suiteFilesDirTurtle) turtleManifest]
        , testGroup
          "parser-w3c-tests-turtle-attoparsec"
-         [W3CTurtleTest.testsAttoparsec turtleManifest]
+         [W3CTurtleTest.testsAttoparsec (dir </> T.unpack suiteFilesDirTurtle) turtleManifest]
        ]
        ,
        testGroup
        "parser-w3c-tests-xml"
-       [ W3CRdfXmlTest.tests xmlManifest
+       [ W3CRdfXmlTest.tests (dir </> T.unpack suiteFilesDirXml) xmlManifest
        ]
        ]
     )

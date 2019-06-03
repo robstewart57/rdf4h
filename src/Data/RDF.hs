@@ -25,6 +25,7 @@ module Data.RDF (
   module Text.RDF.RDF4H.TurtleSerializer,
   module Text.RDF.RDF4H.TurtleParser,
   module Text.RDF.RDF4H.XmlParser,
+  module Text.RDF.RDF4H.XmlParserHXT,
 ) where
 
 import Data.RDF.Namespace
@@ -38,6 +39,7 @@ import Text.RDF.RDF4H.TurtleSerializer
 import Text.RDF.RDF4H.NTriplesParser
 import Text.RDF.RDF4H.TurtleParser
 import Text.RDF.RDF4H.XmlParser
+import Text.RDF.RDF4H.XmlParserHXT
 import Data.RDF.IRI
 import Data.RDF.Types
 import Data.RDF.Query
