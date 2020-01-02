@@ -134,6 +134,7 @@ import Data.Foldable (for_, toList)
 import Data.Functor.Identity (Identity(Identity), runIdentity)
 import qualified Data.HashMap.Strict as HM
 import Data.Kind (Type)
+import Data.Semigroup
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
