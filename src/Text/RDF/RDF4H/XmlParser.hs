@@ -54,11 +54,9 @@ instance RdfParser XmlParser where
   parseURL    (XmlParser bUrl dUrl) = parseURL'   bUrl dUrl
 
 -- |Configuration for the XML parser
-data XmlParser = XmlParser
-  (Maybe BaseUrl)
-  -- ^ The /default/ base URI to parse the document.
-  (Maybe Text)
-  -- ^ The /retrieval URI/ of the XML document.
+data XmlParser =
+  XmlParser (Maybe BaseUrl) -- ^ The /default/ base URI to parse the document.
+            (Maybe Text) -- ^ The /retrieval URI/ of the XML document.
 
 parseFile' :: (Rdf a)
   => Maybe BaseUrl

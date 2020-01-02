@@ -10,6 +10,7 @@ where
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace hiding (rdf)
+import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Map(Map)

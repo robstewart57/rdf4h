@@ -381,11 +381,11 @@ instance (Monad m, Semigroup a) => Semigroup (ParserT m a) where
 instance (Monad m, Monoid a) => Monoid (ParserT m a) where
   mempty = pure mempty
   {-# INLINE mempty #-}
-#if MIN_VERSION_base(4,9,0)
-  mappend = (<>)
-#else
+-- #if MIN_VERSION_base(4,9,0)
+--   mappend = (<>)
+-- #else
   mappend = liftA2 mappend
-#endif
+-- #endif
   {-# INLINE mappend #-}
 
 instance Functor m => Functor (ParserT m) where
