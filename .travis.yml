@@ -1,6 +1,6 @@
 # Use new container infrastructure to enable caching
 sudo: false
-language: haskell
+# language: haskell
 
 # do not send Travis CI email notifications
 notifications:
@@ -10,7 +10,7 @@ notifications:
 cache:
   directories:
   - $HOME/.ghc
-  - $HOME/.cabal
+  # - $HOME/.cabal
   - $HOME/.stack
 
 before_install:
@@ -47,11 +47,6 @@ matrix:
 
   - env: ARGS="--resolver lts-14"
     compiler: ": #stack 8.6.5"
-    addons: {apt: {packages: [libgmp-dev]}}
-
-  # Nightly builds are allowed to fail
-  - env: ARGS="--resolver nightly"
-    compiler: ": #stack nightly"
     addons: {apt: {packages: [libgmp-dev]}}
 
 script:
