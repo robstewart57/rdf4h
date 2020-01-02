@@ -36,7 +36,98 @@ collection of _<subject,predicate,object>_ triples:
     <br>
 </div>
 
+### Rdf type class
 
+The following `Rdf` type class methods are optimised for each graph implementation.
+
+{% highlight haskell %}
+class Rdf a where
+  baseUrl           :: RDF a -> Maybe BaseUrl
+  prefixMappings    :: RDF a -> PrefixMappings
+  addPrefixMappings :: RDF a -> PrefixMappings -> Bool -> RDF a
+  empty             :: RDF a
+  mkRdf             :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a
+  addTriple         :: RDF a -> Triple -> RDF a
+  removeTriple      :: RDF a -> Triple -> RDF a
+  triplesOf         :: RDF a -> Triples
+  uniqTriplesOf     :: RDF a -> Triples
+  select            :: RDF a -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
+  query             :: RDF a -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
+  showGraph         :: RDF a -> String
+{% endhighlight %}
+
+The `Data.RDF.Query` module contains more utility query functions,
+[here](http://hackage.haskell.org/package/rdf4h-3.0.1/docs/Data-RDF-Query.html).
+
+### Building RDF graphs interactively
+
+An RDF graph can be constructed with `empty`, and its triples contents
+modified with `addTriple` and `removeTriple`, e.g.:
+
+{% highlight haskell %}
+{-# LANGUAGE OverloadedStrings #-}
+module Main where
+import Data.RDF
+
+main :: IO ()
+main = do
+  -- empty list based RDF graph
+  let myEmptyGraph = empty :: RDF TList
+
+  -- add a triple to the empty graph
+      triple1 = triple
+        (unode "http://www.example.com/rob")
+        (unode "http://xmlns.com/foaf/0.1/interest")
+        (unode "http://dbpedia.org/resource/Scotch_whisky")
+      graph1 = addTriple myEmptyGraph triple1
+
+  -- add another triple to the graph
+      triple2 = triple
+        (unode "http://www.example.com/rob")
+        (unode "http://xmlns.com/foaf/0.1/interest")
+        (unode "http://dbpedia.org/resource/Haskell_(programming_language)")
+      graph2 = addTriple graph1 triple2
+
+  -- remove one of my interests
+      graph3 = removeTriple graph2 triple1
+
+  putStrLn (showGraph graph3)
+{% endhighlight %}
+
+### Bulk RDF graphs with parsing and writing
+
+RDF graphs can also be populated by parsing RDF content from strings,
+files or URLs:
+
+{% highlight haskell %}
+class RdfParser p where
+  parseString :: (Rdf a) => p -> T.Text -> Either ParseFailure (RDF a)
+  parseFile   :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
+  parseURL    :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
+{% endhighlight %}
+
+RDF graphs can also be serialised to handles with `hWriteRdf`:
+
+{% highlight haskell %}
+class RdfSerializer s where
+  hWriteRdf :: (Rdf a) => s -> Handle -> RDF a -> IO ()
+{% endhighlight %}
+
+E.g. to write an RDF graph to a file:
+
+{% highlight haskell %}
+withFile "out.nt" WriteMode (\h -> hWriteRdf NTriplesSerializer h rdfGraph)
+{% endhighlight %}
+
+### Supported RDF serialisation formats
+
+The rdf4h library supports three RDF serialisations:
+
+| Serialisation        | Reading           | Writing  |
+| ------------- |:-------------:|:-----:|
+| NTriples     | &#10003; | &#10003; |
+| Turtle      | &#10003;      | &#10003; |
+| RDF/XML | &#10003;    | &#10007; |
 
 ### Type level RDF graph representations
 
@@ -135,99 +226,6 @@ performs better for `select` and modifying triples in a graph with
 `addTriple` and `removeTriple`. See
 [these criterion results](http://robstewart57.github.io/rdf4h/rdf4h-bench-13112016.html)
 for performance benchmarks, taken in November 2016.
-
-### Rdf type class
-
-The following `Rdf` type class methods are optimised for each graph implementation.
-
-{% highlight haskell %}
-class Rdf a where
-  baseUrl           :: RDF a -> Maybe BaseUrl
-  prefixMappings    :: RDF a -> PrefixMappings
-  addPrefixMappings :: RDF a -> PrefixMappings -> Bool -> RDF a
-  empty             :: RDF a
-  mkRdf             :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a
-  addTriple         :: RDF a -> Triple -> RDF a
-  removeTriple      :: RDF a -> Triple -> RDF a
-  triplesOf         :: RDF a -> Triples
-  uniqTriplesOf     :: RDF a -> Triples
-  select            :: RDF a -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
-  query             :: RDF a -> Maybe Node -> Maybe Node -> Maybe Node -> Triples
-  showGraph         :: RDF a -> String
-{% endhighlight %}
-
-The `Data.RDF.Query` module contains more utility query functions,
-[here](http://hackage.haskell.org/package/rdf4h-3.0.1/docs/Data-RDF-Query.html).
-
-### Building RDF graphs interactively
-
-An RDF graph can be constructed with `empty`, and its triples contents
-modified with `addTriple` and `removeTriple`, e.g.:
-
-{% highlight haskell %}
-{-# LANGUAGE OverloadedStrings #-}
-module Main where
-import Data.RDF
-
-main :: IO ()
-main = do
-  -- empty list based RDF graph
-  let myEmptyGraph = empty :: RDF TList
-
-  -- add a triple to the empty graph
-      triple1 = triple
-        (unode "http://www.example.com/rob")
-        (unode "http://xmlns.com/foaf/0.1/interest")
-        (unode "http://dbpedia.org/resource/Scotch_whisky")
-      graph1 = addTriple myEmptyGraph triple1
-
-  -- add another triple to the graph
-      triple2 = triple
-        (unode "http://www.example.com/rob")
-        (unode "http://xmlns.com/foaf/0.1/interest")
-        (unode "http://dbpedia.org/resource/Haskell_(programming_language)")
-      graph2 = addTriple graph1 triple2
-
-  -- remove one of my interests
-      graph3 = removeTriple graph2 triple1
-
-  putStrLn (showGraph graph3)
-{% endhighlight %}
-
-### Bulk RDF graphs with parsing and writing
-
-RDF graphs can also be populated by parsing RDF content from strings,
-files or URLs:
-
-{% highlight haskell %}
-class RdfParser p where
-  parseString :: (Rdf a) => p -> T.Text -> Either ParseFailure (RDF a)
-  parseFile   :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
-  parseURL    :: (Rdf a) => p -> String -> IO (Either ParseFailure (RDF a))
-{% endhighlight %}
-
-RDF graphs can also be serialised to handles with `hWriteRdf`:
-
-{% highlight haskell %}
-class RdfSerializer s where
-  hWriteRdf :: (Rdf a) => s -> Handle -> RDF a -> IO ()
-{% endhighlight %}
-
-E.g. to write an RDF graph to a file:
-
-{% highlight haskell %}
-withFile "out.nt" WriteMode (\h -> hWriteRdf NTriplesSerializer h rdfGraph)
-{% endhighlight %}
-
-### Supported RDF serialisation formats
-
-The rdf4h library supports three RDF serialisations:
-
-| Serialisation        | Reading           | Writing  |
-| ------------- |:-------------:|:-----:|
-| NTriples     | &#10003; | &#10003; |
-| Turtle      | &#10003;      | &#10003; |
-| RDF/XML | &#10003;    | &#10007; |
 
 
 ### RDF query example
@@ -329,41 +327,16 @@ Pull requests should be submitted to the rdf4h GitHub repository:
 
 It'd be great to have:
 
-- 100% compliance with W3C parser tests for Turtle and RDF/XML
-- New high performance RDF graph implementations
+- High performance RDF graph implementations
 - Support for RDF quads, i.e. named RDF graphs
 - Support for JSON RDF serialisation [ticket 34](https://github.com/robstewart57/rdf4h/issues/34)
-- RDFS/OWL inference engines above /rdf4h/
+- RDFS/OWL inference engines
 - Parser performance improvements, e.g. [ticket 35](https://github.com/robstewart57/rdf4h/issues/35)
 - Criterion profile guided API performance optimisations
 
 In more detail...
 
 <br>
-
-#### Fixes for failing W3C parser unit tests 
-
-__Wanted:__ fix failing W3C parsing tests for the Turtle and RDF/XML
-serialisation formats.
-<br><br>
-
-The library does not pass all W3C RDF parsing specification tests. See
-the rdf4h library's current pass rate
-[on TravisCI](https://travis-ci.org/robstewart57/rdf4h). To see what
-currently fails:
-
-{% highlight shell %}
-$ git submodule update --init --recursive
-$ git submodule foreach git pull origin gh-pages
-$ stack test
-...
-      langtagged_string:                                                    OK
-      lantag_with_subtag:                                                   OK
-      minimal_whitespace:                                                   OK
-
-70 out of 528 tests failed (0.50s)
-{% endhighlight %}
-
 
 #### High performance RDF graph implementations
 
