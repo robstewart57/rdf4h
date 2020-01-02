@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -15,6 +16,11 @@ module Text.RDF.RDF4H.ParserUtils
   , xmlLang
   -- XSD
   , xsdIntUri, xsdDoubleUri, xsdDecimalUri, xsdBooleanUri
+  -- for GHC 8.0 compatibility
+#if MIN_VERSION_base(4,10,0)
+#else
+  , fromRight
+#endif
   ) where
 
 import Data.RDF.Types
@@ -27,6 +33,13 @@ import Data.Semigroup ((<>))
 import qualified Data.ByteString.Lazy as BS
 import           Data.Text (Text)
 import qualified Data.Text as T
+
+#if MIN_VERSION_base(4,10,0)
+#else
+fromRight :: b -> Either a b -> b
+fromRight _ (Right b) = b
+fromRight b _         = b
+#endif
 
 data Parser = Parsec | Attoparsec
 
