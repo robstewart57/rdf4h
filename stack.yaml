@@ -11,3 +11,7 @@ extra-deps:
 - exceptions-0.10.4
 - semigroups-0.18.3
 - xeno-0.3.5.2
+
+# for weeder tool
+#   https://github.com/ndmitchell/weeder
+ghc-options: {"$locals": -ddump-to-file -ddump-hi}
