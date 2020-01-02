@@ -24,17 +24,9 @@ extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
 
-
 source-repository head
   type:     git
   location: https://github.com/robstewart57/rdf4h.git
-
-
-flag dev
-  description: Developer build
-  manual: True
-  default: False
-
 
 library
   hs-source-dirs:  src
