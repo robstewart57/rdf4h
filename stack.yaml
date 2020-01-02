@@ -6,3 +6,6 @@ extra-deps:
 - algebraic-graphs-0.4
 - unordered-containers-0.2.10.0
 - selective-0.3
+- html-entities-1.1.4.3
+- mmorph-1.1.3
+- exceptions-0.10.4
