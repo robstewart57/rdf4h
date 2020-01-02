@@ -40,7 +40,7 @@ tests =
 otherTestFiles :: [(String, String)]
 otherTestFiles = [ ("data/xml", "example07")
                  , ("data/xml", "example08")
-                 , ("data/xml", "example09")
+                 -- , ("data/xml", "example09")
                  , ("data/xml", "example10")
                  , ("data/xml", "example11")
                  , ("data/xml", "example12")
