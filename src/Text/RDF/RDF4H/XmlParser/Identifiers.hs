@@ -17,6 +17,7 @@ import qualified Data.Text as T
 import qualified Data.Map as Map
 import           Data.Attoparsec.Text (Parser, (<?>))
 import qualified Data.Attoparsec.Text as P
+import Data.Semigroup ((<>))
 
 import           Data.RDF.Namespace
 
