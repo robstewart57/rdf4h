@@ -467,6 +467,9 @@ newtype BaseUrl = BaseUrl { unBaseUrl :: Text }
 
 instance Binary BaseUrl
 
+instance Monoid BaseUrl where
+  mempty = BaseUrl T.empty
+
 -- |A 'NodeSelector' is either a function that returns 'True'
 --  or 'False' for a node, or Nothing, which indicates that all
 -- nodes would return 'True'.
