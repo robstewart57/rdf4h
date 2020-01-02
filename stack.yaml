@@ -6,8 +6,3 @@ extra-deps:
 - hgal-2.0.0.2
 - algebraic-graphs-0.4
 - unordered-containers-0.2.10.0
-- git: https://gitlab.com/k0001/xmlbf.git
-  commit: ce65be6366c0aaafcc282268d767c52380e459e6
-  subdirs:
-  - xmlbf
-  - xmlbf-xeno
