@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DoAndIfThenElse #-}
@@ -76,6 +77,14 @@ type ParseState =
   , Maybe Predicate  -- current predicate node, if we have parsed a predicate but not finished the triple
   , Seq Triple       -- the triples encountered while parsing; always added to on the right side
   , Map String Integer ) -- map blank node names to generated id.
+
+#if MIN_VERSION_base(4,10,0)
+#else
+fromRight :: b -> Either a b -> b
+fromRight _ (Right b) = b
+fromRight b _         = b
+#endif
+
 
 parseTurtleDebug :: String -> IO (RDF TList)
 parseTurtleDebug f = fromRight empty <$> parseFile (TurtleParserCustom (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/") Attoparsec) f
