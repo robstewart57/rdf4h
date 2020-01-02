@@ -20,6 +20,8 @@ import           Data.RDF.IRI
 import           Data.RDF.Graph.TList
 import           Text.RDF.RDF4H.ParserUtils hiding (Parser)
 import           Text.RDF.RDF4H.XmlParser.Identifiers
+import           Text.RDF.RDF4H.XmlParser.Xmlbf hiding (Node)
+import qualified Text.RDF.RDF4H.XmlParser.Xeno as Xeno
 
 import           Control.Applicative
 import           Control.Monad
@@ -43,9 +45,8 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Builder as BB
-import           Xmlbf hiding (Node, State)
-import qualified Xmlbf.Xeno as Xeno
-
+-- import           Xmlbf hiding (Node, State)
+-- import qualified Xmlbf.Xeno as Xeno
 
 instance RdfParser XmlParser where
   parseString (XmlParser bUrl dUrl) = parseXmlRDF bUrl dUrl
