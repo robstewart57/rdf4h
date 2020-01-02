@@ -71,10 +71,17 @@ library
                  , parsers
                  , mtl
                  , network-uri >= 2.6
-                 , xmlbf >= 0.6
-                 , xmlbf-xeno
+                 -- , xmlbf >= 0.6
+                 -- , xmlbf-xeno
                  , lifted-base
                  , http-conduit
+                 , mmorph
+                 , exceptions
+                 , selective
+                 , html-entities
+                 , xeno
+  other-modules:   Text.RDF.RDF4H.XmlParser.Xmlbf
+                 , Text.RDF.RDF4H.XmlParser.Xeno
   if impl(ghc < 7.6)
     build-depends: ghc-prim
   if !impl(ghc >= 8.0)
@@ -138,9 +145,9 @@ test-suite test-rdf4h
 
   ghc-options:   -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   if flag(dev)
-  ghc-options: -O0
+    ghc-options: -O0
   else
-  ghc-options: -O2 -funbox-strict-fields
+    ghc-options: -O2 -funbox-strict-fields
 
 
 benchmark rdf4h-bench
