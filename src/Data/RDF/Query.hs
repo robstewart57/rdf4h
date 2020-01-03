@@ -6,7 +6,7 @@ module Data.RDF.Query (
   equalSubjects, equalPredicates, equalObjects,
   subjectOf, predicateOf, objectOf, isEmpty,
   rdfContainsNode, tripleContainsNode,
-  subjectsWithPredicate, objectsOfPredicate, uordered,
+  subjectsWithPredicate, objectsOfPredicate, getRdfList, uordered,
 
   -- * RDF graph functions
   isIsomorphic, isGraphIsomorphic, expandTriples, fromEither,
@@ -30,7 +30,7 @@ import Data.Graph (Graph,graphFromEdges)
 import qualified Data.Graph.Automorphism as Automorphism
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), liftA2)
 
 -- |Answer the subject node of the triple.
 {-# INLINE subjectOf #-}
@@ -84,11 +84,41 @@ subjectsWithPredicate rdf pred = subjectOf <$> query rdf Nothing (Just pred) Not
 objectsOfPredicate :: Rdf a => RDF a -> Predicate -> [Object]
 objectsOfPredicate rdf pred = objectOf <$> query rdf Nothing (Just pred) Nothing
 
+-- |Get an RDF list, given its root.
+--
+-- > g :: RDF Tlist
+-- > g = fromRight empty $ parseString (TurtleParser mempty mempty) "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> (1 2 3) a rdf:List."
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "1" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (BNodeGen 2)
+-- -- Triple (BNodeGen 2) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "2" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 2) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (BNodeGen 3)
+-- -- Triple (BNodeGen 3) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#first") (LNode (TypedL "3" "http://www.w3.org/2001/XMLSchema#integer"))
+-- -- Triple (BNodeGen 3) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest") (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil")
+-- -- Triple (BNodeGen 1) (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#type") (UNode "http://www.w3.org/1999/02/22-rdf-syntax-ns#List")
+-- > getRdfList g (BNodeGen 1)
+-- > -- [LNode (TypedL "1" "http://www.w3.org/2001/XMLSchema#integer"),LNode (TypedL "2" "http://www.w3.org/2001/XMLSchema#integer"),LNode (TypedL "3" "http://www.w3.org/2001/XMLSchema#integer")]
+--
+-- See: https://www.w3.org/TR/rdf-schema/#ch_collectionvocab
+getRdfList :: (Rdf r) => RDF r -> Node -> [Node]
+getRdfList g = maybe mempty id . go
+  where
+    rdf = unode . NS.mkUri NS.rdf
+    nil = rdf "nil"
+    go n =
+      let firsts = objectOf <$> query g (Just n) (Just (rdf "first")) Nothing
+          rests = objectOf <$> query g (Just n) (Just (rdf "rest")) Nothing
+      in liftA2 (:) (get_first firsts) (get_rest rests)
+    get_first [n] = Just n
+    get_first _   = Nothing
+    get_rest [n]
+      | n == nil  = Just mempty
+      | otherwise = go n
+    get_rest _    = Nothing
+
 -- |Convert a parse result into an RDF if it was successful
 -- and error and terminate if not.
 fromEither :: Rdf a => Either ParseFailure (RDF a) -> RDF a
-fromEither (Left err)  = error (show err)
-fromEither (Right rdf) = rdf
+fromEither = either (error . show) id
 
 -- |Convert a list of triples into a sorted list of unique triples.
 uordered :: Triples -> Triples
