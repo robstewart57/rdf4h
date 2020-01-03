@@ -42,7 +42,10 @@ These tests are run on the W3C unit tests for RDF formats: https://github.com/w3
    [io-streams](http://hackage.haskell.org/package/io-streams) library
    to consume triples on-the-fly during parsing. This is discussed
    here:
+   https://github.com/robstewart57/rdf4h/issues/56#issuecomment-497892024 and
    https://github.com/robstewart57/rdf4h/issues/44#issuecomment-426054978
+
+2. RDF/XML serialisation of RDF graphs.
 
 ### Running tests
 
