@@ -40,6 +40,7 @@ tests =
 otherTestFiles :: [(String, String)]
 otherTestFiles = [ ("data/xml", "example07")
                  , ("data/xml", "example08")
+                 -- https://gitlab.com/k0001/xmlbf/merge_requests/9
                  -- , ("data/xml", "example09")
                  , ("data/xml", "example10")
                  , ("data/xml", "example11")
