@@ -6,6 +6,8 @@ dist-newstyle/
 cabal-dev
 *.o
 *.hi
+*.dump-hi
+stack.yaml.lock
 *.chi
 *.chs.h
 TAGS
