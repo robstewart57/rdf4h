@@ -3,7 +3,7 @@ packages:
 - '.'
 extra-deps:
 - hgal-2.0.0.2
-- algebraic-graphs-0.4
+- algebraic-graphs-0.5
 - unordered-containers-0.2.10.0
 - selective-0.3
 - html-entities-1.1.4.3
