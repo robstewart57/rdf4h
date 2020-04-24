@@ -134,7 +134,6 @@ import Data.Foldable (for_, toList)
 import Data.Functor.Identity (Identity(Identity), runIdentity)
 import qualified Data.HashMap.Strict as HM
 import Data.Kind (Type)
-import Data.Semigroup
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
@@ -381,11 +380,11 @@ instance (Monad m, Semigroup a) => Semigroup (ParserT m a) where
 instance (Monad m, Monoid a) => Monoid (ParserT m a) where
   mempty = pure mempty
   {-# INLINE mempty #-}
--- #if MIN_VERSION_base(4,9,0)
---   mappend = (<>)
--- #else
+#if MIN_VERSION_base(4,9,0)
+  mappend = (<>)
+#else
   mappend = liftA2 mappend
--- #endif
+#endif
   {-# INLINE mappend #-}
 
 instance Functor m => Functor (ParserT m) where
@@ -429,8 +428,10 @@ instance Monad m => Monad (ParserT m) where
       Right a -> runParserT (kpb a) s1
       Left msg -> pure (s1, Left msg))
   {-# INLINABLE (>>=) #-}
+#if !MIN_VERSION_base(4,13,0)
   fail = pFail
   {-# INLINE fail #-}
+#endif
 
 #if MIN_VERSION_base(4,9,0)
 instance Monad m => Control.Monad.Fail.MonadFail (ParserT m) where
