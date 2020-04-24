@@ -27,7 +27,7 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State.Strict
-import           Data.Semigroup ((<>))
+-- import           Data.Semigroup ((<>))
 import           Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as Map
