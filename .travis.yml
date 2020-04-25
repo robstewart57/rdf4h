@@ -16,6 +16,7 @@ matrix:
   include:
   - env: ARGS=""
   - env: ARGS="--resolver lts-9"
+  - env: ARGS="--resolver lts-10"
   - env: ARGS="--resolver lts-11"
   - env: ARGS="--resolver lts-12"
   - env: ARGS="--resolver lts-13"
