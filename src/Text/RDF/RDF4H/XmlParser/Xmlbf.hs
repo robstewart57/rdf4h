@@ -134,6 +134,13 @@ import Data.Foldable (for_, toList)
 import Data.Functor.Identity (Identity(Identity), runIdentity)
 import qualified Data.HashMap.Strict as HM
 import Data.Kind (Type)
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
@@ -171,13 +178,17 @@ instance Show Node where
 -- | Destruct an element 'Node'.
 pattern Element :: T.Text -> HM.HashMap T.Text T.Text -> [Node] -> Node
 pattern Element t as cs <- Element' t as cs
+#if MIN_VERSION_base(4,10,0)
 {-# COMPLETE Element #-} -- TODO this leads to silly pattern matching warnings
-
+#endif
+  
 -- | Destruct a text 'Node'.
 pattern Text :: TL.Text -> Node
 pattern Text t <- Text' t
+#if MIN_VERSION_base(4,10,0)
 {-# COMPLETE Text #-} -- TODO this leads to silly pattern matching warnings
-
+#endif
+  
 -- | Case analysis for a 'Node'.
 node
   :: (T.Text -> HM.HashMap T.Text T.Text -> [Node] -> a)
@@ -377,7 +388,11 @@ instance (Monad m, Semigroup a) => Semigroup (ParserT m a) where
   {-# INLINE (<>) #-}
 #endif
 
+#if MIN_VERSION_base(4,9,0)
+instance (Monad m, Monoid a, Semigroup a) => Monoid (ParserT m a) where
+#else
 instance (Monad m, Monoid a) => Monoid (ParserT m a) where
+#endif
   mempty = pure mempty
   {-# INLINE mempty #-}
 #if MIN_VERSION_base(4,9,0)

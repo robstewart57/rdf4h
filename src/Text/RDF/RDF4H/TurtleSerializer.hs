@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |An RDF serializer for Turtle
 -- <http://www.w3.org/TeamSubmission/turtle/>.
 
@@ -10,7 +12,13 @@ where
 import Data.RDF.Types
 import Data.RDF.Query
 import Data.RDF.Namespace hiding (rdf)
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
+#else
+#endif
+#else
+#endif
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Map(Map)

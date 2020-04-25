@@ -4,7 +4,13 @@
 module Main where
 
 import Prelude hiding (readFile)
-import Data.Semigroup (Semigroup(..))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import Criterion
 import Criterion.Types
 import Criterion.Main

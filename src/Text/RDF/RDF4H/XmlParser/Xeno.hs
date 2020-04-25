@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -18,7 +19,10 @@ module Text.RDF.RDF4H.XmlParser.Xeno
 import qualified Data.Bifunctor as Bif
 import qualified Data.ByteString as B
 import qualified Data.HashMap.Strict as HM
+#if !MIN_VERSION_base(4,13,0)
 import Data.Monoid ((<>))
+#else
+#endif
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as TB

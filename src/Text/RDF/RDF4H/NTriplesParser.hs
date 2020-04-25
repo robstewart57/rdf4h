@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |A parser for RDF in N-Triples format
 -- <http://www.w3.org/TR/rdf-testcases/#ntriples>.
 
@@ -12,7 +14,13 @@ module Text.RDF.RDF4H.NTriplesParser
   ) where
 
 import Prelude hiding (readFile)
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
+#else
+#endif
+#else
+#endif
 import Data.Char (isDigit, isLetter, isAlphaNum, isAsciiUpper, isAsciiLower)
 import Control.Applicative
 import Control.Monad (void)

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 
@@ -10,15 +11,23 @@ module Text.RDF.RDF4H.XmlParser.Identifiers
   ) where
 
 
+#if !MIN_VERSION_base(4,13,0)
 import           Data.Functor ((<$))
+#else
+#endif
 import           Control.Applicative (liftA2, Alternative(..))
 import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Map as Map
 import           Data.Attoparsec.Text (Parser, (<?>))
 import qualified Data.Attoparsec.Text as P
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
-
+#else
+#endif
+#else
+#endif
 import           Data.RDF.Namespace
 
 --------------------------------------------------------------------------------

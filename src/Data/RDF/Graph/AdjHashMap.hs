@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds #-}
@@ -12,7 +13,13 @@
 module Data.RDF.Graph.AdjHashMap (AdjHashMap) where
 
 import Prelude hiding (pred)
-import Data.Semigroup ((<>))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import Data.List
 import Data.Binary (Binary)
 import Data.RDF.Types

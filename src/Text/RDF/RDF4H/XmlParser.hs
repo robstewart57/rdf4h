@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedLists     #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -27,12 +28,21 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State.Strict
--- import           Data.Semigroup ((<>))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import           Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as Map
 import           Data.Maybe
+#if MIN_VERSION_base(4,10,0)
 import           Data.Either
+#else
+#endif
 import           Data.Bifunctor
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
@@ -480,9 +490,8 @@ pEmptyPropertyElt p = do
 checkAllowedAttributes :: HashSet Text -> Parser ()
 checkAllowedAttributes as = do
   attrs <- currentNodeAttrs
-  let diff = HS.difference (HM.keysSet attrs) as
-  unless (null diff) (throwError $ "Attributes not allowed: " <> show diff)
-
+  let diffAttrs = HS.difference (HM.keysSet attrs) as
+  unless (null diffAttrs) (throwError $ "Attributes not allowed: " <> show diffAttrs)
 -- See: https://www.w3.org/TR/rdf11-concepts/#dfn-rdf-xmlliteral,
 --      https://www.w3.org/TR/rdf-syntax-grammar/#literal
 pXMLLiteral :: Parser Text

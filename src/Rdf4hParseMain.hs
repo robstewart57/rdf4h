@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -12,6 +13,13 @@ import Data.Char (isLetter)
 import Data.List
 import qualified Data.Map as Map
 import Data.RDF
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup ((<>))
+#else
+#endif
+#else
+#endif
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.Console.GetOpt

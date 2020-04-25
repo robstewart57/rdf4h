@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |Defines types and utility functions related to namespaces, and
 -- some predefined values for commonly used namespaces, such as
 -- rdf, xsd, dublin core, etc.
@@ -13,10 +15,18 @@ module Data.RDF.Namespace(
   standard_ns_mappings, ns_mappings
 ) where
 
+import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import Data.RDF.Types
 import qualified Data.Map as Map
-import Data.Semigroup ((<>))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+  -- lts 10 says not needed
+-- import Data.Semigroup
+#else
+#endif
+#else
+#endif
 
 standard_namespaces :: [Namespace]
 standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
@@ -27,8 +37,11 @@ standard_ns_mappings  =  ns_mappings standard_namespaces
 
 -- |Takes a list of 'Namespace's and returns 'PrefixMappings'.
 ns_mappings :: [Namespace] -> PrefixMappings
-ns_mappings ns =  PrefixMappings $ Map.fromList $
-                     fmap (\(PrefixedNS pre uri) -> (pre, uri)) ns
+ns_mappings ns =  PrefixMappings $ Map.fromList $ catMaybes $
+                     fmap (\n -> case n of
+                              (PrefixedNS pre uri) -> Just (pre, uri)
+                              PlainNS _ -> Nothing
+                          ) ns
 
 -- |The RDF namespace.
 rdf :: Namespace

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE EmptyDataDecls #-}
@@ -19,7 +20,13 @@ import qualified Data.HashSet as HS
 import Data.RDF.Namespace
 import Data.RDF.Query
 import Data.RDF.Types (BaseUrl, Node, NodeSelector, Object, Predicate, RDF, Rdf (..), Subject, Triple (..), Triples)
-import Data.Semigroup (Semigroup (..))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import GHC.Generics
 
 data AlgebraicGraph deriving (Generic)

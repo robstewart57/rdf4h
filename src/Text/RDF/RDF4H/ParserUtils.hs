@@ -29,7 +29,13 @@ import Data.RDF.Namespace
 import Control.Exception.Lifted
 import Network.HTTP.Conduit
 import Data.Text.Encoding (decodeUtf8)
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
+#else
+#endif
+#else
+#endif
 import qualified Data.ByteString.Lazy as BS
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -48,7 +54,7 @@ data Parser = Parsec | Attoparsec
 errResult :: String -> Either ParseFailure (RDF rdfImpl)
 errResult msg = Left (ParseFailure msg)
 
-parseFromURL :: (Rdf rdfImpl) => (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
+parseFromURL :: (T.Text -> Either ParseFailure (RDF rdfImpl)) -> String -> IO (Either ParseFailure (RDF rdfImpl))
 parseFromURL parseFunc url = do
   result <- Control.Exception.Lifted.try $ simpleHttp url
   case result of

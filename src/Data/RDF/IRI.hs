@@ -19,8 +19,20 @@ module Data.RDF.IRI
   , removeIRIFragment
   ) where
 
-import Data.Semigroup (Semigroup(..))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
+
+#if MIN_VERSION_base(4,13,0)
+import Data.Maybe (isJust)
+#else
 import Data.Maybe (maybe, isJust)
+#endif
+
 import Data.Functor
 import Data.List (intersperse)
 import Control.Applicative

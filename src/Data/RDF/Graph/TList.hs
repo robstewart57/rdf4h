@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -19,7 +20,13 @@
 module Data.RDF.Graph.TList (TList) where
 
 import Prelude
-import Data.Semigroup ((<>))
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup
+#else
+#endif
+#else
+#endif
 import Control.DeepSeq (NFData)
 import Data.Binary
 import Data.RDF.Namespace

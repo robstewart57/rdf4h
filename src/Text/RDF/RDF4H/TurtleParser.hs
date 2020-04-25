@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -26,7 +27,13 @@ import Data.Maybe
 import Data.RDF.Graph.TList
 import Data.RDF.IRI
 import Data.RDF.Types
+#if MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup ((<>))
+#else
+#endif
+#else
+#endif
 import Data.Sequence (Seq, (|>))
 import qualified Data.Text as T
 import Text.Parsec (ParseError, runParser)
@@ -714,7 +721,7 @@ caseInsensitiveChar c = char (toLower c) <|> char (toUpper c)
 caseInsensitiveString :: (CharParsing m, Monad m) => String -> m String
 caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" <> s <> "\""
 
-tryIriResolution :: (CharParsing m, Monad m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
+tryIriResolution :: (CharParsing m) => Maybe BaseUrl -> Maybe T.Text -> T.Text -> m T.Text
 tryIriResolution mbUrl mdUrl iriFrag = tryIriResolution' mbUrl mdUrl
   where
     tryIriResolution' (Just (BaseUrl bIri)) _ = either err pure (resolveIRI bIri iriFrag)
