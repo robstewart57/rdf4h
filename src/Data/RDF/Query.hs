@@ -30,16 +30,20 @@ module Data.RDF.Query
     -- * absolutizing functions
     absolutizeTriple,
     absolutizeNode,
+    absolutizeNodeUnsafe,
+    QueryException(..)
   )
 where
 
 import Control.Applicative ((<|>))
+import Control.Exception
 import Data.Graph (Graph, graphFromEdges)
 import qualified Data.Graph.Automorphism as Automorphism
 import qualified Data.HashMap.Strict as HashMap
 import Data.HashMap.Strict (HashMap)
 import Data.List
 import Data.Maybe (fromMaybe)
+import Data.RDF.IRI
 import qualified Data.RDF.Namespace as NS
 import Data.RDF.Types
 #if MIN_VERSION_base(4,9,0)
@@ -117,9 +121,11 @@ uordered = sort . nub
 
 -- graphFromEdges :: Ord key => [(node, key, [key])] -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
 
--- | This determines if two RDF representations are equal regardless of blank
---  node names, triple order and prefixes. In math terms, this is the \simeq
---  latex operator, or ~=
+-- | This determines if two RDF representations are equal regardless
+--  of blank node names, triple order and prefixes. In math terms,
+--  this is the \simeq latex operator, or ~= . Unsafe because it
+--  assumes IRI resolution will succeed, may throw an
+--  'IRIResolutionException` exception.
 isIsomorphic :: (Rdf a, Rdf b) => RDF a -> RDF b -> Bool
 isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (normalize g2)
   where
@@ -139,10 +145,12 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
     normalize :: (Rdf a) => RDF a -> Triples
     normalize = sort . nub . expandTriples
 
--- | Compares the structure of two graphs and returns 'True' if
---   their graph structures are identical. This does not consider the nature of
---   each node in the graph, i.e. the URI text of 'UNode' nodes, the generated
---   index of a blank node, or the values in literal nodes.
+-- | Compares the structure of two graphs and returns 'True' if their
+--   graph structures are identical. This does not consider the nature
+--   of each node in the graph, i.e. the URI text of 'UNode' nodes,
+--   the generated index of a blank node, or the values in literal
+--   nodes. Unsafe because it assumes IRI resolution will succeed, may
+--   throw an 'IRIResolutionException` exception.
 isGraphIsomorphic :: (Rdf a, Rdf b) => RDF a -> RDF b -> Bool
 isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
   where
@@ -158,7 +166,9 @@ isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
         triplesGrouped = HashMap.toList triplesHashMap
         (dataGraph, _, _) = (graphFromEdges . fmap (\((s, p), os) -> (s, p, os))) triplesGrouped
 
--- | Expand the triples in a graph with the prefix map and base URL for that graph.
+-- | Expand the triples in a graph with the prefix map and base URL
+-- for that graph. Unsafe because it assumes IRI resolution will
+-- succeed, may throw an 'IRIResolutionException` exception.
 expandTriples :: (Rdf a) => RDF a -> Triples
 expandTriples rdf = normalize <$> triplesOf rdf
   where
@@ -183,11 +193,32 @@ expandURI pms iri = fromMaybe iri $ foldl' f Nothing (NS.toPMList pms)
     f :: Maybe Text -> (Text, Text) -> Maybe Text
     f x (p, u) = x <|> (T.append u <$> T.stripPrefix (T.append p ":") iri)
 
--- | Prefixes relative URIs in the triple with BaseUrl.
+-- | Prefixes relative URIs in the triple with BaseUrl. Unsafe because
+-- it assumes IRI resolution will succeed, may throw an
+-- 'IRIResolutionException` exception.
 absolutizeTriple :: Maybe BaseUrl -> Triple -> Triple
-absolutizeTriple base (Triple s p o) = triple (absolutizeNode base s) (absolutizeNode base p) (absolutizeNode base o)
+absolutizeTriple base (Triple s p o) = triple (absolutizeNodeUnsafe base s) (absolutizeNodeUnsafe base p) (absolutizeNodeUnsafe base o)
 
 -- | Prepends BaseUrl to UNodes with relative URIs.
-absolutizeNode :: Maybe BaseUrl -> Node -> Node
-absolutizeNode (Just (BaseUrl b)) (UNode u) = unode $ mkAbsoluteUrl b u
-absolutizeNode _ n = n
+absolutizeNode :: Maybe BaseUrl -> Node -> Either String Node
+absolutizeNode (Just (BaseUrl b)) (UNode u) =
+  case resolveIRI b u of
+    Left iriErr -> Left iriErr
+    Right t -> Right (unode t)
+absolutizeNode _ n = Right n
+
+data QueryException
+  = IRIResolutionException String
+  deriving (Show)
+
+instance Exception QueryException
+
+-- | Prepends BaseUrl to UNodes with relative URIs. Unsafe because it
+-- assumes IRI resolution will succeed, may throw an
+-- 'IRIResolutionException` exception.
+absolutizeNodeUnsafe :: Maybe BaseUrl -> Node -> Node
+absolutizeNodeUnsafe (Just (BaseUrl b)) (UNode u) =
+  case resolveIRI b u of
+    Left iriErr -> throw (IRIResolutionException iriErr)
+    Right t -> unode t
+absolutizeNodeUnsafe _ n = n
