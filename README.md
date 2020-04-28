@@ -18,6 +18,9 @@ For details see the GitHub project page:
 
 http://robstewart57.github.io/rdf4h/
 
+Supports GHC versions from 8.0.2 (stackage lts-9) to 8.8.3 (stackage
+lts-15.9).
+
 ### RDF formats
 
 The coverage of the W3C RDF standards are:
