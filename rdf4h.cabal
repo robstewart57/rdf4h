@@ -3,10 +3,11 @@ version:         4.0.0
 synopsis:        A library for RDF processing in Haskell
 description:
   'RDF for Haskell' is a library for working with RDF in Haskell.
-  At present it includes parsers and serializers for RDF in the N-Triples
-  and Turtle, and parsing support for RDF/XML. It provides abilities such as querying
-  for triples  containing a particular subject, predicate, or object, or
-  selecting triples that satisfy an arbitrary predicate function.
+  It includes RDF parsers and serializers for N-Triples
+  and Turtle, and an RDF parser for RDF/XML. It provides the ability to query
+  for triples containing a particular subject, predicate, or object, or
+  selecting triples that satisfy an arbitrary predicate function. It
+  also supports IRI parsing and resolution.
 
 author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith
 copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Renzo Carbonara
@@ -18,11 +19,12 @@ license-file:    LICENSE.txt
 cabal-version:   >= 1.8
 build-type:      Simple
 category:        RDF
-stability:       Experimental
-tested-with:     GHC==7.10.3, GHC==8.0.2, GHC==8.8.2, GHC==8.4.3, GHC==8.6.5
+stability:       stable
+tested-with:     GHC==8.0.2, GHC==8.2.2, GHC==8.4.3, GHC==8.6.5, GHC==8.8.3
 extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
+                  , examples/BuildRDFGraph.hs
 
 source-repository head
   type:     git
@@ -66,7 +68,7 @@ library
                  -- , xmlbf >= 0.6
                  -- , xmlbf-xeno
                  , lifted-base
-                 , http-conduit
+                 , http-conduit >= 2.2.0
                  , mmorph
                  , exceptions
                  , selective
