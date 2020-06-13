@@ -22,6 +22,7 @@ matrix:
   - env: ARGS="--resolver lts-13"
   - env: ARGS="--resolver lts-14"
   - env: ARGS="--resolver lts-15"
+  - env: ARGS="--resolver lts-16"
   - env: ARGS="--resolver nightly"
   allow_failures:
   - env: ARGS="--resolver nightly"
