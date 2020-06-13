@@ -16,7 +16,7 @@ homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
 license:         BSD3
 license-file:    LICENSE.txt
-cabal-version:   >= 1.8
+cabal-version:   >= 1.10
 build-type:      Simple
 category:        RDF
 stability:       stable
