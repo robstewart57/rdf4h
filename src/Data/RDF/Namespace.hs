@@ -11,7 +11,7 @@ module Data.RDF.Namespace(
   mkUri,
   prefixOf, uriOf,
   -- * Predefined namespace values
-  rdf, rdfs, dc, dct, owl, xml, xsd, skos, foaf, ex, ex2,
+  rdf, rdfs, dc, dct, owl, schema, xml, xsd, skos, foaf, ex, ex2,
   standard_ns_mappings, ns_mappings
 ) where
 
@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 #endif
 
 standard_namespaces :: [Namespace]
-standard_namespaces = [rdf, rdfs, dc, dct, owl, xsd, skos, foaf, ex, ex2]
+standard_namespaces = [rdf, rdfs, dc, dct, schema, owl, xsd, skos, foaf, ex, ex2]
 
 -- |The set of common predefined namespaces as a 'PrefixMappings' value.
 standard_ns_mappings :: PrefixMappings
@@ -62,6 +62,10 @@ dct = mkPrefixedNS' "dct" "http://purl.org/dc/terms/"
 -- |The OWL namespace.
 owl :: Namespace
 owl = mkPrefixedNS' "owl" "http://www.w3.org/2002/07/owl#"
+
+-- |The Schema.org namespace
+schema :: Namespace
+schema = mkPrefixedNS' "schema" "http://schema.org/"
 
 -- |The XML Schema namespace.
 xml :: Namespace
