@@ -11,6 +11,7 @@ module Data.RDF (
   module Data.RDF.IRI,
   module Data.RDF.Types,
   module Data.RDF.Query,
+  module Data.RDF.Namespace,
 
   -- * RDF type class instances
   module Data.RDF.Graph.TList,
