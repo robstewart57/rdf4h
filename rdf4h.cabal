@@ -62,7 +62,6 @@ library
                  , hashable
                  , deepseq
                  , binary
-                 , hgal
                  , parsers
                  , mtl
                  , network-uri >= 2.6

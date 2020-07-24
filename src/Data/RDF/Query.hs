@@ -18,7 +18,6 @@ module Data.RDF.Query
 
     -- * RDF graph functions
     isIsomorphic,
-    isGraphIsomorphic,
     expandTriples,
     fromEither,
 
@@ -31,16 +30,12 @@ module Data.RDF.Query
     absolutizeTriple,
     absolutizeNode,
     absolutizeNodeUnsafe,
-    QueryException(..)
+    QueryException (..),
   )
 where
 
 import Control.Applicative ((<|>))
 import Control.Exception
-import Data.Graph (Graph, graphFromEdges)
-import qualified Data.Graph.Automorphism as Automorphism
-import qualified Data.HashMap.Strict as HashMap
-import Data.HashMap.Strict (HashMap)
 import Data.List
 import Data.Maybe (fromMaybe)
 import Data.RDF.IRI
@@ -136,7 +131,7 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
     compareNodeUnlessBlank (LNode l1) (LNode l2) = l1 == l2
     compareNodeUnlessBlank (BNodeGen _) (BNode _) = True
     compareNodeUnlessBlank (BNode _) (BNodeGen _) = True
-    compareNodeUnlessBlank _ _ = False
+    compareNodeUnlessBlank _ _ = False -- isn't this exhaustive already?
     compareTripleUnlessBlank :: Triple -> Triple -> Bool
     compareTripleUnlessBlank (Triple s1 p1 o1) (Triple s2 p2 o2) =
       compareNodeUnlessBlank s1 s2
@@ -144,27 +139,6 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
         && compareNodeUnlessBlank o1 o2
     normalize :: (Rdf a) => RDF a -> Triples
     normalize = sort . nub . expandTriples
-
--- | Compares the structure of two graphs and returns 'True' if their
---   graph structures are identical. This does not consider the nature
---   of each node in the graph, i.e. the URI text of 'UNode' nodes,
---   the generated index of a blank node, or the values in literal
---   nodes. Unsafe because it assumes IRI resolution will succeed, may
---   throw an 'IRIResolutionException` exception.
-isGraphIsomorphic :: (Rdf a, Rdf b) => RDF a -> RDF b -> Bool
-isGraphIsomorphic g1 g2 = Automorphism.isIsomorphic g1' g2'
-  where
-    g1' = rdfGraphToDataGraph g1
-    g2' = rdfGraphToDataGraph g2
-    rdfGraphToDataGraph :: Rdf c => RDF c -> Graph
-    rdfGraphToDataGraph g = dataGraph
-      where
-        triples = expandTriples g
-        triplesHashMap :: HashMap (Subject, Predicate) [Object]
-        triplesHashMap = HashMap.fromListWith (<>) [((s, p), [o]) | Triple s p o <- triples]
-        triplesGrouped :: [((Subject, Predicate), [Object])]
-        triplesGrouped = HashMap.toList triplesHashMap
-        (dataGraph, _, _) = (graphFromEdges . fmap (\((s, p), os) -> (s, p, os))) triplesGrouped
 
 -- | Expand the triples in a graph with the prefix map and base URL
 -- for that graph. Unsafe because it assumes IRI resolution will
