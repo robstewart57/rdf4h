@@ -1,4 +1,4 @@
-resolver: lts-16.0
+resolver: lts-16.6
 packages:
 - '.'
 extra-deps:
@@ -17,4 +17,4 @@ extra-deps:
 
 # for weeder tool
 #   https://github.com/ndmitchell/weeder
-ghc-options: {"$locals": -ddump-to-file -ddump-hi}
+# ghc-options: {"$locals": -ddump-to-file -ddump-hi}
