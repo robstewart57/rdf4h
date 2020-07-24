@@ -294,6 +294,10 @@ Giuseppe Rizzo
 ...
 {% endhighlight %}
 
+[Here](https://gist.github.com/robstewart57/66eafe6d1eca54e9743e211d1fcd8c6e)
+is an example of computing if the structure of two RDF graphs are
+identical, using the hgal library.
+
 ### Tests
 
 This library has two test suites:
