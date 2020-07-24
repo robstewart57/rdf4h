@@ -75,47 +75,53 @@ main =
         docUri = Just $ T.pack inputUri
         emptyPms = PrefixMappings Map.empty
     case (inputFormat, isUri $ T.pack inputUri) of
-      ("turtle", True) -> parseURL
-        (TurtleParser mInputUri docUri)
-        inputUri
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat docUri emptyPms res
-      ("turtle", False) -> ( if inputUri /= "-"
-                               then parseFile (TurtleParser mInputUri docUri) inputUri
-                               else parseString (TurtleParser mInputUri docUri) <$> TIO.getContents
-                           )
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat docUri emptyPms res
-      ("ntriples", True) -> parseURL NTriplesParser inputUri
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat Nothing emptyPms res
-      ("ntriples", False) -> ( if inputUri /= "-"
-                                 then parseFile NTriplesParser inputUri
-                                 else parseString NTriplesParser <$> TIO.getContents
-                             )
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat Nothing emptyPms res
-      ("xml", True) -> parseURL
-        (XmlParser mInputUri docUri)
-        inputUri
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat docUri emptyPms res
-      ("xml", False) -> ( if inputUri /= "-"
-                            then parseFile (XmlParser mInputUri docUri) inputUri
-                            else parseString (XmlParser mInputUri docUri) <$> TIO.getContents
-                        )
-        >>= \(res :: Either ParseFailure (RDF TList)) ->
-          write outputFormat docUri emptyPms res
+      ("turtle", True) ->
+        parseURL
+          (TurtleParser mInputUri docUri)
+          inputUri
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat docUri emptyPms res
+      ("turtle", False) ->
+        ( if inputUri /= "-"
+            then parseFile (TurtleParser mInputUri docUri) inputUri
+            else parseString (TurtleParser mInputUri docUri) <$> TIO.getContents
+        )
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat docUri emptyPms res
+      ("ntriples", True) ->
+        parseURL NTriplesParser inputUri
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat Nothing emptyPms res
+      ("ntriples", False) ->
+        ( if inputUri /= "-"
+            then parseFile NTriplesParser inputUri
+            else parseString NTriplesParser <$> TIO.getContents
+        )
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat Nothing emptyPms res
+      ("xml", True) ->
+        parseURL
+          (XmlParser mInputUri docUri)
+          inputUri
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat docUri emptyPms res
+      ("xml", False) ->
+        ( if inputUri /= "-"
+            then parseFile (XmlParser mInputUri docUri) inputUri
+            else parseString (XmlParser mInputUri docUri) <$> TIO.getContents
+        )
+          >>= \(res :: Either ParseFailure (RDF TList)) ->
+            write outputFormat docUri emptyPms res
       (str, _) -> putStrLn ("Invalid format: " <> str) >> exitFailure
 
 write :: (Rdf a) => String -> Maybe T.Text -> PrefixMappings -> Either ParseFailure (RDF a) -> IO ()
 write format docUri pms res = case res of
   (Left (ParseFailure msg)) -> putStrLn msg >> exitWith (ExitFailure 1)
-  (Right rdf) -> doWriteRdf rdf
+  (Right rdfG) -> doWriteRdf rdfG
   where
-    doWriteRdf rdf = case format of
-      "turtle" -> writeRdf (TurtleSerializer docUri pms) rdf
-      "ntriples" -> writeRdf NTriplesSerializer rdf
+    doWriteRdf rdfG = case format of
+      "turtle" -> writeRdf (TurtleSerializer docUri pms) rdfG
+      "ntriples" -> writeRdf NTriplesSerializer rdfG
       unknown -> error $ "Unknown output format: " <> unknown
 
 -- Get the input base URI from the argument list or flags, using the
