@@ -50,7 +50,7 @@ assertIsParsed r1 = do
 assertIsNotParsed :: IO (Either ParseFailure (RDF TList)) -> TU.Assertion
 assertIsNotParsed r1 = do
   gr1 <- r1
-  TU.assertBool ("parsed unexpectantly:\n" <> show gr1) (not (isParsed gr1))
+  TU.assertBool ("parsed unexpectedly:\n" <> show gr1) (not (isParsed gr1))
 
 isParsed :: Either a b -> Bool
 isParsed (Left _) = False
