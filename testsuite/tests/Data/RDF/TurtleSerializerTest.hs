@@ -12,5 +12,5 @@ tests :: TestTree
 tests =
   testGroup "findMappings Tests"
   [ testCase "findMapping correctly finds a mapping" $
-    assertEqual "" (findMapping (coerce standard_ns_mappings) "rdf:blah") (Just ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "blah"))
+    assertEqual "" (Just ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "blah")) (findMapping (coerce standard_ns_mappings) "rdf:blah")
   ]
