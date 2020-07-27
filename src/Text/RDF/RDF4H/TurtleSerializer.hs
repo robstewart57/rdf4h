@@ -3,7 +3,9 @@
 -- | An RDF serializer for Turtle
 --  <http://www.w3.org/TeamSubmission/turtle/>.
 module Text.RDF.RDF4H.TurtleSerializer
-  ( TurtleSerializer (TurtleSerializer),
+  ( TurtleSerializer (TurtleSerializer)
+  , findMapping
+  , writeUNodeUri
   )
 where
 
