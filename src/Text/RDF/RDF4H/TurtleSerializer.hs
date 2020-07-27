@@ -152,7 +152,7 @@ findMapping :: Map T.Text T.Text -> T.Text -> Maybe (T.Text, T.Text)
 findMapping pms uri =
   case mapping of
     Nothing -> Nothing
-    Just (u, p) -> Just (p, T.drop (T.length u) uri) -- empty localName is permitted
+    Just (u, p) -> Just (p, T.drop ((T.length u) + 1) uri) -- empty localName is permitted
   where
     mapping = find (\(k, _) -> T.isPrefixOf k uri) (Map.toList pms)
 
