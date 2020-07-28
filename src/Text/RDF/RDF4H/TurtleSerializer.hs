@@ -18,7 +18,7 @@ import Data.Semigroup ((<>))
 #endif
 
 import Control.Monad
-import Data.List (elemIndex, groupBy, splitAt)
+import Data.List (elemIndex, groupBy)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.RDF.Namespace hiding (rdf)
