@@ -144,17 +144,25 @@ writeUNodeUri h uri prefixes =
 _debugPMs :: Map T.Text T.Text -> IO ()
 _debugPMs pms = mapM_ (\(k, v) -> T.putStr k >> putStr "__" >> T.putStrLn v) (Map.toList pms)
 
+-- |Given an aliased URI (e.g., 'rdf:subject') return a tuple whose first
+-- element is the aliased ('rdf') and whose second part is the path or fragment
+-- ('subject').
+splitAliasedURI :: T.Text -> Maybe (T.Text, T.Text)
+splitAliasedURI uri = do
+  let uriStr = T.unpack uri
+  i <- elemIndex ':' uriStr
+  let (prefix, target) = splitAt i uriStr
+  pure (T.pack prefix, T.pack $ tail target)
+
 -- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
 -- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
 -- there is no such mapping. This function does a linear-time search over the
 -- map, but the prefix mappings should always be very small, so it's okay for now.
 findMapping :: Map T.Text T.Text -> T.Text -> Maybe (T.Text, T.Text)
-findMapping pms uri =
-  case mapping of
-    Nothing -> Nothing
-    Just (u, p) -> Just (p, T.drop ((T.length u) + 1) uri) -- empty localName is permitted
-  where
-    mapping = find (\(k, _) -> T.isPrefixOf k uri) (Map.toList pms)
+findMapping pms aliasedURI = do
+  (prefix, target) <- splitAliasedURI aliasedURI
+  uri <- Map.lookup prefix pms
+  pure (uri, target)
 
 writeLValue :: Handle -> LValue -> Map T.Text T.Text -> IO ()
 writeLValue h lv pms =
