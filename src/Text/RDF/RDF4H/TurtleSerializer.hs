@@ -41,7 +41,7 @@ instance RdfSerializer TurtleSerializer where
   writeTs s = hWriteTs s stdout
   hWriteT (TurtleSerializer docUrl pms) h = writeTriple h docUrl pms
   writeT s = hWriteT s stdout
-  hWriteN (TurtleSerializer docUrl (PrefixMappings pms)) h n = writeNode h docUrl n pms
+  hWriteN (TurtleSerializer docUrl pms) h n = writeNode h docUrl n pms
   writeN s = hWriteN s stdout
 
 -- TODO: writeRdf currently merges standard namespace prefix mappings with
@@ -86,10 +86,10 @@ writeTriples :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeTriples h mdUrl (PrefixMappings pms) ts =
   mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
   where
-    revPms = Map.fromList $ (\(k, v) -> (v, k)) <$> Map.toList pms
+    revPms = PrefixMappings . Map.fromList $ (\(k, v) -> (v, k)) <$> Map.toList pms
 
 writeTriple :: Handle -> Maybe T.Text -> PrefixMappings -> Triple -> IO ()
-writeTriple h mdUrl (PrefixMappings pms) t =
+writeTriple h mdUrl pms t =
   w subjectOf >> space >> w predicateOf >> space >> w objectOf
   where
     w :: (Triple -> Node) -> IO ()
@@ -98,7 +98,7 @@ writeTriple h mdUrl (PrefixMappings pms) t =
 
 -- Write a group of triples that all have the same subject, with the subject only
 -- being output once, and comma or semi-colon used as appropriate.
-writeSubjGroup :: Handle -> Maybe T.Text -> Map T.Text T.Text -> Triples -> IO ()
+writeSubjGroup :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeSubjGroup _ _ _ [] = return ()
 writeSubjGroup h dUrl pms ts@(t : _) =
   writeNode h dUrl (subjectOf t) pms >> hPutChar h ' '
@@ -111,7 +111,7 @@ writeSubjGroup h dUrl pms ts@(t : _) =
 -- Write a group of triples that all have the same subject and the same predicate,
 -- assuming the subject has already been output and only the predicate and objects
 -- need to be written.
-writePredGroup :: Handle -> Maybe T.Text -> Map T.Text T.Text -> Triples -> IO ()
+writePredGroup :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writePredGroup _ _ _ [] = return ()
 writePredGroup h docUrl pms (t : ts) =
   -- The doesn't rule out <> in either the predicate or object (as well as subject),
@@ -120,29 +120,29 @@ writePredGroup h docUrl pms (t : ts) =
     >> writeNode h docUrl (objectOf t) pms
     >> mapM_ (\t' -> hPutStr h ", " >> writeNode h docUrl (objectOf t') pms) ts
 
-writeNode :: Handle -> Maybe T.Text -> Node -> Map T.Text T.Text -> IO ()
-writeNode h mdUrl node prefixes =
+writeNode :: Handle -> Maybe T.Text -> Node -> PrefixMappings -> IO ()
+writeNode h mdUrl node pms =
   case node of
     (UNode bs) ->
       let currUri = bs
        in case mdUrl of
-            Nothing -> writeUNodeUri h currUri prefixes
-            Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri prefixes
+            Nothing -> writeUNodeUri h currUri pms
+            Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri pms
     (BNode gId) -> T.hPutStr h gId
     (BNodeGen i) -> putStr "_:genid" >> hPutStr h (show i)
-    (LNode n) -> writeLValue h n prefixes
+    (LNode n) -> writeLValue h n pms
 
-writeUNodeUri :: Handle -> T.Text -> Map T.Text T.Text -> IO ()
-writeUNodeUri h uri prefixes =
+writeUNodeUri :: Handle -> T.Text -> PrefixMappings -> IO ()
+writeUNodeUri h uri pms =
   case mapping of
     Nothing -> hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
     (Just (pre, localName)) -> T.hPutStr h pre >> hPutChar h ':' >> T.hPutStr h localName
   where
-    mapping = findMapping prefixes uri
+    mapping = findMapping pms uri
 
 -- Print prefix mappings to stdout for debugging.
-_debugPMs :: Map T.Text T.Text -> IO ()
-_debugPMs pms = mapM_ (\(k, v) -> T.putStr k >> putStr "__" >> T.putStrLn v) (Map.toList pms)
+_debugPMs :: PrefixMappings -> IO ()
+_debugPMs (PrefixMappings pms) = mapM_ (\(k, v) -> T.putStr k >> putStr "__" >> T.putStrLn v) (Map.toList pms)
 
 -- |Given an aliased URI (e.g., 'rdf:subject') return a tuple whose first
 -- element is the aliased ('rdf') and whose second part is the path or fragment
@@ -158,13 +158,13 @@ splitAliasedURI uri = do
 -- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
 -- there is no such mapping. This function does a linear-time search over the
 -- map, but the prefix mappings should always be very small, so it's okay for now.
-findMapping :: Map T.Text T.Text -> T.Text -> Maybe (T.Text, T.Text)
-findMapping pms aliasedURI = do
+findMapping :: PrefixMappings -> T.Text -> Maybe (T.Text, T.Text)
+findMapping (PrefixMappings pms) aliasedURI = do
   (prefix, target) <- splitAliasedURI aliasedURI
   uri <- Map.lookup prefix pms
   pure (uri, target)
 
-writeLValue :: Handle -> LValue -> Map T.Text T.Text -> IO ()
+writeLValue :: Handle -> LValue -> PrefixMappings -> IO ()
 writeLValue h lv pms =
   case lv of
     (PlainL lit) -> writeLiteralString h lit
