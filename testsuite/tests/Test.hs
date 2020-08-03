@@ -18,7 +18,7 @@ import qualified W3C.RdfXmlTest as W3CRdfXmlTest
 import qualified W3C.TurtleTest as W3CTurtleTest
 import qualified Text.RDF.RDF4H.TurtleParser_ConformanceTest as TurtleUnitTest
 import qualified Text.RDF.RDF4H.XmlParser_Test as XmlUnitTest
-import qualified Data.RDF.TurtleSerializerTest as TurtleSerializerTest
+import qualified Text.RDF.RDF4H.TurtleSerializerTest as TurtleSerializerTest
 
 suiteFilesDirTurtle,suiteFilesDirXml,suiteFilesDirNTriples :: T.Text
 suiteFilesDirTurtle = "rdf-tests/turtle/"

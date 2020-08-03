@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.RDF.TurtleSerializerTest (tests) where
+module Text.RDF.RDF4H.TurtleSerializerTest (tests) where
 
 import Test.Tasty
 import Test.Tasty.HUnit

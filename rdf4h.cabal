@@ -104,7 +104,7 @@ test-suite test-rdf4h
   other-modules: Data.RDF.PropertyTests
                  Data.RDF.GraphImplTests
                  Data.RDF.IRITests
-                 Data.RDF.TurtleSerializerTest
+                 Text.RDF.RDF4H.TurtleSerializerTest
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
