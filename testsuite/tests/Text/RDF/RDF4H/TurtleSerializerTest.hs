@@ -2,6 +2,7 @@
 
 module Text.RDF.RDF4H.TurtleSerializerTest (tests) where
 
+import Data.ByteString as BS
 import Data.Coerce
 import Data.RDF.Namespace
 import System.IO
@@ -9,10 +10,6 @@ import System.IO.Temp (withSystemTempFile)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Text.RDF.RDF4H.TurtleSerializer
-
-force :: [a] -> ()
-force [] = ()
-force (_:xs) = force xs
 
 tests :: TestTree
 tests = testGroup "Turtle serializer tests"
@@ -26,10 +23,8 @@ tests = testGroup "Turtle serializer tests"
     [ testCase "should properly serialize a UNode" $
         withSystemTempFile "rdf4h-"
           (\_ h -> do
-              hSetBuffering h NoBuffering
               writeUNodeUri h "rdf:subject" standard_ns_mappings
               hSeek h AbsoluteSeek 0
-              contents <- hGetContents h
-              seq (force contents) (pure ())
+              contents <- BS.hGetContents h
               "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject" @=? contents)]
   ]

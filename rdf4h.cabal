@@ -125,6 +125,7 @@ test-suite test-rdf4h
                , directory
                , safe
                , temporary
+               , bytestring
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim
