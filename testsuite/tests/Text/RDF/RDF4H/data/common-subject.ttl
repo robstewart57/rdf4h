@@ -1,0 +1,7 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix schema: <http://schema.org/> .
+
+<:another> <rdf:type> <schema:Document> .
+<:something> <dc:title> "Some title";
+	<rdf:type> <schema:Document> .
+
