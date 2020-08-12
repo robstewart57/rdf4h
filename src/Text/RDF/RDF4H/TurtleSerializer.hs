@@ -18,7 +18,7 @@ import Data.Semigroup ((<>))
 #endif
 
 import Control.Monad
-import Data.List (elemIndex, groupBy)
+import Data.List (elemIndex, groupBy, sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.RDF.Namespace hiding (rdf)
@@ -84,7 +84,7 @@ writePrefix h (pre, uri) =
 
 writeTriples :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeTriples h mdUrl (PrefixMappings pms) ts =
-  mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects ts)
+  mapM_ (writeSubjGroup h mdUrl revPms) (groupBy equalSubjects (sort ts))
   where
     revPms = PrefixMappings . Map.fromList $ (\(k, v) -> (v, k)) <$> Map.toList pms
 
