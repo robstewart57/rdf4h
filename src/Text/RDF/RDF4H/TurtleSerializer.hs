@@ -136,7 +136,7 @@ writeUNodeUri :: Handle -> T.Text -> PrefixMappings -> IO ()
 writeUNodeUri h uri pms =
   case mapping of
     Nothing -> hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
-    (Just (pre, localName)) -> T.hPutStr h pre >> hPutChar h ':' >> T.hPutStr h localName
+    (Just (pre, localName)) -> T.hPutStr h pre >> T.hPutStr h localName
   where
     mapping = findMapping pms uri
 
