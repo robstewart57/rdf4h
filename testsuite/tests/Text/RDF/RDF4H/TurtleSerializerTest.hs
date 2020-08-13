@@ -3,7 +3,6 @@
 module Text.RDF.RDF4H.TurtleSerializerTest (tests) where
 
 import Data.ByteString as BS
-import Data.Coerce
 import Data.RDF.Namespace
 import System.IO
 import System.IO.Temp (withSystemTempFile)
@@ -15,7 +14,7 @@ tests :: TestTree
 tests = testGroup "Turtle serializer tests"
   [ testGroup "findMappings Tests"
     [ testCase "findMapping correctly finds rdf mapping" $
-      assertEqual "" (Just ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "subject")) (findMapping (coerce standard_ns_mappings) "rdf:subject")
+      assertEqual "" (Just ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "subject")) (findMapping standard_ns_mappings "rdf:subject")
     , testCase "findMapping correctly finds rdfs mapping" $
       assertEqual "" (Just ("http://www.w3.org/2000/01/rdf-schema#", "domain")) (findMapping standard_ns_mappings "rdfs:domain")]
 
