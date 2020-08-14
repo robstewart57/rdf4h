@@ -104,6 +104,7 @@ test-suite test-rdf4h
   other-modules: Data.RDF.PropertyTests
                  Data.RDF.GraphImplTests
                  Data.RDF.IRITests
+                 Text.RDF.RDF4H.TurtleSerializerTest
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
                  W3C.Manifest
@@ -123,6 +124,8 @@ test-suite test-rdf4h
                , filepath
                , directory
                , safe
+               , temporary
+               , bytestring
 
   if impl(ghc < 7.6)
     build-depends: ghc-prim

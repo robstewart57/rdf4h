@@ -2,7 +2,6 @@ resolver: lts-16.6
 packages:
 - '.'
 extra-deps:
-- hgal-2.0.0.2
 - algebraic-graphs-0.5
 - unordered-containers-0.2.10.0
 - selective-0.3
