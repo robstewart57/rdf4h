@@ -40,7 +40,7 @@ tests = testGroup "Turtle serializer tests"
             & flip addTriple (triple (unode ":something") (unode "dc:title") (lnode (plainL "Some title")))
           mappings = PrefixMappings $ Map.fromList [ ("schema", "http://schema.org/")
                                                    , ("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-                                                   , ("schema", "http://schema.org/")]
+                                                   , ("dc", "http://purl.org/dc/elements/1.1/")]
           serializer = TurtleSerializer Nothing mappings
       in
       withSystemTempFile "rdf4h-"
