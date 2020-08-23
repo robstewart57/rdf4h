@@ -8,6 +8,7 @@ import Data.RDF.Namespace
 import Data.Function ((&))
 import Data.Map as Map
 import Data.RDF as RDF
+import Text.RDF.RDF4H.TurtleSerializer.Internal
 import System.IO
 import System.IO.Temp (withSystemTempFile)
 import Test.Tasty
