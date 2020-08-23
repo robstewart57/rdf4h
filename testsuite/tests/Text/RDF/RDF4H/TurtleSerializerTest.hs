@@ -50,7 +50,6 @@ tests = testGroup "Turtle serializer tests"
           hWriteRdf serializer h g
           hSeek h AbsoluteSeek 0
           actual <- BS.hGetContents h
-          BS.putStrLn actual
           expected @=? actual)
     ]
   ]
