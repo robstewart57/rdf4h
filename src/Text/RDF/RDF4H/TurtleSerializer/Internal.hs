@@ -11,17 +11,22 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import           System.IO
 
--- Expects a map from uri to prefix, and returns the (prefix, uri_expansion)
--- from the mappings such that uri_expansion is a prefix of uri, or Nothing if
--- there is no such mapping. This function does a linear-time search over the
--- map, but the prefix mappings should always be very small, so it's okay for now.
-findMapping :: PrefixMappings -> T.Text -> Maybe (T.Text, T.Text)
+-- |Converts an aliased URI (e.g., 'rdf:subject') to a tuple whose first element
+-- is the full (non-aliased) URI and whose second element is the target/path
+-- portion (the part after the colon in the aliased URI).
+findMapping :: PrefixMappings -- ^The 'PrefixMappings' to be searched for the prefix that may be a part of the URI.
+            -> T.Text         -- ^The URI.
+            -> Maybe (T.Text, T.Text)
 findMapping (PrefixMappings pms) aliasedURI = do
   (prefix, target) <- splitAliasedURI aliasedURI
   uri <- Map.lookup prefix pms
   pure (uri, target)
 
-writeUNodeUri :: Handle -> T.Text -> PrefixMappings -> IO ()
+-- |Writes the given 'UNode' to the given 'Handle'.
+writeUNodeUri :: Handle         -- ^The Handle to write to
+              -> T.Text         -- ^The text from a UNode
+              -> PrefixMappings -- ^The 'PrefixMappings' which should contain a mapping for any prefix found in the URI.
+              -> IO ()
 writeUNodeUri h uri pms =
   case mapping of
     Nothing -> hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
@@ -30,9 +35,10 @@ writeUNodeUri h uri pms =
     mapping = findMapping pms uri
 
 -- |Given an aliased URI (e.g., 'rdf:subject') return a tuple whose first
--- element is the aliased ('rdf') and whose second part is the path or fragment
+-- element is the alias ('rdf') and whose second part is the path or fragment
 -- ('subject').
-splitAliasedURI :: T.Text -> Maybe (T.Text, T.Text)
+splitAliasedURI :: T.Text  -- ^Aliased URI.
+                -> Maybe (T.Text, T.Text)
 splitAliasedURI uri = do
   let uriStr = T.unpack uri
   i <- elemIndex ':' uriStr
