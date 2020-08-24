@@ -30,7 +30,7 @@ writeUNodeUri :: Handle         -- ^The Handle to write to
 writeUNodeUri h uri pms =
   case mapping of
     Nothing -> hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
-    (Just (pre, localName)) -> T.hPutStr h pre >> T.hPutStr h localName
+    _ -> T.hPutStr h uri
   where
     mapping = findMapping pms uri
 
