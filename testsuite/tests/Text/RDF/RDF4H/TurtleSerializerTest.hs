@@ -29,7 +29,14 @@ tests = testGroup "Turtle serializer tests"
           writeUNodeUri h "rdf:subject" standard_ns_mappings
           hSeek h AbsoluteSeek 0
           contents <- BS.hGetContents h
-          "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject" @=? contents)
+          "rdf:subject" @=? contents)
+    , testCase "Serialization of UNode containing namespace prefix should not contain < or >" $
+      withSystemTempFile "rdf4h-"
+      (\_ h -> do
+          writeUNodeUri h "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject" standard_ns_mappings
+          hSeek h AbsoluteSeek 0
+          contents <- BS.hGetContents h
+          "<http://www.w3.org/1999/02/22-rdf-syntax-ns#subject>" @=? contents)
     ]
 
   , testGroup "writeRdf tests"
