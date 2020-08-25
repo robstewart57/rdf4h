@@ -1,11 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Text.RDF.RDF4H.TurtleSerializer.Internal
   ( findMapping
   , writeUNodeUri
   )
 where
 
-import           Data.List (elemIndex, isPrefixOf)
+import           Data.Foldable (fold)
+import           Data.List (elemIndex)
 import qualified Data.Map as Map
+import           Data.Monoid (Any(..), getAny)
 import           Data.RDF.Namespace hiding (rdf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -33,8 +37,12 @@ writeUNodeUri h uri _ =
   else hPutChar h '<' >> T.hPutStr h uri >> hPutChar h '>'
 
 isQName :: T.Text -> Bool
-isQName uri = not ("http://" `isPrefixOf` uriStr || "https://" `isPrefixOf` uriStr)
-  where uriStr = T.unpack uri
+isQName = not . isFullURI
+  where isFullURI :: T.Text -> Bool
+        isFullURI = getAny . foldMap (Any .) [ ("http://" `T.isPrefixOf`)
+                                             , ("https://" `T.isPrefixOf`)
+                                             , ("file://" `T.isPrefixOf`)
+                                             ]
 
 -- |Given an aliased URI (e.g., 'rdf:subject') return a tuple whose first
 -- element is the alias ('rdf') and whose second part is the path or fragment
