@@ -23,13 +23,20 @@ tests = testGroup "Turtle serializer tests"
       assertEqual "" (Just ("http://www.w3.org/2000/01/rdf-schema#", "domain")) (findMapping standard_ns_mappings "rdfs:domain")]
 
   , testGroup "writeUNodeUri tests"
-    [ testCase "Serialization of UNode containing namespace prefix should not contain < or >" $
+    [ testCase "Serialization of QName UNode where prefix exists in PrefixMappings should not contain < or >" $
       withSystemTempFile "rdf4h-"
       (\_ h -> do
           writeUNodeUri h "rdf:subject" standard_ns_mappings
           hSeek h AbsoluteSeek 0
           contents <- BS.hGetContents h
           "rdf:subject" @=? contents)
+    , testCase "Serialization of QName UNode where prefix does not exist in PrefixMappings should not contain < or >" $
+      withSystemTempFile "rdf4h-"
+      (\_ h -> do
+          writeUNodeUri h "foo:subject" standard_ns_mappings
+          hSeek h AbsoluteSeek 0
+          contents <- BS.hGetContents h
+          "foo:subject" @=? contents)
     , testCase "Serialization of non-namespaced UNode should be wrapped in < and >" $
       withSystemTempFile "rdf4h-"
       (\_ h -> do
