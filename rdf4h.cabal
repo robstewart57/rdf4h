@@ -48,6 +48,7 @@ library
                  , Text.RDF.RDF4H.XmlParser
                  , Text.RDF.RDF4H.XmlParser.Identifiers
                  , Text.RDF.RDF4H.ParserUtils
+                 , Text.RDF.RDF4H.TurtleSerializer.Internal
   build-depends:   attoparsec
                  , base >= 4.8.0.0
                  , bytestring

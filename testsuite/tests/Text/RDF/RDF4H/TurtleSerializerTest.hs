@@ -8,6 +8,7 @@ import Data.RDF.Namespace
 import Data.Function ((&))
 import Data.Map as Map
 import Data.RDF as RDF
+import Text.RDF.RDF4H.TurtleSerializer.Internal
 import System.IO
 import System.IO.Temp (withSystemTempFile)
 import Test.Tasty
@@ -49,7 +50,6 @@ tests = testGroup "Turtle serializer tests"
           hWriteRdf serializer h g
           hSeek h AbsoluteSeek 0
           actual <- BS.hGetContents h
-          BS.putStrLn actual
           expected @=? actual)
     ]
   ]
