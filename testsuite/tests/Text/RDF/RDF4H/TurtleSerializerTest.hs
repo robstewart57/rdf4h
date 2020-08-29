@@ -92,17 +92,26 @@ prop_SingleSubject g = withSystemTempFile "rdf4h-"
                                                  ]
         serializer = TurtleSerializer Nothing mappings
 
+        -- Convert a Node to a string if it is a UNode or a BNode. This is
+        -- acceptable since the arbitrary instance for Node's generate only
+        -- those constructors for subjects and that's what this function is
+        -- being used on.
         toUriString :: Node -> Maybe String
         toUriString (UNode uriText) = Just $ T.unpack uriText
         toUriString (BNode bid) = Just $ T.unpack bid
         toUriString _ = Nothing
 
+        -- Convert the subjects for the given graph, g, to Strings.
         subjects :: [String]
         subjects = nub $ sort $ catMaybes $ toUriString <$> subjectOf <$> triplesOf g
 
+        -- Assert that the graph serialization (first parameter) contains
+        -- exactly one instance of the given subject (second parameter).
         assertSingleSubject :: BS.ByteString -> String -> Bool
         assertSingleSubject bs subject = Char8.pack subject `BS.isInfixOf` bs
 
+        -- Assert that each subject in the graph, g, is found in the
+        -- serialization only once.
         assertSingleSubjects :: BS.ByteString -> Bool
         assertSingleSubjects bs = case subjects of
           [] -> True  -- Test should succeed for empty maps
