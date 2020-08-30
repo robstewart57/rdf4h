@@ -2,6 +2,7 @@
 
 module Text.RDF.RDF4H.TurtleSerializerTest (tests) where
 
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as Char8
 import           Data.Function ((&))
@@ -84,6 +85,7 @@ prop_SingleSubject g = withSystemTempFile "rdf4h-"
                        (\_ h -> do
                            hWriteRdf serializer h g
                            hSeek h AbsoluteSeek 0
+                           print subjects
                            contents <- BS.hGetContents h
                            pure $ assertSingleSubjects contents)
   where mappings = PrefixMappings $ Map.fromList [ ("schema", "http://schema.org/")
@@ -105,10 +107,22 @@ prop_SingleSubject g = withSystemTempFile "rdf4h-"
         subjects :: [String]
         subjects = nub $ sort $ catMaybes $ toUriString <$> subjectOf <$> triplesOf g
 
+        -- Count the number of times the first ByteString is found in the second
+        -- ByteString.
+        countMatches :: ByteString  -- ^The prefix
+                     -> ByteString  -- ^The ByteString to search
+                     -> Int
+        countMatches needle haystack = countMatches' 0 needle haystack
+          where countMatches' :: Int -> ByteString -> ByteString -> Int
+                countMatches' n needle' haystack' =
+                  case BS.breakSubstring needle' haystack' of
+                    (_, r) | BS.null r -> n
+                           | otherwise -> countMatches' (n+1) needle' (BS.drop (BS.length needle') r)
+
         -- Assert that the graph serialization (first parameter) contains
         -- exactly one instance of the given subject (second parameter).
         assertSingleSubject :: BS.ByteString -> String -> Bool
-        assertSingleSubject bs subject = Char8.pack subject `BS.isInfixOf` bs
+        assertSingleSubject bs subject = countMatches (Char8.pack subject) bs == 1
 
         -- Assert that each subject in the graph, g, is found in the
         -- serialization only once.
