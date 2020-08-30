@@ -8,6 +8,7 @@ import Data.RDF.Namespace
 import Data.Function ((&))
 import Data.Map as Map
 import Data.RDF as RDF
+import Text.RDF.RDF4H.TurtleSerializer.Internal
 import System.IO
 import System.IO.Temp (withSystemTempFile)
 import Test.Tasty
@@ -22,13 +23,27 @@ tests = testGroup "Turtle serializer tests"
       assertEqual "" (Just ("http://www.w3.org/2000/01/rdf-schema#", "domain")) (findMapping standard_ns_mappings "rdfs:domain")]
 
   , testGroup "writeUNodeUri tests"
-    [ testCase "should properly serialize a UNode" $
+    [ testCase "Serialization of QName UNode where prefix exists in PrefixMappings should not contain < or >" $
       withSystemTempFile "rdf4h-"
       (\_ h -> do
           writeUNodeUri h "rdf:subject" standard_ns_mappings
           hSeek h AbsoluteSeek 0
           contents <- BS.hGetContents h
-          "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject" @=? contents)
+          "rdf:subject" @=? contents)
+    , testCase "Serialization of QName UNode where prefix does not exist in PrefixMappings should not contain < or >" $
+      withSystemTempFile "rdf4h-"
+      (\_ h -> do
+          writeUNodeUri h "foo:subject" standard_ns_mappings
+          hSeek h AbsoluteSeek 0
+          contents <- BS.hGetContents h
+          "foo:subject" @=? contents)
+    , testCase "Serialization of non-namespaced UNode should be wrapped in < and >" $
+      withSystemTempFile "rdf4h-"
+      (\_ h -> do
+          writeUNodeUri h "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject" standard_ns_mappings
+          hSeek h AbsoluteSeek 0
+          contents <- BS.hGetContents h
+          "<http://www.w3.org/1999/02/22-rdf-syntax-ns#subject>" @=? contents)
     ]
 
   , testGroup "writeRdf tests"
@@ -49,7 +64,6 @@ tests = testGroup "Turtle serializer tests"
           hWriteRdf serializer h g
           hSeek h AbsoluteSeek 0
           actual <- BS.hGetContents h
-          BS.putStrLn actual
           expected @=? actual)
     ]
   ]
