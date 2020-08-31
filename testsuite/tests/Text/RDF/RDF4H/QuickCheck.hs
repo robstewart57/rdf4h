@@ -58,11 +58,9 @@ languages = [T.pack "fr", T.pack "en"]
 datatypes :: [T.Text]
 datatypes = fmap (mkUri xsd . T.pack) ["string", "int", "token"]
 
-uris :: [T.Text]
-uris =  [mkUri ex (n <> T.pack (show (i :: Int)))
-        | n <- ["foo", "bar", "quz", "zak"], i <- [0 .. 2]]
-     <> ["ex:" <> n <> T.pack (show (i::Int))
-        | n <- ["s", "p", "o"], i <- [1..3]]
+uris :: T.Text -> [T.Text]
+uris type' =
+  [mkUri ex (type' <> "/" <> n <> T.pack (show (i :: Int))) | n <- ["foo", "bar", "quz", "zak"], i <- [0 .. 2]]
 
 plainliterals :: [LValue]
 plainliterals = [plainLL lit lang | lit <- litvalues, lang <- languages]
@@ -73,8 +71,8 @@ typedliterals = [typedL lit dtype | lit <- litvalues, dtype <- datatypes]
 litvalues :: [T.Text]
 litvalues = fmap T.pack ["hello", "world", "peace", "earth", "", "haskell"]
 
-unodes :: [Node]
-unodes = fmap UNode uris
+unodes :: T.Text -> [Node]
+unodes type' = fmap UNode (uris type')
 
 bnodes :: [ Node]
 bnodes = fmap (BNode . \i -> T.pack ":_genid" <> T.pack (show (i::Int))) [1..5]
@@ -101,7 +99,10 @@ instance Arbitrary Triple where
     triple s p <$> arbitraryO
 
 instance Arbitrary Node where
-  arbitrary = oneof $ fmap return unodes
+  arbitrary = do
+    type' <- elements ["sub", "pred", "obj"]
+    --let typeText = T.pack type'
+    oneof $ fmap return (unodes type')
 
 arbitraryTs :: Gen Triples
 arbitraryTs = do
@@ -109,6 +110,6 @@ arbitraryTs = do
   sequence [arbitrary | _ <- [1 .. n]]
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
-arbitraryS = oneof $ fmap return $ unodes <> bnodes
-arbitraryP = oneof $ fmap return unodes
-arbitraryO = oneof $ fmap return $ unodes <> bnodes <> lnodes
+arbitraryS = oneof $ fmap return $ (unodes "sub") <> bnodes
+arbitraryP = oneof $ fmap return (unodes "pred")
+arbitraryO = oneof $ fmap return $ (unodes "obj") <> bnodes <> lnodes
