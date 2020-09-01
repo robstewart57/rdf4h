@@ -85,7 +85,6 @@ prop_SingleSubject g = withSystemTempFile "rdf4h-"
                        (\_ h -> do
                            hWriteRdf serializer h g
                            hSeek h AbsoluteSeek 0
-                           print subjects
                            contents <- BS.hGetContents h
                            pure $ assertSingleSubjects contents)
   where mappings = PrefixMappings $ Map.fromList [ ("schema", "http://schema.org/")

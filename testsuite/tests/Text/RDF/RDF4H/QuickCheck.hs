@@ -74,8 +74,8 @@ litvalues = fmap T.pack ["hello", "world", "peace", "earth", "", "haskell"]
 unodes :: T.Text -> [Node]
 unodes type' = fmap UNode (uris type')
 
-bnodes :: [ Node]
-bnodes = fmap (BNode . \i -> T.pack ":_genid" <> T.pack (show (i::Int))) [1..5]
+bnodes :: T.Text -> [Node]
+bnodes type' = [BNode (":_" <> type' <>  "-genid" <> T.pack (show (i::Int))) | i <- [1..5]]
 
 lnodes :: [Node]
 lnodes = [LNode lit | lit <- plainliterals <> typedliterals]
@@ -110,6 +110,6 @@ arbitraryTs = do
   sequence [arbitrary | _ <- [1 .. n]]
 
 arbitraryS, arbitraryP, arbitraryO :: Gen Node
-arbitraryS = oneof $ fmap return $ (unodes "sub") <> bnodes
+arbitraryS = oneof $ fmap return $ (unodes "sub") <> (bnodes "sub")
 arbitraryP = oneof $ fmap return (unodes "pred")
-arbitraryO = oneof $ fmap return $ (unodes "obj") <> bnodes <> lnodes
+arbitraryO = oneof $ fmap return $ (unodes "obj") <> (bnodes "obj") <> lnodes
