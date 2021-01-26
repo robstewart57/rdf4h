@@ -13,6 +13,9 @@ module Data.RDF (
   module Data.RDF.Query,
   module Data.RDF.Namespace,
 
+  -- * Constants for common vocabularies
+  module Data.RDF.Vocabulary.SKOS,
+
   -- * RDF type class instances
   module Data.RDF.Graph.TList,
   module Data.RDF.Graph.AdjHashMap,
@@ -44,3 +47,5 @@ import Text.RDF.RDF4H.XmlParser
 import Data.RDF.IRI
 import Data.RDF.Types
 import Data.RDF.Query
+
+import Data.RDF.Vocabulary.SKOS
