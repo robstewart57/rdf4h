@@ -78,7 +78,6 @@ library
                  , xeno
   other-modules:   Text.RDF.RDF4H.XmlParser.Xmlbf
                  , Text.RDF.RDF4H.XmlParser.Xeno
-                 , Data.RDF.Vocabulary.Utils
   if impl(ghc < 7.6)
     build-depends: ghc-prim
   if !impl(ghc >= 8.0)

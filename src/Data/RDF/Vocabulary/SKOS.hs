@@ -3,102 +3,101 @@
 -- | Vocabulary for elements of the [Simple Simple Knowledge Organization System (SKOS)](http://www.w3.org/2004/02/skos/)
 module Data.RDF.Vocabulary.SKOS where
 
-import Data.RDF.Namespace (skos)
-import Data.RDF.Types (Node)
-import Data.RDF.Vocabulary.Utils (mkUnode)
+import Data.RDF.Namespace (mkUri, skos)
+import Data.RDF.Types (Node, unode)
 
 concept :: Node
-concept = mkUnode skos "Concept"
+concept = unode $ mkUri skos "Concept"
 
 conceptScheme :: Node
-conceptScheme = mkUnode skos "ConceptScheme"
+conceptScheme = unode $ mkUri skos "ConceptScheme"
 
 collection :: Node
-collection = mkUnode skos "Collection"
+collection = unode $ mkUri skos "Collection"
 
 orderedCollection :: Node
-orderedCollection = mkUnode skos "OrderedCollection"
+orderedCollection = unode $ mkUri skos "OrderedCollection"
 
 prefLabel :: Node
-prefLabel = mkUnode skos "prefLabel"
+prefLabel = unode $ mkUri skos "prefLabel"
 
 altLabel :: Node
-altLabel = mkUnode skos "altLabel"
+altLabel = unode $ mkUri skos "altLabel"
 
 broader :: Node
-broader = mkUnode skos "broader"
+broader = unode $ mkUri skos "broader"
 
 narrower :: Node
-narrower = mkUnode skos "narrower"
+narrower = unode $ mkUri skos "narrower"
 
 hasTopConcept :: Node
-hasTopConcept = mkUnode skos "hasTopConcept"
+hasTopConcept = unode $ mkUri skos "hasTopConcept"
 
 member :: Node
-member = mkUnode skos "member"
+member = unode $ mkUri skos "member"
 
 hiddenLabel :: Node
-hiddenLabel = mkUnode skos "hiddenLabel"
+hiddenLabel = unode $ mkUri skos "hiddenLabel"
 
 inScheme :: Node
-inScheme = mkUnode skos "inScheme"
+inScheme = unode $ mkUri skos "inScheme"
 
 topConceptOf :: Node
-topConceptOf = mkUnode skos "topConceptOf"
+topConceptOf = unode $ mkUri skos "topConceptOf"
 
 memberList :: Node
-memberList = mkUnode skos "memberList"
+memberList = unode $ mkUri skos "memberList"
 
 notation :: Node
-notation = mkUnode skos "notation"
+notation = unode $ mkUri skos "notation"
 
 changeNote :: Node
-changeNote = mkUnode skos "changeNote"
+changeNote = unode $ mkUri skos "changeNote"
 
 definition :: Node
-definition = mkUnode skos "definition"
+definition = unode $ mkUri skos "definition"
 
 editorialNote :: Node
-editorialNote = mkUnode skos "editorialNote"
+editorialNote = unode $ mkUri skos "editorialNote"
 
 example :: Node
-example = mkUnode skos "example"
+example = unode $ mkUri skos "example"
 
 historyNote :: Node
-historyNote = mkUnode skos "historyNote"
+historyNote = unode $ mkUri skos "historyNote"
 
 note :: Node
-note = mkUnode skos "note"
+note = unode $ mkUri skos "note"
 
 scopeNote :: Node
-scopeNote = mkUnode skos "scopeNote"
+scopeNote = unode $ mkUri skos "scopeNote"
 
 broaderTransitive :: Node
-broaderTransitive = mkUnode skos "broaderTransitive"
+broaderTransitive = unode $ mkUri skos "broaderTransitive"
 
 narrowerTransitive :: Node
-narrowerTransitive = mkUnode skos "narrowerTransitive"
+narrowerTransitive = unode $ mkUri skos "narrowerTransitive"
 
 related :: Node
-related = mkUnode skos "related"
+related = unode $ mkUri skos "related"
 
 semanticRelation :: Node
-semanticRelation = mkUnode skos "semanticRelation"
+semanticRelation = unode $ mkUri skos "semanticRelation"
 
 broadMatch :: Node
-broadMatch = mkUnode skos "broadMatch"
+broadMatch = unode $ mkUri skos "broadMatch"
 
 closeMatch :: Node
-closeMatch = mkUnode skos "closeMatch"
+closeMatch = unode $ mkUri skos "closeMatch"
 
 exactMatch :: Node
-exactMatch = mkUnode skos "exactMatch"
+exactMatch = unode $ mkUri skos "exactMatch"
 
 mappingRelation :: Node
-mappingRelation = mkUnode skos "mappingRelation"
+mappingRelation = unode $ mkUri skos "mappingRelation"
 
 narrowMatch :: Node
-narrowMatch = mkUnode skos "narrowMatch"
+narrowMatch = unode $ mkUri skos "narrowMatch"
 
 relatedMatch :: Node
-relatedMatch = mkUnode skos "relatedMatch"
+relatedMatch = unode $ mkUri skos "relatedMatch"
