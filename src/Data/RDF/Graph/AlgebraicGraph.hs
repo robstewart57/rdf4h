@@ -17,9 +17,10 @@ import Control.DeepSeq (NFData (..))
 import Data.Binary
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as HS
+import Data.Maybe
 import Data.RDF.Namespace
 import Data.RDF.Query
-import Data.RDF.Types (BaseUrl, Node, NodeSelector, Object, Predicate, RDF, Rdf (..), Subject, Triple (..), Triples)
+import Data.RDF.Types
 #if MIN_VERSION_base(4,9,0)
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup
@@ -35,12 +36,12 @@ instance Binary AlgebraicGraph
 
 instance NFData AlgebraicGraph
 
-data instance RDF AlgebraicGraph
-  = AlgebraicGraph
-      { _graph :: G.Graph (HashSet Node) Node,
-        _baseUrl :: Maybe BaseUrl,
-        _prefixMappings :: PrefixMappings
-      }
+data instance RDF AlgebraicGraph = AlgebraicGraph
+  { _graph :: G.Graph (HashSet Node) Node,
+    _baseUrl :: Maybe BaseUrl,
+    _prefixMappings :: PrefixMappings,
+    _nextId :: Int
+  }
   deriving (Generic, NFData)
 
 instance Rdf AlgebraicGraph where
@@ -51,6 +52,7 @@ instance Rdf AlgebraicGraph where
   mkRdf = mkRdf'
   addTriple = addTriple'
   removeTriple = removeTriple'
+  bnodeGen = bnodeGen'
   triplesOf = triplesOf'
   uniqTriplesOf = triplesOf'
   select = select'
@@ -67,38 +69,42 @@ showGraph' :: RDF AlgebraicGraph -> String
 showGraph' r = concatMap (\t -> show t ++ "\n") (expandTriples r)
 
 addPrefixMappings' :: RDF AlgebraicGraph -> PrefixMappings -> Bool -> RDF AlgebraicGraph
-addPrefixMappings' (AlgebraicGraph g baseURL pms) pms' replace =
+addPrefixMappings' (AlgebraicGraph g baseURL pms nextId) pms' replace =
   let merge = if replace then flip (<>) else (<>)
-   in AlgebraicGraph g baseURL (merge pms pms')
+   in AlgebraicGraph g baseURL (merge pms pms') nextId
 
 empty' :: RDF AlgebraicGraph
-empty' = AlgebraicGraph G.empty mempty (PrefixMappings mempty)
+empty' = AlgebraicGraph G.empty mempty (PrefixMappings mempty) 0
 
-mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AlgebraicGraph
-mkRdf' ts baseURL pms =
+mkRdf' :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF AlgebraicGraph
+mkRdf' ts baseURL pms i =
   let g = G.edges . fmap toEdge $ ts
-   in AlgebraicGraph g baseURL pms
+   in AlgebraicGraph g baseURL pms (fromMaybe (bnodeGenCount ts) i)
 
 addTriple' :: RDF AlgebraicGraph -> Triple -> RDF AlgebraicGraph
-addTriple' (AlgebraicGraph g baseURL pms) (Triple s p o) =
+addTriple' (AlgebraicGraph g baseURL pms nextId) (Triple s p o) =
   let g' = G.edge (HS.singleton p) s o
-   in AlgebraicGraph (G.overlay g g') baseURL pms
+   in AlgebraicGraph (G.overlay g g') baseURL pms nextId
 
 removeTriple' :: RDF AlgebraicGraph -> Triple -> RDF AlgebraicGraph
-removeTriple' (AlgebraicGraph g baseURL pms) (Triple s p o) =
+removeTriple' (AlgebraicGraph g baseURL pms nextId) (Triple s p o) =
   let ps = G.edgeLabel s o g
       g'
         | HS.null ps = g
         | elem p ps = G.replaceEdge (HS.delete p ps) s o g
         | otherwise = g
-   in AlgebraicGraph g' baseURL pms
+   in AlgebraicGraph g' baseURL pms nextId
+
+bnodeGen' :: RDF AlgebraicGraph -> (Node, RDF AlgebraicGraph)
+bnodeGen' (AlgebraicGraph g base prefixes next) =
+  (BNodeGen next, AlgebraicGraph g base prefixes (next + 1))
 
 triplesOf' :: RDF AlgebraicGraph -> Triples
-triplesOf' (AlgebraicGraph g _ _) = mconcat $ toTriples <$> G.edgeList g
+triplesOf' (AlgebraicGraph g _ _ _) = mconcat $ toTriples <$> G.edgeList g
 
 select' :: RDF AlgebraicGraph -> NodeSelector -> NodeSelector -> NodeSelector -> Triples
 select' r Nothing Nothing Nothing = triplesOf r
-select' (AlgebraicGraph g _ _) s p o = let (res, _, _) = G.foldg e v c g in res
+select' (AlgebraicGraph g _ _ _) s p o = let (res, _, _) = G.foldg e v c g in res
   where
     e = (mempty, mempty, mempty)
     v x = (mempty, s ?? x, o ?? x)

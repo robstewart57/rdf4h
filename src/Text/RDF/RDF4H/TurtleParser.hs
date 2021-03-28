@@ -21,8 +21,8 @@ import Data.Char (isDigit, isHexDigit, toLower, toUpper)
 import Data.Either
 import qualified Data.Foldable as F
 import Data.Functor (($>))
-import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Maybe
 import Data.RDF.Graph.TList
 import Data.RDF.IRI
@@ -77,21 +77,21 @@ instance RdfParser TurtleParserCustom where
 type ParseState =
   ( Maybe BaseUrl, -- the current BaseUrl, may be Nothing initially, but not after it is once set
     Maybe T.Text, -- the docUrl, which never changes and is used to resolve <> in the document.
-    Integer, -- the id counter, containing the value of the next id to be used
+    Int, -- the id counter, containing the value of the next id to be used
     PrefixMappings, -- the mappings from prefix to URI that are encountered while parsing
     Maybe Subject, -- current subject node, if we have parsed a subject but not finished the triple
     Maybe Predicate, -- current predicate node, if we have parsed a predicate but not finished the triple
     Seq Triple, -- the triples encountered while parsing; always added to on the right side
-    Map String Integer -- map blank node names to generated id.
+    Map String Int -- map blank node names to generated id.
   )
 
 parseTurtleDebug :: String -> IO (RDF TList)
 parseTurtleDebug f = fromRight empty <$> parseFile (TurtleParserCustom (Just . BaseUrl $ "http://base-url.com/") (Just "http://doc-url.com/") Attoparsec) f
 
 -- grammar rule: [1] turtleDoc
-t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, Maybe BaseUrl, PrefixMappings)
+t_turtleDoc :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (Seq Triple, Maybe BaseUrl, PrefixMappings, Int)
 t_turtleDoc =
-  many t_statement *> (eof <?> "eof") *> gets (\(mb_bUrl, _, _, pms, _, _, ts, _) -> (ts, mb_bUrl, pms))
+  many t_statement *> (eof <?> "eof") *> gets (\(mb_bUrl, _, nextId, pms, _, _, ts, _) -> (ts, mb_bUrl, pms, nextId))
 
 -- grammar rule: [2] statement
 -- [2] statement ::= directive | triples '.'
@@ -117,21 +117,22 @@ t_triples :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m (
 t_triples = try subjectWithPOL <|> blankNodePropertyListWithPOL
   where
     subjectWithPOL = t_subject *> many t_ws *> t_predicateObjectList *> resetSubjectPredicate
-    blankNodePropertyListWithPOL = t_blankNodePropertyList >>= \bn ->
-      many t_ws
-        *> setSubjectPredicate (Just bn) Nothing
-        *> optional t_predicateObjectList
-        *> resetSubjectPredicate
+    blankNodePropertyListWithPOL =
+      t_blankNodePropertyList >>= \bn ->
+        many t_ws
+          *> setSubjectPredicate (Just bn) Nothing
+          *> optional t_predicateObjectList
+          *> resetSubjectPredicate
 
 -- [14]	blankNodePropertyList ::= '[' predicateObjectList ']'
 t_blankNodePropertyList :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
-t_blankNodePropertyList = withConstantSubjectPredicate
-  $ between (char '[') (char ']')
-  $ do
-    bn <- nextBlankNode
-    setSubjectPredicate (Just bn) Nothing
-    void (many t_ws *> t_predicateObjectList *> many t_ws)
-    return bn
+t_blankNodePropertyList = withConstantSubjectPredicate $
+  between (char '[') (char ']') $
+    do
+      bn <- nextBlankNode
+      setSubjectPredicate (Just bn) Nothing
+      void (many t_ws *> t_predicateObjectList *> many t_ws)
+      return bn
 
 -- grammar rule: [3] directive
 t_directive :: (CharParsing m, MonadState ParseState m) => m ()
@@ -216,12 +217,13 @@ t_pname_ns = do
 t_pn_local :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m T.Text
 t_pn_local = do
   x <- t_pn_chars_u_str <|> string ":" <|> satisfy_str <|> t_plx
-  xs <- option "" $ try $ do
-    let recsve =
-          (t_pn_chars_str <|> string ":" <|> t_plx)
-            <|> (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve)))
-            <|> (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws $> "."))
-    concat <$> many recsve
+  xs <- option "" $
+    try $ do
+      let recsve =
+            (t_pn_chars_str <|> string ":" <|> t_plx)
+              <|> (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." <* lookAhead (try recsve)))
+              <|> (t_pn_chars_str <|> string ":" <|> t_plx <|> try (string "." *> notFollowedBy t_ws $> "."))
+      concat <$> many recsve
   pure (T.pack (x <> xs))
   where
     satisfy_str = pure <$> satisfy isDigit
@@ -316,13 +318,13 @@ t_object =
 -- grammar rule: [15] collection
 -- [15]	collection ::= '(' object* ')'
 t_collection :: (MonadState ParseState m, CharParsing m, LookAheadParsing m) => m Node
-t_collection = withConstantSubjectPredicate
-  $ between (char '(') (char ')')
-  $ do
-    void (many t_ws)
-    root <- try empty_list <|> non_empty_list
-    void (many t_ws)
-    return root
+t_collection = withConstantSubjectPredicate $
+  between (char '(') (char ')') $
+    do
+      void (many t_ws)
+      root <- try empty_list <|> non_empty_list
+      void (many t_ws)
+      return root
   where
     empty_list = lookAhead (char ')') $> rdfNilNode
     non_empty_list = do
@@ -384,20 +386,22 @@ t_string_literal_single_quote = string_literal_quote '\''
 -- "'''" (("'" | "''")? ([^'\] | ECHAR | UCHAR))* "'''"
 t_string_literal_long_single_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_long_single_quote = between (string "'''") (string "'''") $ do
-  ss <- many $ try $ do
-    s1 <- T.pack <$> option "" (try (string "''") <|> string "'")
-    s2 <- T.singleton <$> (noneOf ['\'', '\\'] <|> t_echar <|> t_uchar)
-    pure (s1 `T.append` s2)
+  ss <- many $
+    try $ do
+      s1 <- T.pack <$> option "" (try (string "''") <|> string "'")
+      s2 <- T.singleton <$> (noneOf ['\'', '\\'] <|> t_echar <|> t_uchar)
+      pure (s1 `T.append` s2)
   pure (T.concat ss)
 
 -- [25] STRING_LITERAL_LONG_QUOTE
 -- '"""' (('"' | '""')? ([^"\] | ECHAR | UCHAR))* '"""'
 t_string_literal_long_double_quote :: (CharParsing m, Monad m) => m T.Text
 t_string_literal_long_double_quote = between (string "\"\"\"") (string "\"\"\"") $ do
-  ss <- many $ try $ do
-    s1 <- T.pack <$> option "" (try (string "\"\"") <|> string "\"")
-    s2 <- T.singleton <$> (noneOf ['"', '\\'] <|> t_echar <|> t_uchar)
-    pure (s1 `T.append` s2)
+  ss <- many $
+    try $ do
+      s1 <- T.pack <$> option "" (try (string "\"\"") <|> string "\"")
+      s2 <- T.singleton <$> (noneOf ['"', '\\'] <|> t_echar <|> t_uchar)
+      pure (s1 `T.append` s2)
   pure (T.concat ss)
 
 -- [144s] LANGTAG
@@ -516,10 +520,10 @@ t_hex = satisfy isHexDigit <?> "hexadecimal digit"
 in_range :: Char -> [(Char, Char)] -> Bool
 in_range c = any (\(c1, c2) -> c >= c1 && c <= c2)
 
-currGenIdLookup :: MonadState ParseState m => m (Map String Integer)
+currGenIdLookup :: MonadState ParseState m => m (Map String Int)
 currGenIdLookup = gets $ \(_, _, _, _, _, _, _, genMap) -> genMap
 
-addGenIdLookup :: MonadState ParseState m => String -> Integer -> m ()
+addGenIdLookup :: MonadState ParseState m => String -> Int -> m ()
 addGenIdLookup genId counter =
   modify $ \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
     (bUrl, dUrl, i, pms, s, p, ts, Map.insert genId counter genMap)
@@ -534,9 +538,10 @@ updateBaseUrl :: MonadState ParseState m => Maybe (Maybe BaseUrl) -> m ()
 updateBaseUrl val = _modifyState val no no no no no
 
 -- combines get_current and increment into a single function
-nextIdCounter :: MonadState ParseState m => m Integer
-nextIdCounter = get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
-  put (bUrl, dUrl, i + 1, pms, s, p, ts, genMap) $> i
+nextIdCounter :: MonadState ParseState m => m Int
+nextIdCounter =
+  get >>= \(bUrl, dUrl, i, pms, s, p, ts, genMap) ->
+    put (bUrl, dUrl, i + 1, pms, s, p, ts, genMap) $> i
 
 nextBlankNode :: MonadState ParseState m => m Node
 nextBlankNode = BNodeGen . fromIntegral <$> nextIdCounter
@@ -582,7 +587,7 @@ resetSubjectPredicate = setSubjectPredicate Nothing Nothing
 _modifyState ::
   MonadState ParseState m =>
   Maybe (Maybe BaseUrl) ->
-  Maybe (Integer -> Integer) ->
+  Maybe (Int -> Int) ->
   Maybe PrefixMappings ->
   Maybe (Maybe Subject) ->
   Maybe (Maybe Predicate) ->
@@ -671,12 +676,12 @@ parseStringAttoparsec bUrl docUrl t = handleResult' $ parse (evalStateT t_turtle
       Fail _ _ err ->
         Left $ ParseFailure $ "Parse failure: \n" <> show err
       Partial f -> handleResult' (f mempty)
-      Done _ (ts, mb_bUrl, pms) ->
+      Done _ (ts, mb_bUrl, pms, nextId) ->
         let chosenBaseUrl =
               if isJust mb_bUrl
                 then mb_bUrl
                 else bUrl
-         in Right $! mkRdf (F.toList ts) chosenBaseUrl pms
+         in Right $! mkRdf (F.toList ts) chosenBaseUrl pms (Just nextId)
 
 parseFileAttoparsec :: (Rdf a) => Maybe BaseUrl -> Maybe T.Text -> String -> IO (Either ParseFailure (RDF a))
 parseFileAttoparsec bUrl docUrl path = parseStringAttoparsec bUrl docUrl <$> readFile path
@@ -699,16 +704,16 @@ parseURLAttoparsec bUrl docUrl = parseFromURL (parseStringAttoparsec bUrl docUrl
 initialState :: Maybe BaseUrl -> Maybe T.Text -> ParseState
 initialState bUrl docUrl = (BaseUrl <$> docUrl <|> bUrl, docUrl, 1, PrefixMappings mempty, Nothing, Nothing, mempty, mempty)
 
-handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, Maybe BaseUrl, PrefixMappings) -> Either ParseFailure (RDF a)
+handleResult :: Rdf a => Maybe BaseUrl -> Either ParseError (Seq Triple, Maybe BaseUrl, PrefixMappings, Int) -> Either ParseFailure (RDF a)
 handleResult bUrl result = case result of
   (Left err) -> Left (ParseFailure $ "Parse failure: \n" <> show err)
-  (Right (ts, mb_bUrl, pms)) ->
+  (Right (ts, mb_bUrl, pms, nextId)) ->
     -- the base URL may have been overwritten by a @base statement.
     let chosenBaseUrl =
           if isJust mb_bUrl
             then mb_bUrl
             else bUrl
-     in Right $! mkRdf (F.toList ts) chosenBaseUrl pms
+     in Right $! mkRdf (F.toList ts) chosenBaseUrl pms (Just nextId)
 
 --------------
 -- auxiliary parsing functions

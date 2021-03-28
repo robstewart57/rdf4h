@@ -45,12 +45,13 @@ module Data.RDF.Types
     filePathToUri,
     iriFragment,
     uchar,
+    bnodeGenCount,
 
     -- * RDF data family
     RDF,
 
     -- * Rdf type class
-    Rdf (baseUrl, prefixMappings, addPrefixMappings, empty, mkRdf, addTriple, removeTriple, triplesOf, uniqTriplesOf, select, query, showGraph),
+    Rdf (baseUrl, prefixMappings, addPrefixMappings, empty, mkRdf, addTriple, removeTriple, bnodeGen, triplesOf, uniqTriplesOf, select, query, showGraph),
 
     -- * Parsing RDF
     RdfParser (parseString, parseFile, parseURL),
@@ -392,14 +393,20 @@ class (Generic rdfImpl, NFData rdfImpl) => Rdf rdfImpl where
   empty :: RDF rdfImpl
 
   -- | Return a RDF containing all the given triples. Handling of duplicates
-  --  in the input depend on the particular RDF implementation.
-  mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF rdfImpl
+  --  in the input depend on the particular RDF implementation. The
+  --  'Maybe Int' value is the number of generated blank node labels
+  --  in the triples, if known. If 'Nothing' then the 'BNodeGen' nodes
+  --  will be counted.
+  mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF rdfImpl
 
   -- | Adds a triple to an RDF graph.
   addTriple :: RDF rdfImpl -> Triple -> RDF rdfImpl
 
   -- | Removes all occurrences of a triple in an RDF graph.
   removeTriple :: RDF rdfImpl -> Triple -> RDF rdfImpl
+
+  -- | Generate a unique blank node with an auto-generated identifier.
+  bnodeGen :: RDF rdfImpl -> (Node, RDF rdfImpl)
 
   -- | Return all triples in the RDF, as a list.
   --
@@ -730,3 +737,14 @@ filePathToUri p
     as_posix = fmap repl
     repl '\\' = '/'
     repl c = c
+
+bnodeGenCount :: [Triple] -> Int
+bnodeGenCount = sum . map bnodeGenCountT
+  where
+    bnodeGenCountT (Triple s p o) =
+      countBGenNodes [s, p, o] 0
+    countBGenNodes [] i = i
+    countBGenNodes (x : xs) i =
+      case x of
+        BNodeGen _ -> countBGenNodes xs (i + 1)
+        _ -> countBGenNodes xs i

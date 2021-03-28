@@ -251,12 +251,12 @@ parseURLParsec :: (Rdf a) => String -> IO (Either ParseFailure (RDF a))
 parseURLParsec = parseFromURL parseStringParsec
 
 handleParsec ::
-  (Triples -> Maybe BaseUrl -> PrefixMappings -> RDF a) ->
+  (Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF a) ->
   Either ParseError [Triple] ->
   Either ParseFailure (RDF a)
 handleParsec _mkRdf result = case result of
   Left err -> Left $ ParseFailure $ "Parse failure: \n" <> show err
-  Right ts -> Right $ _mkRdf ts Nothing (PrefixMappings mempty)
+  Right ts -> Right $ _mkRdf ts Nothing (PrefixMappings mempty) (Just 0)
 
 ---------------------------------
 
@@ -282,6 +282,6 @@ handleAttoparsec bs = handleResult $ parse nt_ntripleDoc (T.encodeUtf8 bs)
       -- <> "\ncontexts: " <> show contexts
       -- <> "\nerror: " <> show err
       Partial f -> handleResult (f (T.encodeUtf8 mempty))
-      Done _ ts -> Right $ mkRdf ts Nothing (PrefixMappings mempty)
+      Done _ ts -> Right $ mkRdf ts Nothing (PrefixMappings mempty) (Just 0)
 
 ---------------------------------

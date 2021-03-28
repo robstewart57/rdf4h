@@ -57,17 +57,17 @@ main = do
             [ ( graphTests
                   "TList"
                   (empty :: RDF TList)
-                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF TList)
+                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF TList)
               ),
               ( graphTests
                   "AdjHashMap"
                   (empty :: RDF AdjHashMap)
-                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AdjHashMap)
+                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF AdjHashMap)
               ),
               ( graphTests
                   "AlgebraicGraph"
                   (empty :: RDF AlgebraicGraph)
-                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> RDF AlgebraicGraph)
+                  (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF AlgebraicGraph)
               )
             ],
           testGroup
@@ -77,8 +77,20 @@ main = do
             "iri"
             [iriTests],
           testGroup
-            "bnode"
-            [blankNodeTests],
+            "blank-nodes"
+            [ blankNodeTests
+                "TList"
+                (empty :: RDF TList)
+                (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF TList),
+              blankNodeTests
+                "AdjHashMap"
+                (empty :: RDF AdjHashMap)
+                (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF AdjHashMap),
+              blankNodeTests
+                "AlgebraicGraph"
+                (empty :: RDF AlgebraicGraph)
+                (mkRdf :: Triples -> Maybe BaseUrl -> PrefixMappings -> Maybe Int -> RDF AlgebraicGraph)
+            ],
           -- RDF parser unit tests
           testGroup
             "parser-unit-tests-turtle"
