@@ -34,6 +34,7 @@ library
   default-language: Haskell2010
   hs-source-dirs:  src
   exposed-modules: Data.RDF
+                 , Data.RDF.BlankNode
                  , Data.RDF.IRI
                  , Data.RDF.Namespace
                  , Data.RDF.Types
@@ -105,6 +106,7 @@ test-suite test-rdf4h
   other-modules: Data.RDF.PropertyTests
                  Data.RDF.GraphImplTests
                  Data.RDF.IRITests
+                 Data.RDF.BlankNodeTests
                  Text.RDF.RDF4H.TurtleSerializerTest
                  Text.RDF.RDF4H.TurtleParser_ConformanceTest
                  Text.RDF.RDF4H.XmlParser_Test
