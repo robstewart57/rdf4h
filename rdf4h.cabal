@@ -9,8 +9,8 @@ description:
   selecting triples that satisfy an arbitrary predicate function. It
   also supports IRI parsing and resolution.
 
-author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith
-copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Renzo Carbonara
+author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith,  Fabian Meyer
+copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Renzo Carbonara, Fabian Meyer
 maintainer:      Rob Stewart <robstewart57@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
@@ -42,6 +42,14 @@ library
                  , Data.RDF.Graph.AdjHashMap
                  , Data.RDF.Graph.AlgebraicGraph
                  , Data.RDF.Graph.TList
+                 , Data.RDF.Vocabulary.Generator.VocabularyGenerator
+                 , Data.RDF.Vocabulary.DCTerms
+                 , Data.RDF.Vocabulary.OWL
+                 , Data.RDF.Vocabulary.RDF
+                 , Data.RDF.Vocabulary.XSD
+                 , Data.RDF.Vocabulary.VANN
+                 , Data.RDF.Vocabulary.SHACL
+                 , Data.RDF.Vocabulary.RDFS
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
                  , Text.RDF.RDF4H.NTriplesParser
@@ -76,7 +84,9 @@ library
                  , selective
                  , html-entities
                  , xeno
+                 , template-haskell
   other-modules:   Text.RDF.RDF4H.XmlParser.Xmlbf
+                 , Text.RDF.RDF4H.XmlParser.Xeno
                  , Text.RDF.RDF4H.XmlParser.Xeno
   if impl(ghc < 7.6)
     build-depends: ghc-prim
