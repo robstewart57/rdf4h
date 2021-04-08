@@ -25,6 +25,15 @@ extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
                   , examples/BuildRDFGraph.hs
+                  , resources/dcterms.ttl
+                  , resources/foaf.ttl
+                  , resources/skos.ttl
+                  , resources/owl.ttl
+                  , resources/rdfs.ttl
+                  , resources/rdf.ttl
+                  , resources/shacl.ttl
+                  , resources/vann.ttl
+                  , resources/xsd.ttl
 
 source-repository head
   type:     git
@@ -50,6 +59,8 @@ library
                  , Data.RDF.Vocabulary.VANN
                  , Data.RDF.Vocabulary.SHACL
                  , Data.RDF.Vocabulary.RDFS
+                 , Data.RDF.Vocabulary.FOAF
+                 , Data.RDF.Vocabulary.SKOS
                  , Text.RDF.RDF4H.TurtleParser
                  , Text.RDF.RDF4H.TurtleSerializer
                  , Text.RDF.RDF4H.NTriplesParser
