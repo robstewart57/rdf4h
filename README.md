@@ -18,8 +18,19 @@ For details see the GitHub project page:
 
 http://robstewart57.github.io/rdf4h/
 
-Supports GHC versions from 8.0.2 (stackage lts-9) to 8.8.3 (stackage
-lts-16.0).
+Supports GHC versions from 8.0.2 (stackage lts-9) to 8.8.3 (stackage lts-16.0).
+
+### Development with Nix and direnv
+
+To enter a development environment, you can use [Nix](https://nixos.org/download.html) and [direnv](https://github.com/direnv/direnv) which install all required software, also allowing you to use your preferred shell. Once installed, just run
+
+```shell
+$ direnv allow
+```
+
+and you'll have a working development environment for now and the future whenever you enter this directory.
+
+This development environment allows to use either Stack or Cabal for building the software.
 
 ### RDF formats
 
