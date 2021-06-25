@@ -10,8 +10,8 @@ description:
   also supports IRI parsing and resolution, and compiled-time
   generation of Haskell modules from Turtle schema files.
 
-author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith,  Fabian Meyer
-copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Renzo Carbonara, Fabian Meyer
+author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Fabian Meyer, koslambrou, Tim McIver 
+copyright:       (c) Rob Stewart, Calvin Smith
 maintainer:      Rob Stewart <robstewart57@gmail.com>
 homepage:        https://github.com/robstewart57/rdf4h
 bug-reports:     https://github.com/robstewart57/rdf4h/issues
