@@ -51,6 +51,7 @@ library
                  , Data.RDF.Graph.AdjHashMap
                  , Data.RDF.Graph.AlgebraicGraph
                  , Data.RDF.Graph.TList
+                 , Data.RDF.State
                  , Data.RDF.Vocabulary.Generator.VocabularyGenerator
                  , Data.RDF.Vocabulary.DCTerms
                  , Data.RDF.Vocabulary.OWL
