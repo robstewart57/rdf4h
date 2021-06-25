@@ -7,7 +7,8 @@ description:
   and Turtle, and an RDF parser for RDF/XML. It provides the ability to query
   for triples containing a particular subject, predicate, or object, or
   selecting triples that satisfy an arbitrary predicate function. It
-  also supports IRI parsing and resolution.
+  also supports IRI parsing and resolution, and compiled-time
+  generation of Haskell modules from Turtle schema files.
 
 author:          Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith,  Fabian Meyer
 copyright:       (c) Rob Stewart, Pierre Le Marre, Slava Kravchenko, Calvin Smith, Renzo Carbonara, Fabian Meyer
