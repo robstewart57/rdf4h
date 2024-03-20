@@ -104,7 +104,9 @@ declarePrefix name prefix iri =
   let prefixLiteral = AppE packFun . LitE . StringL . T.unpack $ prefix
       iriLiteral = AppE packFun . LitE . StringL . T.unpack $ iri
       namespace = AppE (AppE mkPrefixedNSFun prefixLiteral) iriLiteral
-   in funD name [return $ Clause [] (NormalB namespace) []]
+   in funD_doc name [return $ Clause [] (NormalB namespace) []]
+               (Just $ "Namespace prefix for \\<<" <> T.unpack iri <> ">\\>.")
+               [Nothing]
 
 iriToName :: Text -> Maybe Name
 iriToName iri = mkName . T.unpack . escape <$> (lastMay . filter (not . T.null) . T.split (`elem` separators)) iri
