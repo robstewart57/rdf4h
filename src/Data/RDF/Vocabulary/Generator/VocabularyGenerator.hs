@@ -8,7 +8,7 @@ where
 
 import Control.Monad (join)
 import Data.Char (isLower)
-import Data.List (nub)
+import Data.List (nub, sortBy)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
 import Data.RDF
@@ -78,7 +78,7 @@ vocabulary graph =
         (prefix, iri) <- M.toList prefixMappings'
         let name = mkName . T.unpack . escape $ prefix <> "NS"
         return $ declarePrefix name prefix iri
-      iriDecls = snd <$> nameDecls
+      iriDecls = fmap snd . sortBy (\x y -> fst y `compare` fst x) $ nameDecls
       irisDecl = declareIRIs $ fst <$> nameDecls
    in sequence $ irisDecl : namespaceDecls <> iriDecls
 
