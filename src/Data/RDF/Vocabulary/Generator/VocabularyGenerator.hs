@@ -64,7 +64,7 @@ vocabulary graph =
         subject <- nub $ subjectOf <$> triplesOf graph
         iri <- maybeToList $ toIRI subject
         name <- maybeToList $ iriToName iri
-        return (name, declareIRI name iri)
+        return (name, declareIRI name iri Nothing)
       (PrefixMappings prefixMappings') = prefixMappings graph
       namespaceDecls = do
         (prefix, iri) <- M.toList prefixMappings'
@@ -87,11 +87,13 @@ unodeFun = VarE $ mkName "Data.RDF.Types.unode"
 mkPrefixedNSFun :: Exp
 mkPrefixedNSFun = VarE $ mkName "Data.RDF.Namespace.mkPrefixedNS"
 
-declareIRI :: Name -> Text -> Q Dec
-declareIRI name iri =
+declareIRI :: Name -> Text -> Maybe Text -> Q Dec
+declareIRI name iri comment =
   let iriLiteral = LitE . StringL $ T.unpack iri
       unodeLiteral = AppE unodeFun $ AppE packFun iriLiteral
-   in funD name [return $ Clause [] (NormalB unodeLiteral) []]
+   in funD_doc name [return $ Clause [] (NormalB unodeLiteral) []]
+               (T.unpack <$> comment)
+               [Nothing]
 
 declareIRIs :: [Name] -> Q Dec
 declareIRIs names =
