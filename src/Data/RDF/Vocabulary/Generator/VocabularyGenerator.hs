@@ -96,7 +96,9 @@ declareIRI name iri =
 declareIRIs :: [Name] -> Q Dec
 declareIRIs names =
   let iriList = ListE (VarE <$> names)
-   in funD (mkName "iris") [return $ Clause [] (NormalB iriList) []]
+   in funD_doc (mkName "iris") [return $ Clause [] (NormalB iriList) []]
+               (Just $ "All IRIs in this vocabulary.")
+               [Nothing]
 
 -- namespace = mkPrefixedNS "ogit" "http://www.purl.org/ogit/"
 declarePrefix :: Name -> Text -> Text -> Q Dec
