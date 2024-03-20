@@ -18,7 +18,7 @@ For details see the GitHub project page:
 
 http://robstewart57.github.io/rdf4h/
 
-Supports GHC versions from 8.0.2 (stackage lts-9) to 8.8.3 (stackage lts-16.0).
+Supports GHC versions from 9.2.5 (stackage lts-20.11).
 
 ### Development with Nix and direnv
 
