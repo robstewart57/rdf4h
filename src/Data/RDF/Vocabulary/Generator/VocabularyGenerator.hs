@@ -6,19 +6,23 @@ module Data.RDF.Vocabulary.Generator.VocabularyGenerator
   )
 where
 
+import Control.Monad (join)
 import Data.Char (isLower)
 import Data.List (nub)
 import qualified Data.Map as M
 import Data.Maybe (maybeToList)
 import Data.RDF
   ( AdjHashMap,
-    Node (UNode),
+    LValue (..),
+    Node (..),
     PrefixMappings (PrefixMappings),
     RDF,
     Rdf,
     TurtleParser (TurtleParser),
+    objectOf,
     parseFile,
     prefixMappings,
+    query,
     subjectOf,
     triplesOf,
   )
@@ -64,7 +68,11 @@ vocabulary graph =
         subject <- nub $ subjectOf <$> triplesOf graph
         iri <- maybeToList $ toIRI subject
         name <- maybeToList $ iriToName iri
-        return (name, declareIRI name iri Nothing)
+        let comment = combineComments .
+                      sequenceA .
+                      fmap (nodeToComment . objectOf) $
+                      query graph (Just subject) (Just rdfsCommentNode) Nothing
+        return (name, declareIRI name iri comment)
       (PrefixMappings prefixMappings') = prefixMappings graph
       namespaceDecls = do
         (prefix, iri) <- M.toList prefixMappings'
@@ -86,6 +94,23 @@ unodeFun = VarE $ mkName "Data.RDF.Types.unode"
 
 mkPrefixedNSFun :: Exp
 mkPrefixedNSFun = VarE $ mkName "Data.RDF.Namespace.mkPrefixedNS"
+
+nodeToComment :: Node -> Maybe Text
+nodeToComment (UNode uri)           = Just $ "See \\<<" <> uri <> ">\\>."
+nodeToComment (BNode _)             = Nothing
+nodeToComment (BNodeGen _)          = Nothing
+nodeToComment (LNode (PlainL l))    = Just l
+nodeToComment (LNode (PlainLL l _)) = Just l
+nodeToComment (LNode (TypedL l _))  = Just l
+
+combineComments :: Maybe [Text] -> Maybe Text
+combineComments = join . fmap combineComments'
+  where
+    combineComments' [] = Nothing
+    combineComments' comments = Just . T.intercalate "\n" $ comments
+
+rdfsCommentNode :: Node
+rdfsCommentNode = UNode "http://www.w3.org/2000/01/rdf-schema#comment"
 
 declareIRI :: Name -> Text -> Maybe Text -> Q Dec
 declareIRI name iri comment =
