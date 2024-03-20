@@ -50,7 +50,7 @@ genVocabulary ::
   -- | the filepath of the file containing the schema in RDF Turtle format.
   String ->
   Q [Dec]
-genVocabulary file = vocabulary <$> runIO (loadGraph file)
+genVocabulary file = runIO (loadGraph file) >>= vocabulary
 
 loadGraph :: String -> IO (RDF AdjHashMap)
 loadGraph file =
@@ -58,7 +58,7 @@ loadGraph file =
     Left err -> error $ show err
     Right rdfGraph -> return rdfGraph
 
-vocabulary :: Rdf a => RDF a -> [Dec]
+vocabulary :: Rdf a => RDF a -> Q [Dec]
 vocabulary graph =
   let nameDecls = do
         subject <- nub $ subjectOf <$> triplesOf graph
@@ -72,7 +72,7 @@ vocabulary graph =
         return $ declarePrefix name prefix iri
       iriDecls = snd <$> nameDecls
       irisDecl = declareIRIs $ fst <$> nameDecls
-   in irisDecl : namespaceDecls <> iriDecls
+   in sequence $ irisDecl : namespaceDecls <> iriDecls
 
 toIRI :: Node -> Maybe Text
 toIRI (UNode iri) = Just iri
@@ -87,24 +87,24 @@ unodeFun = VarE $ mkName "Data.RDF.Types.unode"
 mkPrefixedNSFun :: Exp
 mkPrefixedNSFun = VarE $ mkName "Data.RDF.Namespace.mkPrefixedNS"
 
-declareIRI :: Name -> Text -> Dec
+declareIRI :: Name -> Text -> Q Dec
 declareIRI name iri =
   let iriLiteral = LitE . StringL $ T.unpack iri
       unodeLiteral = AppE unodeFun $ AppE packFun iriLiteral
-   in FunD name [Clause [] (NormalB unodeLiteral) []]
+   in funD name [return $ Clause [] (NormalB unodeLiteral) []]
 
-declareIRIs :: [Name] -> Dec
+declareIRIs :: [Name] -> Q Dec
 declareIRIs names =
   let iriList = ListE (VarE <$> names)
-   in FunD (mkName "iris") [Clause [] (NormalB iriList) []]
+   in funD (mkName "iris") [return $ Clause [] (NormalB iriList) []]
 
 -- namespace = mkPrefixedNS "ogit" "http://www.purl.org/ogit/"
-declarePrefix :: Name -> Text -> Text -> Dec
+declarePrefix :: Name -> Text -> Text -> Q Dec
 declarePrefix name prefix iri =
   let prefixLiteral = AppE packFun . LitE . StringL . T.unpack $ prefix
       iriLiteral = AppE packFun . LitE . StringL . T.unpack $ iri
       namespace = AppE (AppE mkPrefixedNSFun prefixLiteral) iriLiteral
-   in FunD name [Clause [] (NormalB namespace) []]
+   in funD name [return $ Clause [] (NormalB namespace) []]
 
 iriToName :: Text -> Maybe Name
 iriToName iri = mkName . T.unpack . escape <$> (lastMay . filter (not . T.null) . T.split (`elem` separators)) iri
