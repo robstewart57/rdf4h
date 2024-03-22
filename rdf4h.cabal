@@ -21,7 +21,7 @@ cabal-version:   >= 1.10
 build-type:      Simple
 category:        RDF
 stability:       stable
-tested-with:     GHC==8.0.2, GHC==8.2.2, GHC==8.4.3, GHC==8.6.5, GHC==8.8.3
+tested-with:     GHC==9.2.5
 extra-tmp-files: test
 extra-source-files: examples/ParseURLs.hs
                   , examples/ESWC.hs
@@ -97,7 +97,7 @@ library
                  , selective
                  , html-entities
                  , xeno
-                 , template-haskell
+                 , template-haskell >= 2.18.0
   other-modules:   Text.RDF.RDF4H.XmlParser.Xmlbf
                  , Text.RDF.RDF4H.XmlParser.Xeno
   if impl(ghc < 7.6)
