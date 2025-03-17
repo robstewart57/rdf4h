@@ -1,5 +1,5 @@
 name:            rdf4h
-version:         5.1.0
+version:         5.2.0
 synopsis:        A library for RDF processing in Haskell
 description:
   'RDF for Haskell' is a library for working with RDF in Haskell.
@@ -72,7 +72,7 @@ library
                  , Text.RDF.RDF4H.ParserUtils
                  , Text.RDF.RDF4H.TurtleSerializer.Internal
   build-depends:   attoparsec
-                 , base >= 4.8.0.0
+                 , base >= 4.8.0.0 && < 5
                  , bytestring
                  , filepath
                  , containers
@@ -108,7 +108,7 @@ library
 executable rdf4h
   default-language: Haskell2010
   main-is:         src/Rdf4hParseMain.hs
-  build-depends:   base >= 4.8.0.0 && < 6
+  build-depends:   base >= 4.8.0.0 && < 5
                  , rdf4h
                  , containers
                  , text >= 1.2.1.0
@@ -135,7 +135,7 @@ test-suite test-rdf4h
                  W3C.TurtleTest
                  W3C.RdfXmlTest
                  W3C.W3CAssertions
-  build-depends: base >= 4.8.0.0 && < 6
+  build-depends: base >= 4.8.0.0 && < 5
                , rdf4h
                , tasty
                , tasty-hunit
@@ -162,7 +162,7 @@ benchmark rdf4h-bench
   type:             exitcode-stdio-1.0
   hs-source-dirs:   bench
   main-is:          MainCriterion.hs
-  build-depends:    base >= 4.8.0.0,
+  build-depends:    base >= 4.8.0.0 && < 5,
                     deepseq,
                     criterion,
                     rdf4h,
