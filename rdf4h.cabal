@@ -88,8 +88,8 @@ library
                  , parsers
                  , mtl
                  , network-uri >= 2.6
-                 -- , xmlbf >= 0.6
-                 -- , xmlbf-xeno
+                 , xmlbf >= 0.7
+                 , xmlbf-xeno >= 0.2.2
                  , lifted-base
                  , http-conduit >= 2.2.0
                  , mmorph
@@ -98,8 +98,6 @@ library
                  , html-entities
                  , xeno
                  , template-haskell >= 2.18.0
-  other-modules:   Text.RDF.RDF4H.XmlParser.Xmlbf
-                 , Text.RDF.RDF4H.XmlParser.Xeno
   if impl(ghc < 7.6)
     build-depends: ghc-prim
   if !impl(ghc >= 8.0)
