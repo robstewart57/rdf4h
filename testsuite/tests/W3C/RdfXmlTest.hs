@@ -1,24 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module W3C.RdfXmlTest
-  ( tests
-  , mfBaseURIXml
-  ) where
+  ( tests,
+    mfBaseURIXml,
+  )
+where
 
-import Data.Semigroup ((<>))
 import Data.Maybe (fromJust)
+import Data.RDF.Graph.TList
+import Data.RDF.Query
+import Data.RDF.Types
+import qualified Data.Text as T
 import Test.Tasty
 import qualified Test.Tasty.HUnit as TU
-import qualified Data.Text as T
-
+import Text.RDF.RDF4H.NTriplesParser
+import Text.RDF.RDF4H.XmlParser
 import W3C.Manifest
 import W3C.W3CAssertions
-
-import Data.RDF.Types
-import Data.RDF.Query
-import Text.RDF.RDF4H.XmlParser
-import Text.RDF.RDF4H.NTriplesParser
-import Data.RDF.Graph.TList
 
 tests :: String -> Manifest -> TestTree
 tests = runManifestTests . mfEntryToTest
@@ -32,18 +30,19 @@ mfEntryToTest :: String -> TestEntry -> TestTree
 mfEntryToTest dir (TestXMLEval nm _ _ act res) =
   let pathExpected = getFilePath dir res
       pathAction = getFilePath dir act
-      parsedRDF =  (fromEither <$> parseFile (testParser (nodeURI act)) pathAction) :: IO (RDF TList)
+      parsedRDF = (fromEither <$> parseFile (testParser (nodeURI act)) pathAction) :: IO (RDF TList)
       expectedRDF = (fromEither <$> parseFile NTriplesParser pathExpected) :: IO (RDF TList)
-  in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
+   in TU.testCase (T.unpack nm) $ assertIsIsomorphic parsedRDF expectedRDF
 mfEntryToTest dir (TestXMLNegativeSyntax nm _ _ act) =
   let pathAction = getFilePath dir act
       rdf = parseFile (testParser (nodeURI act)) pathAction :: IO (Either ParseFailure (RDF TList))
-  in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
+   in TU.testCase (T.unpack nm) $ assertIsNotParsed rdf
 mfEntryToTest _ x = error $ "unknown TestEntry pattern in mfEntryToTest: " <> show x
 
 getFilePath :: String -> Node -> String
 getFilePath dir (UNode iri) = fixFilePath' iri
-  where fixFilePath' = (dir <>) . T.unpack . fromJust . T.stripPrefix (unBaseUrl mfBaseURIXml)
+  where
+    fixFilePath' = (dir <>) . T.unpack . fromJust . T.stripPrefix (unBaseUrl mfBaseURIXml)
 getFilePath _ _ = error "Unexpected node"
 
 mfBaseURIXml :: BaseUrl

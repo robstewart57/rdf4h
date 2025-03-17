@@ -83,7 +83,7 @@ import qualified Control.Applicative as A
 import Control.DeepSeq (NFData, rnf)
 import Control.Monad (guard, (<=<))
 import Data.Binary
-import Data.Char (chr, ord)
+import Data.Char (chr, isDigit, ord)
 import Data.Either (isRight)
 import Data.Hashable (Hashable)
 import qualified Data.List as List
@@ -256,7 +256,7 @@ unescapeUnicodeParser n = do
       seq t' <$> go (k - 1) t'
     {-# INLINE getHex #-}
     getHex c
-      | '0' <= c && c <= '9' = pure (ord c - ord '0')
+      | isDigit c = pure (ord c - ord '0')
       | 'A' <= c && c <= 'F' = pure (ord c - ord 'A' + 10)
       | 'a' <= c && c <= 'f' = pure (ord c - ord 'a' + 10)
       | otherwise = A.empty

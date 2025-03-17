@@ -2,9 +2,7 @@
 
 -- | An RDF serializer for Turtle
 --  <http://www.w3.org/TeamSubmission/turtle/>.
-module Text.RDF.RDF4H.TurtleSerializer
-  (TurtleSerializer (TurtleSerializer))
-where
+module Text.RDF.RDF4H.TurtleSerializer (TurtleSerializer (TurtleSerializer)) where
 
 #if MIN_VERSION_base(4,9,0)
 #if !MIN_VERSION_base(4,11,0)
@@ -48,14 +46,14 @@ instance RdfSerializer TurtleSerializer where
 -- configurable somehow, so that if the user really doesn't want any extra
 -- prefix declarations added, that is possible.
 
-_writeRdf :: Rdf a => Handle -> Maybe T.Text -> RDF a -> IO ()
+_writeRdf :: (Rdf a) => Handle -> Maybe T.Text -> RDF a -> IO ()
 _writeRdf h mdUrl rdf =
   writeHeader h bUrl pms' >> writeTriples h mdUrl pms' ts >> hPutChar h '\n'
   where
     bUrl = baseUrl rdf
     -- a merged set of prefix mappings using those from the standard_ns_mappings
     -- that are not defined already (union is left-biased).
-    pms' = PrefixMappings $ (asMap $ prefixMappings rdf)
+    pms' = PrefixMappings (asMap $ prefixMappings rdf)
     asMap (PrefixMappings x) = x
     ts = triplesOf rdf
 
@@ -73,7 +71,9 @@ writePrefixes h pms = mapM_ (writePrefix h) (toPMList pms) >> hPutChar h '\n'
 
 writePrefix :: Handle -> (T.Text, T.Text) -> IO ()
 writePrefix h (pre, uri) =
-  hPutStr h "@prefix " >> T.hPutStr h pre >> hPutStr h ": "
+  hPutStr h "@prefix "
+    >> T.hPutStr h pre
+    >> hPutStr h ": "
     >> hPutChar h '<'
     >> T.hPutStr h uri
     >> hPutStr h "> ."
@@ -98,7 +98,8 @@ writeTriple h mdUrl pms t =
 writeSubjGroup :: Handle -> Maybe T.Text -> PrefixMappings -> Triples -> IO ()
 writeSubjGroup _ _ _ [] = return ()
 writeSubjGroup h dUrl pms ts@(t : _) =
-  writeNode h dUrl (subjectOf t) pms >> hPutChar h ' '
+  writeNode h dUrl (subjectOf t) pms
+    >> hPutChar h ' '
     >> writePredGroup h dUrl pms (head ts')
     >> mapM_ (\t' -> hPutStr h ";\n\t" >> writePredGroup h dUrl pms t') (tail ts')
     >> hPutStrLn h " ."
@@ -113,7 +114,8 @@ writePredGroup _ _ _ [] = return ()
 writePredGroup h docUrl pms (t : ts) =
   -- The doesn't rule out <> in either the predicate or object (as well as subject),
   -- so we pass the docUrl through to writeNode in all cases.
-  writeNode h docUrl (predicateOf t) pms >> hPutChar h ' '
+  writeNode h docUrl (predicateOf t) pms
+    >> hPutChar h ' '
     >> writeNode h docUrl (objectOf t) pms
     >> mapM_ (\t' -> hPutStr h ", " >> writeNode h docUrl (objectOf t') pms) ts
 

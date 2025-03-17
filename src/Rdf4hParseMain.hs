@@ -10,7 +10,7 @@ module Main where
 
 import Control.Monad
 import Data.Char (isLetter)
-import Data.List
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.RDF
 #if MIN_VERSION_base(4,9,0)
@@ -45,7 +45,7 @@ main =
           )
       )
     let debug = Debug `elem` opts
-        inputUri = head args
+        inputUri = List.head args
         inputFormat = getWithDefault (InputFormat "turtle") opts
         outputFormat = getWithDefault (OutputFormat "ntriples") opts
         inputBaseUri = getInputBaseUri inputUri args opts
@@ -133,9 +133,9 @@ write format docUri pms res = case res of
 -- arg is silently discarded.
 getInputBaseUri :: String -> [String] -> [Flag] -> String
 getInputBaseUri inputUri args flags =
-  if null $ tail args
+  if null $ List.tail args
     then getWithDefault (InputBaseUri inputUri) flags
-    else getWithDefault (InputBaseUri (head $ tail args)) flags
+    else getWithDefault (InputBaseUri (List.head $ tail args)) flags
 
 -- Determine if the bytestring represents a URI, which is currently
 -- decided solely by checking for a colon in the string.
@@ -149,7 +149,7 @@ isUri str = not (T.null post) && T.all isLetter pre
 -- return the string value of the first argument.
 getWithDefault :: Flag -> [Flag] -> String
 getWithDefault def args =
-  case find (== def) args of
+  case List.find (== def) args of
     Nothing -> strValue def
     Just val -> strValue val
 

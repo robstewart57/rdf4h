@@ -13,7 +13,6 @@ import Control.Applicative ((<|>))
 import Data.RDF.Graph.TList
 import Data.RDF.Query
 import Data.RDF.Types
-import Data.Semigroup ((<>))
 import Data.String (fromString)
 import Data.Text (Text)
 import Test.Tasty
@@ -91,7 +90,7 @@ doGoodConformanceTest expGr inGr testname =
 
 -- Determines if graphs are equivalent, returning Nothing if so or else a diagnostic message.
 -- First graph is expected graph, second graph is actual.
-equivalent :: Rdf a => Either ParseFailure (RDF a) -> Either ParseFailure (RDF a) -> Maybe String
+equivalent :: (Rdf a) => Either ParseFailure (RDF a) -> Either ParseFailure (RDF a) -> Maybe String
 equivalent (Left e) _ = Just $ "Parse failure of the expected graph: " <> show e
 equivalent _ (Left e) = Just $ "Parse failure of the input graph: " <> show e
 equivalent (Right gr1) (Right gr2) = checkSize <|> (test $! zip gr1ts gr2ts)
@@ -143,7 +142,7 @@ assertLoadSuccess idStr exprGr = do
     Left (ParseFailure err) -> TU.assertFailure $ idStr <> err
     Right _ -> return ()
 
-assertEquivalent :: Rdf a => String -> IO (Either ParseFailure (RDF a)) -> IO (Either ParseFailure (RDF a)) -> TU.Assertion
+assertEquivalent :: (Rdf a) => String -> IO (Either ParseFailure (RDF a)) -> IO (Either ParseFailure (RDF a)) -> TU.Assertion
 assertEquivalent testname r1 r2 = do
   gr1 <- r1
   gr2 <- r2

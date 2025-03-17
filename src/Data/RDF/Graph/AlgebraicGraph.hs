@@ -35,12 +35,11 @@ instance Binary AlgebraicGraph
 
 instance NFData AlgebraicGraph
 
-data instance RDF AlgebraicGraph
-  = AlgebraicGraph
-      { _graph :: G.Graph (HashSet Node) Node,
-        _baseUrl :: Maybe BaseUrl,
-        _prefixMappings :: PrefixMappings
-      }
+data instance RDF AlgebraicGraph = AlgebraicGraph
+  { _graph :: G.Graph (HashSet Node) Node,
+    _baseUrl :: Maybe BaseUrl,
+    _prefixMappings :: PrefixMappings
+  }
   deriving (Generic, NFData)
 
 instance Rdf AlgebraicGraph where
@@ -64,7 +63,7 @@ toTriples :: (HashSet Predicate, Subject, Object) -> Triples
 toTriples (ps, s, o) = [Triple s p o | p <- HS.toList ps]
 
 showGraph' :: RDF AlgebraicGraph -> String
-showGraph' r = concatMap (\t -> show t ++ "\n") (expandTriples r)
+showGraph' r = concatMap (\t -> show t <> "\n") (expandTriples r)
 
 addPrefixMappings' :: RDF AlgebraicGraph -> PrefixMappings -> Bool -> RDF AlgebraicGraph
 addPrefixMappings' (AlgebraicGraph g baseURL pms) pms' replace =

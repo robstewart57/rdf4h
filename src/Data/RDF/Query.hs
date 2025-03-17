@@ -36,7 +36,7 @@ where
 
 import Control.Applicative ((<|>))
 import Control.Exception
-import Data.List
+import qualified Data.List as List
 import Data.Maybe (fromMaybe)
 import Data.RDF.IRI
 import qualified Data.RDF.Namespace as NS
@@ -93,15 +93,15 @@ equalObjects :: Triple -> Triple -> Bool
 equalObjects (Triple _ _ o1) (Triple _ _ o2) = o1 == o2
 
 -- | Determines whether the 'RDF' contains zero triples.
-isEmpty :: Rdf a => RDF a -> Bool
+isEmpty :: (Rdf a) => RDF a -> Bool
 isEmpty = null . triplesOf
 
 -- | Lists of all subjects of triples with the given predicate.
-subjectsWithPredicate :: Rdf a => RDF a -> Predicate -> [Subject]
+subjectsWithPredicate :: (Rdf a) => RDF a -> Predicate -> [Subject]
 subjectsWithPredicate rdf pred = subjectOf <$> query rdf Nothing (Just pred) Nothing
 
 -- | Lists of all objects of triples with the given predicate.
-objectsOfPredicate :: Rdf a => RDF a -> Predicate -> [Object]
+objectsOfPredicate :: (Rdf a) => RDF a -> Predicate -> [Object]
 objectsOfPredicate rdf pred = objectOf <$> query rdf Nothing (Just pred) Nothing
 
 -- | Convert a parse result into an RDF if it was successful
@@ -112,7 +112,7 @@ fromEither (Right rdf) = rdf
 
 -- | Convert a list of triples into a sorted list of unique triples.
 uordered :: Triples -> Triples
-uordered = sort . nub
+uordered = List.sort . List.nub
 
 -- graphFromEdges :: Ord key => [(node, key, [key])] -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
 
@@ -138,7 +138,7 @@ isIsomorphic g1 g2 = and $ zipWith compareTripleUnlessBlank (normalize g1) (norm
         && compareNodeUnlessBlank p1 p2
         && compareNodeUnlessBlank o1 o2
     normalize :: (Rdf a) => RDF a -> Triples
-    normalize = sort . nub . expandTriples
+    normalize = List.sort . List.nub . expandTriples
 
 -- | Expand the triples in a graph with the prefix map and base URL
 -- for that graph. Unsafe because it assumes IRI resolution will
@@ -162,7 +162,7 @@ expandNode _ n = n
 --  Also expands "a" to "http://www.w3.org/1999/02/22-rdf-syntax-ns#type".
 expandURI :: PrefixMappings -> Text -> Text
 expandURI _ "a" = NS.mkUri NS.rdf "type"
-expandURI pms iri = fromMaybe iri $ foldl' f Nothing (NS.toPMList pms)
+expandURI pms iri = fromMaybe iri $ List.foldl' f Nothing (NS.toPMList pms)
   where
     f :: Maybe Text -> (Text, Text) -> Maybe Text
     f x (p, u) = x <|> (T.append u <$> T.stripPrefix (T.append p ":") iri)
@@ -181,7 +181,7 @@ absolutizeNode (Just (BaseUrl b)) (UNode u) =
     Right t -> Right (unode t)
 absolutizeNode _ n = Right n
 
-data QueryException
+newtype QueryException
   = IRIResolutionException String
   deriving (Show)
 

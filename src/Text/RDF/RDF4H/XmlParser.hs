@@ -53,7 +53,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import qualified Data.Text.Lazy as TL
 import Xmlbf hiding (Node)
 import qualified Xmlbf.Xeno as Xeno
 
@@ -155,7 +154,7 @@ pRdf = pAnyElement $ do
   attrs <- pRDFAttrs
   uri <- pName >>= pQName
   guard (uri == rdfTag)
-  unless (null attrs) $ (throwError "rdf:RDF: The set of attributes should be empty.")
+  unless (null attrs) (throwError "rdf:RDF: The set of attributes should be empty.")
   pNodeElementList
 
 -- | RdfXmlParser for XML QName: resolve the namespace with the mapping in context.
@@ -202,7 +201,7 @@ pRDFAttrs = do
           f (Nothing, "xmlns") iri' = Map.insert mempty iri' ns
           f (Just "xmlns", prefix) iri' = Map.insert prefix iri' ns
           f _ _ = ns
-       in either (const ns) id ns'
+       in fromRight ns ns'
     -- \|Check if an XML attribute is an RDF attribute
     --  and if so resolve its URI and keep it.
     mkRdfAttribute ::
@@ -228,7 +227,7 @@ pRDFAttrs = do
           f qn'@(Just prefix, _)
             | T.isPrefixOf "xml" prefix = Right as
             | otherwise = (\a -> HM.insert a v as) <$> resolveQName' pm qn'
-       in either (const as) id as'
+       in fromRight as as'
 
 -- | Return the value of the requested RDF attribute using its URI.
 --
@@ -248,7 +247,7 @@ pNodeElementList = pWs *> (mconcat <$> some (keepState pNodeElement <* pWs))
 -- | White spaces parser
 --   See: https://www.w3.org/TR/rdf-syntax-grammar/#ws
 pWs :: RdfXmlParser ()
-pWs = maybe True (T.all ws) <$> optional pText >>= guard
+pWs = optional pText >>= guard . maybe True (T.all ws)
   where
     -- See: https://www.w3.org/TR/2000/REC-xml-20001006#NT-S
     ws c = c == '\x20' || c == '\x09' || c == '\x0d' || c == '\x0a'
@@ -621,7 +620,7 @@ setNodeAttrs :: HashMap Text Text -> RdfXmlParser ()
 setNodeAttrs as = modify (\st -> st {stateNodeAttrs = as})
 
 removeNodeAttr :: Text -> RdfXmlParser ()
-removeNodeAttr a = HM.delete a <$> currentNodeAttrs >>= setNodeAttrs
+removeNodeAttr a = currentNodeAttrs >>= setNodeAttrs . HM.delete a
 
 currentPrefixMappings :: RdfXmlParser PrefixMappings
 currentPrefixMappings = statePrefixMapping <$> get

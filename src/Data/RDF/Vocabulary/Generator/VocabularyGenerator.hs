@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -6,7 +7,7 @@ module Data.RDF.Vocabulary.Generator.VocabularyGenerator
   )
 where
 
-import Control.Monad (join)
+-- import Control.Monad (join)
 import Data.Char (isLower)
 import Data.List (nub, sortBy)
 import qualified Data.Map as M
@@ -58,20 +59,20 @@ genVocabulary file = runIO (loadGraph file) >>= vocabulary
 
 loadGraph :: String -> IO (RDF AdjHashMap)
 loadGraph file =
-  parseFile (TurtleParser Nothing Nothing) file >>= \result -> case result of
+  parseFile (TurtleParser Nothing Nothing) file >>= \case
     Left err -> error $ show err
     Right rdfGraph -> return rdfGraph
 
-vocabulary :: Rdf a => RDF a -> Q [Dec]
+vocabulary :: (Rdf a) => RDF a -> Q [Dec]
 vocabulary graph =
   let nameDecls = do
         subject <- nub $ subjectOf <$> triplesOf graph
         iri <- maybeToList $ toIRI subject
         name <- maybeToList $ iriToName iri
-        let comment = combineComments .
-                      sequenceA .
-                      fmap (nodeToComment . objectOf) $
-                      query graph (Just subject) (Just rdfsCommentNode) Nothing
+        let comment =
+              combineComments
+                . traverse (nodeToComment . objectOf)
+                $ query graph (Just subject) (Just rdfsCommentNode) Nothing
         return (name, declareIRI name iri comment)
       (PrefixMappings prefixMappings') = prefixMappings graph
       namespaceDecls = do
@@ -96,15 +97,15 @@ mkPrefixedNSFun :: Exp
 mkPrefixedNSFun = VarE $ mkName "Data.RDF.Namespace.mkPrefixedNS"
 
 nodeToComment :: Node -> Maybe Text
-nodeToComment (UNode uri)           = Just $ "See \\<<" <> uri <> ">\\>."
-nodeToComment (BNode _)             = Nothing
-nodeToComment (BNodeGen _)          = Nothing
-nodeToComment (LNode (PlainL l))    = Just l
+nodeToComment (UNode uri) = Just $ "See \\<<" <> uri <> ">\\>."
+nodeToComment (BNode _) = Nothing
+nodeToComment (BNodeGen _) = Nothing
+nodeToComment (LNode (PlainL l)) = Just l
 nodeToComment (LNode (PlainLL l _)) = Just l
-nodeToComment (LNode (TypedL l _))  = Just l
+nodeToComment (LNode (TypedL l _)) = Just l
 
 combineComments :: Maybe [Text] -> Maybe Text
-combineComments = join . fmap combineComments'
+combineComments = (combineComments' =<<)
   where
     combineComments' [] = Nothing
     combineComments' comments = Just . T.intercalate "\n" $ comments
@@ -116,16 +117,20 @@ declareIRI :: Name -> Text -> Maybe Text -> Q Dec
 declareIRI name iri comment =
   let iriLiteral = LitE . StringL $ T.unpack iri
       unodeLiteral = AppE unodeFun $ AppE packFun iriLiteral
-   in funD_doc name [return $ Clause [] (NormalB unodeLiteral) []]
-               (T.unpack <$> comment)
-               [Nothing]
+   in funD_doc
+        name
+        [return $ Clause [] (NormalB unodeLiteral) []]
+        (T.unpack <$> comment)
+        [Nothing]
 
 declareIRIs :: [Name] -> Q Dec
 declareIRIs names =
   let iriList = ListE (VarE <$> names)
-   in funD_doc (mkName "iris") [return $ Clause [] (NormalB iriList) []]
-               (Just $ "All IRIs in this vocabulary.")
-               [Nothing]
+   in funD_doc
+        (mkName "iris")
+        [return $ Clause [] (NormalB iriList) []]
+        (Just "All IRIs in this vocabulary.")
+        [Nothing]
 
 -- namespace = mkPrefixedNS "ogit" "http://www.purl.org/ogit/"
 declarePrefix :: Name -> Text -> Text -> Q Dec
@@ -133,9 +138,11 @@ declarePrefix name prefix iri =
   let prefixLiteral = AppE packFun . LitE . StringL . T.unpack $ prefix
       iriLiteral = AppE packFun . LitE . StringL . T.unpack $ iri
       namespace = AppE (AppE mkPrefixedNSFun prefixLiteral) iriLiteral
-   in funD_doc name [return $ Clause [] (NormalB namespace) []]
-               (Just $ "Namespace prefix for \\<<" <> T.unpack iri <> ">\\>.")
-               [Nothing]
+   in funD_doc
+        name
+        [return $ Clause [] (NormalB namespace) []]
+        (Just $ "Namespace prefix for \\<<" <> T.unpack iri <> ">\\>.")
+        [Nothing]
 
 iriToName :: Text -> Maybe Name
 iriToName iri = mkName . T.unpack . escape <$> (lastMay . filter (not . T.null) . T.split (`elem` separators)) iri
