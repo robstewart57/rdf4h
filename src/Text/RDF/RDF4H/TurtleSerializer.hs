@@ -128,7 +128,7 @@ writeNode h mdUrl node pms =
             Nothing -> writeUNodeUri h currUri pms
             Just url -> if url == currUri then hPutStr h "<>" else writeUNodeUri h currUri pms
     (BNode gId) -> T.hPutStr h gId
-    (BNodeGen i) -> putStr "_:genid" >> hPutStr h (show i)
+    (BNodeGen i) -> hPutStr h "_:genid" >> hPutStr h (show i)
     (LNode n) -> writeLValue h n pms
 
 -- Print prefix mappings to stdout for debugging.
