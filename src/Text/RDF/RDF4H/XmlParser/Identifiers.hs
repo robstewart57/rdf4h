@@ -16,7 +16,7 @@ where
 import           Data.Functor ((<$))
 #else
 #endif
-import Control.Applicative (Alternative (..))
+import Control.Applicative (Alternative (..), liftA2)
 import Data.Attoparsec.Text (Parser, (<?>))
 import qualified Data.Attoparsec.Text as P
 import qualified Data.Map as Map
